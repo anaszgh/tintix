@@ -22,6 +22,7 @@ export interface IStorage {
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserRole(userId: string, role: string): Promise<User>;
   getAllUsers(): Promise<User[]>;
+  deleteUser(id: string): Promise<void>;
   
   // Job entry operations
   createJobEntry(jobEntry: InsertJobEntry, installerIds: string[]): Promise<JobEntry>;

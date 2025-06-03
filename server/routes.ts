@@ -116,14 +116,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         date: new Date(req.body.date),
       });
 
-      // Handle installer IDs - if user is installer, include them, otherwise use provided installers
-      let installerIds: string[] = [];
-      if (user.role === "installer") {
-        installerIds = [userId];
-      } else if (req.body.installerIds && Array.isArray(req.body.installerIds)) {
-        installerIds = req.body.installerIds;
-      } else {
-        return res.status(400).json({ message: "Installer IDs are required" });
+      // Handle installer IDs - require manual selection for all jobs
+      const installerIds: string[] = req.body.installerIds;
+      if (!installerIds || !Array.isArray(installerIds) || installerIds.length === 0) {
+        return res.status(400).json({ message: "At least one installer must be selected" });
       }
 
       const jobEntry = await storage.createJobEntry(validatedData, installerIds);
@@ -295,7 +291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Installers route
+  // Installers routes
   app.get("/api/installers", isAuthenticated, async (req: any, res) => {
     try {
       const installers = await storage.getInstallers();
@@ -303,6 +299,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching installers:", error);
       res.status(500).json({ message: "Failed to fetch installers" });
+    }
+  });
+
+  app.post("/api/installers", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== "manager") {
+        return res.status(403).json({ message: "Only managers can add installers" });
+      }
+
+      const { email, firstName, lastName } = req.body;
+      
+      if (!email || !firstName || !lastName) {
+        return res.status(400).json({ message: "Email, first name, and last name are required" });
+      }
+
+      // Create installer with default role
+      const installer = await storage.upsertUser({
+        id: email, // Use email as ID for new users
+        email,
+        firstName,
+        lastName,
+        role: "installer",
+      });
+
+      res.status(201).json(installer);
+    } catch (error) {
+      console.error("Error creating installer:", error);
+      res.status(500).json({ message: "Failed to create installer" });
+    }
+  });
+
+  app.patch("/api/installers/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== "manager") {
+        return res.status(403).json({ message: "Only managers can update installers" });
+      }
+
+      const { id } = req.params;
+      const { email, firstName, lastName } = req.body;
+
+      const existingInstaller = await storage.getUser(id);
+      if (!existingInstaller) {
+        return res.status(404).json({ message: "Installer not found" });
+      }
+
+      const updatedInstaller = await storage.upsertUser({
+        id,
+        email: email || existingInstaller.email,
+        firstName: firstName || existingInstaller.firstName,
+        lastName: lastName || existingInstaller.lastName,
+        role: existingInstaller.role,
+      });
+
+      res.json(updatedInstaller);
+    } catch (error) {
+      console.error("Error updating installer:", error);
+      res.status(500).json({ message: "Failed to update installer" });
+    }
+  });
+
+  app.delete("/api/installers/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== "manager") {
+        return res.status(403).json({ message: "Only managers can remove installers" });
+      }
+
+      const { id } = req.params;
+      
+      // Note: In a real application, you might want to soft-delete or transfer jobs
+      // For now, we'll assume the installer can be safely removed
+      await storage.deleteUser(id);
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting installer:", error);
+      res.status(500).json({ message: "Failed to delete installer" });
     }
   });
 

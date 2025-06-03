@@ -9,6 +9,7 @@ import Dashboard from "@/pages/dashboard";
 import Entries from "@/pages/entries";
 import Reports from "@/pages/reports";
 import UsersPage from "@/pages/users";
+import InstallerManagement from "@/pages/installer-management";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -23,6 +24,7 @@ function Router() {
           <Route path="/" component={Dashboard} />
           <Route path="/entries" component={Entries} />
           <Route path="/reports" component={Reports} />
+          <Route path="/installers" component={InstallerManagement} />
           <Route path="/users" component={UsersPage} />
         </>
       )}

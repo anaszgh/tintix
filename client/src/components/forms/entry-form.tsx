@@ -47,7 +47,7 @@ export function EntryForm({ onSuccess }: EntryFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       date: new Date().toISOString().split('T')[0],
-      installerIds: user?.role === "installer" ? [user.id] : [],
+      installerIds: [],
       vehicleYear: "",
       vehicleMake: "",
       vehicleModel: "",
@@ -142,40 +142,32 @@ export function EntryForm({ onSuccess }: EntryFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel className="text-muted-foreground">
-                  Job Installers * {user?.role === "installer" ? "(Auto-assigned)" : ""}
+                  Job Installers * (Select one or more installers for this job)
                 </FormLabel>
-                {user?.role === "manager" ? (
-                  <div className="space-y-2 bg-background border border-border rounded-md p-3">
-                    {installers.map((installer) => (
-                      <div key={installer.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={installer.id}
-                          checked={field.value?.includes(installer.id)}
-                          onCheckedChange={(checked) => {
-                            const currentValue = field.value || [];
-                            if (checked) {
-                              field.onChange([...currentValue, installer.id]);
-                            } else {
-                              field.onChange(currentValue.filter(id => id !== installer.id));
-                            }
-                          }}
-                        />
-                        <label
-                          htmlFor={installer.id}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                        >
-                          {installer.firstName} {installer.lastName}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="bg-muted border border-border rounded-md p-3">
-                    <p className="text-sm text-muted-foreground">
-                      You are assigned as the installer for this job.
-                    </p>
-                  </div>
-                )}
+                <div className="space-y-2 bg-background border border-border rounded-md p-3">
+                  {installers.map((installer) => (
+                    <div key={installer.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={installer.id}
+                        checked={field.value?.includes(installer.id)}
+                        onCheckedChange={(checked) => {
+                          const currentValue = field.value || [];
+                          if (checked) {
+                            field.onChange([...currentValue, installer.id]);
+                          } else {
+                            field.onChange(currentValue.filter(id => id !== installer.id));
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor={installer.id}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        {installer.firstName} {installer.lastName}
+                      </label>
+                    </div>
+                  ))}
+                </div>
                 <FormMessage />
               </FormItem>
             )}
