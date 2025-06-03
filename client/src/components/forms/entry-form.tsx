@@ -136,13 +136,15 @@ export function EntryForm({ onSuccess }: EntryFormProps) {
             )}
           />
 
-          {user?.role === "manager" && (
-            <FormField
-              control={form.control}
-              name="installerIds"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-muted-foreground">Installers *</FormLabel>
+          <FormField
+            control={form.control}
+            name="installerIds"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-muted-foreground">
+                  Job Installers * {user?.role === "installer" ? "(Auto-assigned)" : ""}
+                </FormLabel>
+                {user?.role === "manager" ? (
                   <div className="space-y-2 bg-background border border-border rounded-md p-3">
                     {installers.map((installer) => (
                       <div key={installer.id} className="flex items-center space-x-2">
@@ -167,11 +169,17 @@ export function EntryForm({ onSuccess }: EntryFormProps) {
                       </div>
                     ))}
                   </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
+                ) : (
+                  <div className="bg-muted border border-border rounded-md p-3">
+                    <p className="text-sm text-muted-foreground">
+                      You are assigned as the installer for this job.
+                    </p>
+                  </div>
+                )}
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

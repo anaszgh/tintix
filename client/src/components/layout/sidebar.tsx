@@ -32,14 +32,14 @@ export function Sidebar() {
         <nav className="space-y-2">
           {navigation.map((item) => (
             <Link key={item.name} href={item.href}>
-              <a className={`flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition-colors ${
+              <div className={`flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition-colors cursor-pointer ${
                 item.current
                   ? "bg-primary/20 text-primary border border-primary/30"
                   : "text-muted-foreground hover:bg-muted hover:text-card-foreground"
               }`}>
                 <item.icon className="h-5 w-5" />
                 <span>{item.name}</span>
-              </a>
+              </div>
             </Link>
           ))}
         </nav>
