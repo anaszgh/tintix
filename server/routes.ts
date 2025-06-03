@@ -111,6 +111,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not found" });
       }
 
+      console.log('Raw request body:', JSON.stringify(req.body, null, 2));
+
       const validatedData = insertJobEntrySchema.parse({
         ...req.body,
         date: new Date(req.body.date),
