@@ -295,7 +295,7 @@ export class DatabaseStorage implements IStorage {
     const [vehicleMetrics] = await db
       .select({
         totalVehicles: count(jobEntries.id),
-        avgTimeVariance: sql<number>`COALESCE(AVG(${jobInstallers.timeVariance}), 0)`,
+        avgTimeVariance: sql<number>`COALESCE(AVG(${jobInstallers.timeVariance}::numeric), 0)`,
       })
       .from(jobEntries)
       .leftJoin(jobInstallers, eq(jobEntries.id, jobInstallers.jobEntryId))

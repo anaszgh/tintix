@@ -128,6 +128,6 @@ export type InsertRedoEntry = z.infer<typeof insertRedoEntrySchema>;
 
 // Combined types for API responses
 export type JobEntryWithDetails = JobEntry & {
-  installers: User[];
+  installers: (User & { timeVariance: number })[];
   redoEntries: (RedoEntry & { installer: User })[];
 };

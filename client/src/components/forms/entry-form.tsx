@@ -180,20 +180,53 @@ export function EntryForm({ onSuccess }: EntryFormProps) {
                       
                       {field.value?.includes(installer.id) && (
                         <div className="flex items-center space-x-2">
-                          <label className="text-xs text-muted-foreground">Time Variance:</label>
-                          <Input
-                            type="number"
-                            placeholder="±minutes"
-                            className="w-20 h-8 text-xs"
-                            value={form.watch("installerTimeVariances")?.[installer.id] || 0}
-                            onChange={(e) => {
-                              const currentVariances = form.getValues("installerTimeVariances") || {};
-                              form.setValue("installerTimeVariances", {
-                                ...currentVariances,
-                                [installer.id]: parseInt(e.target.value) || 0
-                              });
-                            }}
-                          />
+                          <label className="text-xs text-muted-foreground">Time Variance (min):</label>
+                          <div className="flex items-center space-x-1 border rounded">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-red-500 hover:bg-red-50"
+                              onClick={() => {
+                                const currentVariances = form.getValues("installerTimeVariances") || {};
+                                const currentValue = currentVariances[installer.id] || 0;
+                                form.setValue("installerTimeVariances", {
+                                  ...currentVariances,
+                                  [installer.id]: currentValue - 1
+                                });
+                              }}
+                            >
+                              -
+                            </Button>
+                            <Input
+                              type="number"
+                              className="w-16 h-8 text-xs text-center border-0 focus:ring-0"
+                              value={form.watch("installerTimeVariances")?.[installer.id] || 0}
+                              onChange={(e) => {
+                                const currentVariances = form.getValues("installerTimeVariances") || {};
+                                form.setValue("installerTimeVariances", {
+                                  ...currentVariances,
+                                  [installer.id]: parseInt(e.target.value) || 0
+                                });
+                              }}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-green-500 hover:bg-green-50"
+                              onClick={() => {
+                                const currentVariances = form.getValues("installerTimeVariances") || {};
+                                const currentValue = currentVariances[installer.id] || 0;
+                                form.setValue("installerTimeVariances", {
+                                  ...currentVariances,
+                                  [installer.id]: currentValue + 1
+                                });
+                              }}
+                            >
+                              +
+                            </Button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -261,28 +294,7 @@ export function EntryForm({ onSuccess }: EntryFormProps) {
           />
         </div>
 
-        <FormField
-          control={form.control}
-          name="timeVariance"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-muted-foreground">Time Variance (minutes) *</FormLabel>
-              <FormControl>
-                <Input 
-                  type="number" 
-                  placeholder="Enter positive or negative minutes" 
-                  {...field}
-                  onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                  className="bg-background border-border"
-                />
-              </FormControl>
-              <FormMessage />
-              <p className="text-xs text-muted-foreground">
-                Positive for over time, negative for under time
-              </p>
-            </FormItem>
-          )}
-        />
+
 
         <Card className="bg-muted/30 border-border">
           <CardHeader>

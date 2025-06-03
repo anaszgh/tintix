@@ -62,9 +62,20 @@ export function RecentEntries() {
                       {entry.vehicleYear} {entry.vehicleMake} {entry.vehicleModel}
                     </td>
                     <td className="py-4 text-sm">
-                      <span className={entry.timeVariance > 0 ? "text-error" : "text-success"}>
-                        {entry.timeVariance > 0 ? "+" : ""}{entry.timeVariance} min
-                      </span>
+                      {entry.installers.map((installer, idx) => {
+                        const jobInstaller = entry.installers.find(ji => ji.id === installer.id);
+                        const timeVariance = jobInstaller?.timeVariance || 0;
+                        return (
+                          <div key={installer.id} className={idx > 0 ? "mt-1" : ""}>
+                            <span className="text-xs text-muted-foreground">
+                              {installer.firstName}: 
+                            </span>
+                            <span className={timeVariance > 0 ? "text-red-500 ml-1" : timeVariance < 0 ? "text-green-500 ml-1" : "ml-1"}>
+                              {timeVariance > 0 ? "+" : ""}{timeVariance} min
+                            </span>
+                          </div>
+                        );
+                      })}
                     </td>
                     <td className="py-4 text-sm">
                       <span className={`px-2 py-1 rounded-full text-xs ${
