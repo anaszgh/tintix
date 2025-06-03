@@ -387,6 +387,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Temporary endpoint to promote current user to manager (for setup)
+  app.post('/api/promote-to-manager', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const updatedUser = await storage.updateUserRole(userId, "manager");
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error promoting user to manager:", error);
+      res.status(500).json({ message: "Failed to promote user to manager" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
