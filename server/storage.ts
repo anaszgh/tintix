@@ -193,16 +193,20 @@ export class DatabaseStorage implements IStorage {
 
     if (!entry) return undefined;
 
-    // Get all installers for this job
+    // Get all installers for this job with their time variance
     const jobInstallersResult = await db
       .select({
         installer: users,
+        timeVariance: jobInstallers.timeVariance,
       })
       .from(jobInstallers)
       .leftJoin(users, eq(jobInstallers.installerId, users.id))
       .where(eq(jobInstallers.jobEntryId, id));
 
-    const installers = jobInstallersResult.map(r => r.installer).filter(Boolean) as User[];
+    const installers = jobInstallersResult.map(r => ({
+      ...r.installer!,
+      timeVariance: r.timeVariance,
+    })).filter(Boolean) as (User & { timeVariance: number })[];
 
     // Get all redo entries with installer info
     const redoResults = await db
@@ -221,7 +225,7 @@ export class DatabaseStorage implements IStorage {
 
     return {
       ...entry,
-      installers,
+      installers: installers as (User & { timeVariance: number })[],
       redoEntries: redoEntriesWithInstallers,
     };
   }
