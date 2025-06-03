@@ -9,8 +9,7 @@ export function Sidebar() {
 
   const navigation = [
     { name: "Dashboard", href: "/", icon: BarChart3, current: location === "/" },
-    { name: "New Entry", href: "/entries", icon: Plus, current: location === "/entries" },
-    { name: "All Entries", href: "/entries", icon: List, current: location === "/entries" },
+    { name: "Job Entries", href: "/entries", icon: Plus, current: location === "/entries" },
     { name: "Reports", href: "/reports", icon: BarChart3, current: location === "/reports" },
     ...(user?.role === "manager" ? [
       { name: "User Management", href: "/users", icon: Users, current: location === "/users" }

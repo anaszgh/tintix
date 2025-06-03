@@ -41,7 +41,6 @@ export function EntryForm({ onSuccess }: EntryFormProps) {
 
   const { data: installers = [] } = useQuery<User[]>({
     queryKey: ["/api/installers"],
-    enabled: user?.role === "manager",
   });
 
   const form = useForm<z.infer<typeof formSchema>>({
