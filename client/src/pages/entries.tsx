@@ -73,9 +73,9 @@ export default function Entries() {
       cell: ({ row }: any) => new Date(row.original.date).toLocaleDateString(),
     },
     {
-      accessorKey: "installer",
-      header: "Installer",
-      cell: ({ row }: any) => `${row.original.installer.firstName} ${row.original.installer.lastName}`,
+      accessorKey: "installers",
+      header: "Installers",
+      cell: ({ row }: any) => row.original.installers.map((installer: any) => `${installer.firstName} ${installer.lastName}`).join(", "),
     },
     {
       accessorKey: "vehicle",

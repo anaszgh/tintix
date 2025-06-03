@@ -8,6 +8,7 @@ import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import Entries from "@/pages/entries";
 import Reports from "@/pages/reports";
+import UsersPage from "@/pages/users";
 import NotFound from "@/pages/not-found";
 
 function Router() {

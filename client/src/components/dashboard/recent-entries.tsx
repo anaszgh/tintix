@@ -56,7 +56,7 @@ export function RecentEntries() {
                       {new Date(entry.date).toLocaleDateString()}
                     </td>
                     <td className="py-4 text-sm text-card-foreground">
-                      {entry.installer.firstName} {entry.installer.lastName}
+                      {entry.installers.map(installer => `${installer.firstName} ${installer.lastName}`).join(", ")}
                     </td>
                     <td className="py-4 text-sm text-card-foreground">
                       {entry.vehicleYear} {entry.vehicleMake} {entry.vehicleModel}
