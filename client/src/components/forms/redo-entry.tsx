@@ -6,11 +6,9 @@ import type { User } from "@shared/schema";
 
 interface RedoEntryProps {
   part: string;
-  timestamp: string;
   installerId?: string;
   installers: User[];
   onPartChange: (value: string) => void;
-  onTimestampChange: (value: string) => void;
   onInstallerChange: (value: string) => void;
   onRemove: () => void;
 }
@@ -24,11 +22,9 @@ const redoParts = [
 
 export function RedoEntry({ 
   part, 
-  timestamp, 
   installerId,
   installers,
   onPartChange, 
-  onTimestampChange,
   onInstallerChange,
   onRemove 
 }: RedoEntryProps) {
@@ -59,15 +55,6 @@ export function RedoEntry({
           ))}
         </SelectContent>
       </Select>
-      
-      <span className="text-xs text-muted-foreground">at</span>
-      
-      <Input
-        type="time"
-        value={timestamp}
-        onChange={(e) => onTimestampChange(e.target.value)}
-        className="w-32 bg-background border-border"
-      />
       
       <Button 
         type="button" 

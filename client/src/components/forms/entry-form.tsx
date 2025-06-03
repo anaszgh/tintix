@@ -25,7 +25,6 @@ const formSchema = insertJobEntrySchema.extend({
   installerTimeVariances: z.record(z.string(), z.number()), // installer ID -> time variance
   redoEntries: z.array(z.object({
     part: z.string(),
-    timestamp: z.string(),
     installerId: z.string().optional(),
   })).optional(),
 });
@@ -38,7 +37,7 @@ export function EntryForm({ onSuccess }: EntryFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [redoEntries, setRedoEntries] = useState<Array<{ part: string; timestamp: string; installerId?: string }>>([]);
+  const [redoEntries, setRedoEntries] = useState<Array<{ part: string; installerId?: string }>>([]);
 
   const { data: installers = [] } = useQuery<User[]>({
     queryKey: ["/api/installers"],
