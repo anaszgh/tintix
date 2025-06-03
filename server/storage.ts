@@ -108,6 +108,10 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(users).orderBy(users.firstName, users.lastName);
   }
 
+  async deleteUser(id: string): Promise<void> {
+    await db.delete(users).where(eq(users.id, id));
+  }
+
   // Job entry operations
   async createJobEntry(jobEntry: InsertJobEntry, installerIds: string[]): Promise<JobEntry> {
     const [entry] = await db
