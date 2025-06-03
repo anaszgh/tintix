@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { RedoEntry } from "./redo-entry";
@@ -20,9 +21,11 @@ import type { User } from "@shared/schema";
 
 const formSchema = insertJobEntrySchema.extend({
   date: z.string(),
+  installerIds: z.array(z.string()).min(1, "At least one installer must be selected"),
   redoEntries: z.array(z.object({
     part: z.string(),
     timestamp: z.string(),
+    installerId: z.string().optional(),
   })).optional(),
 });
 
@@ -34,7 +37,7 @@ export function EntryForm({ onSuccess }: EntryFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [redoEntries, setRedoEntries] = useState<Array<{ part: string; timestamp: string }>>([]);
+  const [redoEntries, setRedoEntries] = useState<Array<{ part: string; timestamp: string; installerId?: string }>>([]);
 
   const { data: installers = [] } = useQuery<User[]>({
     queryKey: ["/api/installers"],
@@ -45,7 +48,7 @@ export function EntryForm({ onSuccess }: EntryFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       date: new Date().toISOString().split('T')[0],
-      installerId: user?.role === "installer" ? user.id : "",
+      installerIds: user?.role === "installer" ? [user.id] : [],
       vehicleYear: "",
       vehicleMake: "",
       vehicleModel: "",

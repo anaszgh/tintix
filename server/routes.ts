@@ -66,17 +66,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const validatedData = insertJobEntrySchema.parse({
         ...req.body,
-        installerId: user.role === "installer" ? userId : req.body.installerId,
         date: new Date(req.body.date),
       });
 
-      const jobEntry = await storage.createJobEntry(validatedData);
+      // Handle installer IDs - if user is installer, include them, otherwise use provided installers
+      let installerIds: string[] = [];
+      if (user.role === "installer") {
+        installerIds = [userId];
+      } else if (req.body.installerIds && Array.isArray(req.body.installerIds)) {
+        installerIds = req.body.installerIds;
+      } else {
+        return res.status(400).json({ message: "Installer IDs are required" });
+      }
+
+      const jobEntry = await storage.createJobEntry(validatedData, installerIds);
 
       // Create redo entries if provided
       if (req.body.redoEntries && Array.isArray(req.body.redoEntries)) {
         for (const redoData of req.body.redoEntries) {
           const validatedRedo = insertRedoEntrySchema.parse({
             jobEntryId: jobEntry.id,
+            installerId: redoData.installerId || installerIds[0], // Default to first installer if not specified
             part: redoData.part,
             timestamp: new Date(redoData.timestamp),
           });
