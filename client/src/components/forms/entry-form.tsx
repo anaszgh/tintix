@@ -95,9 +95,7 @@ export function EntryForm({ onSuccess }: EntryFormProps) {
   });
 
   const addRedoEntry = () => {
-    const now = new Date();
-    const timestamp = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    setRedoEntries([...redoEntries, { part: "windshield", timestamp, installerId: "" }]);
+    setRedoEntries([...redoEntries, { part: "windshield", installerId: "" }]);
   };
 
   const removeRedoEntry = (index: number) => {
@@ -316,11 +314,9 @@ export function EntryForm({ onSuccess }: EntryFormProps) {
               <RedoEntry
                 key={index}
                 part={redo.part}
-                timestamp={redo.timestamp}
                 installerId={redo.installerId}
                 installers={installers}
                 onPartChange={(value) => updateRedoEntry(index, "part", value)}
-                onTimestampChange={(value) => updateRedoEntry(index, "timestamp", value)}
                 onInstallerChange={(value) => updateRedoEntry(index, "installerId", value)}
                 onRemove={() => removeRedoEntry(index)}
               />

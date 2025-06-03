@@ -135,17 +135,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create redo entries if provided
       if (req.body.redoEntries && Array.isArray(req.body.redoEntries)) {
         for (const redoData of req.body.redoEntries) {
-          // Convert time string (HH:MM) to full datetime
-          const timeString = redoData.timestamp;
-          const [hours, minutes] = timeString.split(':');
-          const redoTimestamp = new Date(req.body.date);
-          redoTimestamp.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-
           const validatedRedo = insertRedoEntrySchema.parse({
             jobEntryId: jobEntry.id,
             installerId: redoData.installerId || installerIds[0], // Default to first installer if not specified
             part: redoData.part,
-            timestamp: redoTimestamp,
+            timestamp: new Date(), // Use current timestamp
           });
           await storage.createRedoEntry(validatedRedo);
         }
