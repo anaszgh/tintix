@@ -34,7 +34,7 @@ interface EntryFormProps {
 }
 
 export function EntryForm({ onSuccess }: EntryFormProps) {
-  const { user } = useAuth() as { user: User | null };
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [redoEntries, setRedoEntries] = useState<Array<{ part: string; timestamp: string; installerId?: string }>>([]);
@@ -98,7 +98,7 @@ export function EntryForm({ onSuccess }: EntryFormProps) {
   const addRedoEntry = () => {
     const now = new Date();
     const timestamp = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    setRedoEntries([...redoEntries, { part: "windshield", timestamp }]);
+    setRedoEntries([...redoEntries, { part: "windshield", timestamp, installerId: "" }]);
   };
 
   const removeRedoEntry = (index: number) => {
@@ -276,8 +276,11 @@ export function EntryForm({ onSuccess }: EntryFormProps) {
                 key={index}
                 part={redo.part}
                 timestamp={redo.timestamp}
+                installerId={redo.installerId}
+                installers={installers}
                 onPartChange={(value) => updateRedoEntry(index, "part", value)}
                 onTimestampChange={(value) => updateRedoEntry(index, "timestamp", value)}
+                onInstallerChange={(value) => updateRedoEntry(index, "installerId", value)}
                 onRemove={() => removeRedoEntry(index)}
               />
             ))}

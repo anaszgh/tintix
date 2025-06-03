@@ -2,12 +2,16 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
+import type { User } from "@shared/schema";
 
 interface RedoEntryProps {
   part: string;
   timestamp: string;
+  installerId?: string;
+  installers: User[];
   onPartChange: (value: string) => void;
   onTimestampChange: (value: string) => void;
+  onInstallerChange: (value: string) => void;
   onRemove: () => void;
 }
 
@@ -21,20 +25,36 @@ const redoParts = [
 export function RedoEntry({ 
   part, 
   timestamp, 
+  installerId,
+  installers,
   onPartChange, 
-  onTimestampChange, 
+  onTimestampChange,
+  onInstallerChange,
   onRemove 
 }: RedoEntryProps) {
   return (
     <div className="flex items-center space-x-3 p-3 bg-background rounded-lg border border-border">
       <Select value={part} onValueChange={onPartChange}>
-        <SelectTrigger className="w-48 bg-background border-border">
+        <SelectTrigger className="w-40 bg-background border-border">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           {redoParts.map((redoPart) => (
             <SelectItem key={redoPart.value} value={redoPart.value}>
               {redoPart.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select value={installerId || ""} onValueChange={onInstallerChange}>
+        <SelectTrigger className="w-40 bg-background border-border">
+          <SelectValue placeholder="Select installer" />
+        </SelectTrigger>
+        <SelectContent>
+          {installers.map((installer) => (
+            <SelectItem key={installer.id} value={installer.id}>
+              {installer.firstName} {installer.lastName}
             </SelectItem>
           ))}
         </SelectContent>
