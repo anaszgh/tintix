@@ -49,10 +49,10 @@ export function EntryForm({ onSuccess }: EntryFormProps) {
     defaultValues: {
       date: new Date().toISOString().split('T')[0],
       installerIds: [],
+      installerTimeVariances: {},
       vehicleYear: "",
       vehicleMake: "",
       vehicleModel: "",
-      timeVariance: 0,
       notes: "",
     },
   });
@@ -147,25 +147,55 @@ export function EntryForm({ onSuccess }: EntryFormProps) {
                 </FormLabel>
                 <div className="space-y-2 bg-background border border-border rounded-md p-3">
                   {installers.map((installer) => (
-                    <div key={installer.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={installer.id}
-                        checked={field.value?.includes(installer.id)}
-                        onCheckedChange={(checked) => {
-                          const currentValue = field.value || [];
-                          if (checked) {
-                            field.onChange([...currentValue, installer.id]);
-                          } else {
-                            field.onChange(currentValue.filter(id => id !== installer.id));
-                          }
-                        }}
-                      />
-                      <label
-                        htmlFor={installer.id}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        {installer.firstName} {installer.lastName}
-                      </label>
+                    <div key={installer.id} className="flex items-center justify-between p-2 border rounded">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id={installer.id}
+                          checked={field.value?.includes(installer.id)}
+                          onCheckedChange={(checked) => {
+                            const currentValue = field.value || [];
+                            const currentVariances = form.getValues("installerTimeVariances") || {};
+                            
+                            if (checked) {
+                              field.onChange([...currentValue, installer.id]);
+                              form.setValue("installerTimeVariances", {
+                                ...currentVariances,
+                                [installer.id]: 0
+                              });
+                            } else {
+                              field.onChange(currentValue.filter(id => id !== installer.id));
+                              const newVariances = { ...currentVariances };
+                              delete newVariances[installer.id];
+                              form.setValue("installerTimeVariances", newVariances);
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor={installer.id}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          {installer.firstName} {installer.lastName}
+                        </label>
+                      </div>
+                      
+                      {field.value?.includes(installer.id) && (
+                        <div className="flex items-center space-x-2">
+                          <label className="text-xs text-muted-foreground">Time Variance:</label>
+                          <Input
+                            type="number"
+                            placeholder="±minutes"
+                            className="w-20 h-8 text-xs"
+                            value={form.watch("installerTimeVariances")?.[installer.id] || 0}
+                            onChange={(e) => {
+                              const currentVariances = form.getValues("installerTimeVariances") || {};
+                              form.setValue("installerTimeVariances", {
+                                ...currentVariances,
+                                [installer.id]: parseInt(e.target.value) || 0
+                              });
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

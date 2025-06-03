@@ -25,7 +25,7 @@ export interface IStorage {
   deleteUser(id: string): Promise<void>;
   
   // Job entry operations
-  createJobEntry(jobEntry: InsertJobEntry, installerIds: string[]): Promise<JobEntry>;
+  createJobEntry(jobEntry: InsertJobEntry, installerData: Array<{installerId: string, timeVariance: number}>): Promise<JobEntry>;
   getJobEntries(filters?: {
     installerId?: string;
     dateFrom?: Date;
@@ -113,17 +113,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Job entry operations
-  async createJobEntry(jobEntry: InsertJobEntry, installerIds: string[]): Promise<JobEntry> {
+  async createJobEntry(jobEntry: InsertJobEntry, installerData: Array<{installerId: string, timeVariance: number}>): Promise<JobEntry> {
     const [entry] = await db
       .insert(jobEntries)
       .values(jobEntry)
       .returning();
     
-    // Add installers to the job
-    for (const installerId of installerIds) {
+    // Add installers to the job with their individual time variances
+    for (const installer of installerData) {
       await this.createJobInstaller({
         jobEntryId: entry.id,
-        installerId,
+        installerId: installer.installerId,
+        timeVariance: installer.timeVariance,
       });
     }
     
@@ -294,9 +295,10 @@ export class DatabaseStorage implements IStorage {
     const [vehicleMetrics] = await db
       .select({
         totalVehicles: count(jobEntries.id),
-        avgTimeVariance: sql<number>`COALESCE(AVG(${jobEntries.timeVariance}), 0)`,
+        avgTimeVariance: sql<number>`COALESCE(AVG(${jobInstallers.timeVariance}), 0)`,
       })
       .from(jobEntries)
+      .leftJoin(jobInstallers, eq(jobEntries.id, jobInstallers.jobEntryId))
       .where(whereClause);
 
     const [redoMetrics] = await db

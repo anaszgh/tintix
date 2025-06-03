@@ -116,13 +116,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         date: new Date(req.body.date),
       });
 
-      // Handle installer IDs - require manual selection for all jobs
-      const installerIds: string[] = req.body.installerIds;
+      // Handle installer data with individual time variances
+      const { installerIds, installerTimeVariances } = req.body;
       if (!installerIds || !Array.isArray(installerIds) || installerIds.length === 0) {
         return res.status(400).json({ message: "At least one installer must be selected" });
       }
 
-      const jobEntry = await storage.createJobEntry(validatedData, installerIds);
+      // Transform installer data to include time variances
+      const installerData = installerIds.map((installerId: string) => ({
+        installerId,
+        timeVariance: installerTimeVariances?.[installerId] || 0
+      }));
+
+      const jobEntry = await storage.createJobEntry(validatedData, installerData);
 
       // Create redo entries if provided
       if (req.body.redoEntries && Array.isArray(req.body.redoEntries)) {
