@@ -335,32 +335,58 @@ export class DatabaseStorage implements IStorage {
     redoCount: number;
     successRate: number;
   }>> {
-    const results = await db
+    // Get vehicle count per installer
+    const vehicleCounts = await db
       .select({
-        installer: users,
+        installerId: jobInstallers.installerId,
         vehicleCount: count(jobInstallers.jobEntryId),
-        redoCount: sql<number>`COALESCE(COUNT(${redoEntries.id}), 0)`,
       })
-      .from(users)
-      .leftJoin(jobInstallers, eq(users.id, jobInstallers.installerId))
-      .leftJoin(jobEntries, eq(jobInstallers.jobEntryId, jobEntries.id))
-      .leftJoin(redoEntries, and(
-        eq(jobEntries.id, redoEntries.jobEntryId),
-        eq(users.id, redoEntries.installerId)
-      ))
-      .where(eq(users.role, "installer"))
-      .groupBy(users.id)
-      .orderBy(desc(sql`${count(jobInstallers.jobEntryId)} - COALESCE(COUNT(${redoEntries.id}), 0)`))
-      .limit(limit);
+      .from(jobInstallers)
+      .groupBy(jobInstallers.installerId);
 
-    return results.map(result => ({
-      installer: result.installer,
-      vehicleCount: result.vehicleCount,
-      redoCount: result.redoCount,
-      successRate: result.vehicleCount > 0 
-        ? Math.round(((result.vehicleCount - result.redoCount) / result.vehicleCount) * 100 * 10) / 10
-        : 100,
-    }));
+    // Get redo count per installer
+    const redoCounts = await db
+      .select({
+        installerId: redoEntries.installerId,
+        redoCount: count(redoEntries.id),
+      })
+      .from(redoEntries)
+      .groupBy(redoEntries.installerId);
+
+    // Get all installers
+    const allInstallers = await db
+      .select()
+      .from(users)
+      .where(eq(users.role, "installer"));
+
+    // Combine the data
+    const results = allInstallers.map(installer => {
+      const vehicleData = vehicleCounts.find(vc => vc.installerId === installer.id);
+      const redoData = redoCounts.find(rc => rc.installerId === installer.id);
+      
+      const vehicleCount = vehicleData?.vehicleCount || 0;
+      const redoCount = redoData?.redoCount || 0;
+      const successRate = vehicleCount > 0 
+        ? Math.round(((vehicleCount - redoCount) / vehicleCount) * 100 * 10) / 10
+        : 100;
+
+      return {
+        installer,
+        vehicleCount,
+        redoCount,
+        successRate,
+      };
+    });
+
+    // Sort by performance (vehicle count - redo count, then by success rate)
+    return results
+      .sort((a, b) => {
+        const scoreA = a.vehicleCount - a.redoCount;
+        const scoreB = b.vehicleCount - b.redoCount;
+        if (scoreA !== scoreB) return scoreB - scoreA;
+        return b.successRate - a.successRate;
+      })
+      .slice(0, limit);
   }
 
   async getRedoBreakdown(): Promise<Array<{
