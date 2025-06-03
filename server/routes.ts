@@ -122,7 +122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // If user is installer, only allow access to their own entries
-      if (user.role === "installer" && entry.installerId !== userId) {
+      if (user.role === "installer" && !entry.installers.some(installer => installer.id === userId)) {
         return res.status(403).json({ message: "Access denied" });
       }
 

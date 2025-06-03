@@ -34,7 +34,7 @@ interface EntryFormProps {
 }
 
 export function EntryForm({ onSuccess }: EntryFormProps) {
-  const { user } = useAuth();
+  const { user } = useAuth() as { user: User | null };
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [redoEntries, setRedoEntries] = useState<Array<{ part: string; timestamp: string; installerId?: string }>>([]);
@@ -140,24 +140,34 @@ export function EntryForm({ onSuccess }: EntryFormProps) {
           {user?.role === "manager" && (
             <FormField
               control={form.control}
-              name="installerId"
+              name="installerIds"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-muted-foreground">Installer *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="bg-background border-border">
-                        <SelectValue placeholder="Select Installer" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {installers.map((installer) => (
-                        <SelectItem key={installer.id} value={installer.id}>
+                  <FormLabel className="text-muted-foreground">Installers *</FormLabel>
+                  <div className="space-y-2 bg-background border border-border rounded-md p-3">
+                    {installers.map((installer) => (
+                      <div key={installer.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={installer.id}
+                          checked={field.value?.includes(installer.id)}
+                          onCheckedChange={(checked) => {
+                            const currentValue = field.value || [];
+                            if (checked) {
+                              field.onChange([...currentValue, installer.id]);
+                            } else {
+                              field.onChange(currentValue.filter(id => id !== installer.id));
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor={installer.id}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
                           {installer.firstName} {installer.lastName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
@@ -291,6 +301,7 @@ export function EntryForm({ onSuccess }: EntryFormProps) {
                   rows={3}
                   placeholder="Any additional notes about this job..." 
                   {...field}
+                  value={field.value || ""}
                   className="bg-background border-border resize-none"
                 />
               </FormControl>
