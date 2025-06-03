@@ -44,7 +44,6 @@ export const jobEntries = pgTable("job_entries", {
   vehicleYear: varchar("vehicle_year").notNull(),
   vehicleMake: varchar("vehicle_make").notNull(),
   vehicleModel: varchar("vehicle_model").notNull(),
-  timeVariance: integer("time_variance").notNull(), // in minutes, positive or negative
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -54,6 +53,7 @@ export const jobInstallers = pgTable("job_installers", {
   id: serial("id").primaryKey(),
   jobEntryId: integer("job_entry_id").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
   installerId: varchar("installer_id").notNull().references(() => users.id),
+  timeVariance: integer("time_variance").notNull(), // in minutes, positive or negative for each installer
   createdAt: timestamp("created_at").defaultNow(),
 });
 

@@ -22,6 +22,7 @@ import type { User } from "@shared/schema";
 const formSchema = insertJobEntrySchema.extend({
   date: z.string(),
   installerIds: z.array(z.string()).min(1, "At least one installer must be selected"),
+  installerTimeVariances: z.record(z.string(), z.number()), // installer ID -> time variance
   redoEntries: z.array(z.object({
     part: z.string(),
     timestamp: z.string(),
