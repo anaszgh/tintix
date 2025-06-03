@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
@@ -11,13 +12,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { EntryForm } from "@/components/forms/entry-form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Download, Filter, RotateCcw } from "lucide-react";
+import { Plus, Download, Filter, RotateCcw, Edit, Trash2 } from "lucide-react";
 import type { JobEntryWithDetails, User } from "@shared/schema";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
 export default function Entries() {
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading } = useAuth();
+  const queryClient = useQueryClient();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [filters, setFilters] = useState({
     installer: "all",
@@ -49,6 +51,44 @@ export default function Entries() {
     queryKey: ["/api/job-entries", filters],
     enabled: isAuthenticated,
   });
+
+  const deleteEntryMutation = useMutation({
+    mutationFn: async (entryId: number) => {
+      await apiRequest("DELETE", `/api/job-entries/${entryId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Entry Deleted",
+        description: "Job entry has been successfully deleted.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/job-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/analytics"] });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete entry",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDelete = (entryId: number) => {
+    if (window.confirm("Are you sure you want to delete this job entry? This action cannot be undone.")) {
+      deleteEntryMutation.mutate(entryId);
+    }
+  };
 
   const resetFilters = () => {
     setFilters({
@@ -84,13 +124,16 @@ export default function Entries() {
     },
     {
       accessorKey: "timeVariance",
-      header: "Time Variance",
+      header: "Total Time Variance",
       cell: ({ row }: any) => {
-        const variance = row.original.timeVariance;
-        const isPositive = variance > 0;
+        // Calculate total time variance from all installers
+        const totalVariance = row.original.installers.reduce((sum: number, installer: any) => {
+          return sum + (installer.timeVariance || 0);
+        }, 0);
+        const isPositive = totalVariance > 0;
         return (
-          <span className={isPositive ? "text-error" : "text-success"}>
-            {isPositive ? "+" : ""}{variance} min
+          <span className={isPositive ? "text-red-500" : totalVariance < 0 ? "text-green-500" : "text-muted-foreground"}>
+            {isPositive ? "+" : ""}{totalVariance} min
           </span>
         );
       },
@@ -110,6 +153,41 @@ export default function Entries() {
           }`}>
             {redoCount}
           </span>
+        );
+      },
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }: any) => {
+        const entry = row.original;
+        return (
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                // TODO: Implement edit functionality
+                toast({
+                  title: "Edit Feature",
+                  description: "Edit functionality coming soon",
+                });
+              }}
+              disabled={user?.role !== "manager"}
+              className="h-8 w-8 p-0"
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleDelete(entry.id)}
+              disabled={user?.role !== "manager" || deleteEntryMutation.isPending}
+              className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         );
       },
     },
