@@ -21,6 +21,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User management routes
+  app.get('/api/users', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== "manager") {
+        return res.status(403).json({ message: "Only managers can access user management" });
+      }
+
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.patch('/api/users/:id/role', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== "manager") {
+        return res.status(403).json({ message: "Only managers can update user roles" });
+      }
+
+      const targetUserId = req.params.id;
+      const { role } = req.body;
+
+      if (!role || !["installer", "manager"].includes(role)) {
+        return res.status(400).json({ message: "Invalid role. Must be 'installer' or 'manager'" });
+      }
+
+      // Prevent users from changing their own role
+      if (targetUserId === userId) {
+        return res.status(400).json({ message: "Cannot change your own role" });
+      }
+
+      const updatedUser = await storage.updateUserRole(targetUserId, role);
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      res.status(500).json({ message: "Failed to update user role" });
+    }
+  });
+
   // Job entries routes
   app.get("/api/job-entries", isAuthenticated, async (req: any, res) => {
     try {
