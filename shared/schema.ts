@@ -41,7 +41,6 @@ export const users = pgTable("users", {
 export const jobEntries = pgTable("job_entries", {
   id: serial("id").primaryKey(),
   date: timestamp("date").notNull(),
-  installerId: varchar("installer_id").notNull().references(() => users.id),
   vehicleYear: varchar("vehicle_year").notNull(),
   vehicleMake: varchar("vehicle_make").notNull(),
   vehicleModel: varchar("vehicle_model").notNull(),
@@ -51,9 +50,17 @@ export const jobEntries = pgTable("job_entries", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const jobInstallers = pgTable("job_installers", {
+  id: serial("id").primaryKey(),
+  jobEntryId: integer("job_entry_id").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
+  installerId: varchar("installer_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const redoEntries = pgTable("redo_entries", {
   id: serial("id").primaryKey(),
   jobEntryId: integer("job_entry_id").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
+  installerId: varchar("installer_id").notNull().references(() => users.id),
   part: varchar("part").notNull(), // "windshield", "rollups", "back_windshield", "quarter"
   timestamp: timestamp("timestamp").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
@@ -61,21 +68,34 @@ export const redoEntries = pgTable("redo_entries", {
 
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
-  jobEntries: many(jobEntries),
+  jobInstallers: many(jobInstallers),
+  redoEntries: many(redoEntries),
 }));
 
-export const jobEntriesRelations = relations(jobEntries, ({ one, many }) => ({
+export const jobEntriesRelations = relations(jobEntries, ({ many }) => ({
+  jobInstallers: many(jobInstallers),
+  redoEntries: many(redoEntries),
+}));
+
+export const jobInstallersRelations = relations(jobInstallers, ({ one }) => ({
+  jobEntry: one(jobEntries, {
+    fields: [jobInstallers.jobEntryId],
+    references: [jobEntries.id],
+  }),
   installer: one(users, {
-    fields: [jobEntries.installerId],
+    fields: [jobInstallers.installerId],
     references: [users.id],
   }),
-  redoEntries: many(redoEntries),
 }));
 
 export const redoEntriesRelations = relations(redoEntries, ({ one }) => ({
   jobEntry: one(jobEntries, {
     fields: [redoEntries.jobEntryId],
     references: [jobEntries.id],
+  }),
+  installer: one(users, {
+    fields: [redoEntries.installerId],
+    references: [users.id],
   }),
 }));
 
@@ -84,6 +104,11 @@ export const insertJobEntrySchema = createInsertSchema(jobEntries).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+});
+
+export const insertJobInstallerSchema = createInsertSchema(jobInstallers).omit({
+  id: true,
+  createdAt: true,
 });
 
 export const insertRedoEntrySchema = createInsertSchema(redoEntries).omit({
@@ -96,11 +121,13 @@ export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type JobEntry = typeof jobEntries.$inferSelect;
 export type InsertJobEntry = z.infer<typeof insertJobEntrySchema>;
+export type JobInstaller = typeof jobInstallers.$inferSelect;
+export type InsertJobInstaller = z.infer<typeof insertJobInstallerSchema>;
 export type RedoEntry = typeof redoEntries.$inferSelect;
 export type InsertRedoEntry = z.infer<typeof insertRedoEntrySchema>;
 
 // Combined types for API responses
 export type JobEntryWithDetails = JobEntry & {
-  installer: User;
-  redoEntries: RedoEntry[];
+  installers: User[];
+  redoEntries: (RedoEntry & { installer: User })[];
 };

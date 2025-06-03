@@ -1,11 +1,14 @@
 import {
   users,
   jobEntries,
+  jobInstallers,
   redoEntries,
   type User,
   type UpsertUser,
   type JobEntry,
   type InsertJobEntry,
+  type JobInstaller,
+  type InsertJobInstaller,
   type RedoEntry,
   type InsertRedoEntry,
   type JobEntryWithDetails,
@@ -17,9 +20,11 @@ export interface IStorage {
   // User operations (mandatory for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  updateUserRole(userId: string, role: string): Promise<User>;
+  getAllUsers(): Promise<User[]>;
   
   // Job entry operations
-  createJobEntry(jobEntry: InsertJobEntry): Promise<JobEntry>;
+  createJobEntry(jobEntry: InsertJobEntry, installerIds: string[]): Promise<JobEntry>;
   getJobEntries(filters?: {
     installerId?: string;
     dateFrom?: Date;
@@ -30,6 +35,10 @@ export interface IStorage {
   getJobEntry(id: number): Promise<JobEntryWithDetails | undefined>;
   updateJobEntry(id: number, jobEntry: Partial<InsertJobEntry>): Promise<JobEntry>;
   deleteJobEntry(id: number): Promise<void>;
+  
+  // Job installer operations
+  createJobInstaller(jobInstaller: InsertJobInstaller): Promise<JobInstaller>;
+  deleteJobInstaller(jobEntryId: number, installerId: string): Promise<void>;
   
   // Redo entry operations
   createRedoEntry(redoEntry: InsertRedoEntry): Promise<RedoEntry>;
@@ -83,6 +92,19 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return user;
+  }
+
+  async updateUserRole(userId: string, role: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ role, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users).orderBy(users.firstName, users.lastName);
   }
 
   // Job entry operations
