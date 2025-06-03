@@ -108,11 +108,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Job entry operations
-  async createJobEntry(jobEntry: InsertJobEntry): Promise<JobEntry> {
+  async createJobEntry(jobEntry: InsertJobEntry, installerIds: string[]): Promise<JobEntry> {
     const [entry] = await db
       .insert(jobEntries)
       .values(jobEntry)
       .returning();
+    
+    // Add installers to the job
+    for (const installerId of installerIds) {
+      await this.createJobInstaller({
+        jobEntryId: entry.id,
+        installerId,
+      });
+    }
+    
     return entry;
   }
 
@@ -125,9 +134,6 @@ export class DatabaseStorage implements IStorage {
   }): Promise<JobEntryWithDetails[]> {
     const conditions = [];
     
-    if (filters?.installerId) {
-      conditions.push(eq(jobEntries.installerId, filters.installerId));
-    }
     if (filters?.dateFrom) {
       conditions.push(gte(jobEntries.date, filters.dateFrom));
     }
@@ -135,69 +141,82 @@ export class DatabaseStorage implements IStorage {
       conditions.push(lte(jobEntries.date, filters.dateTo));
     }
 
-    const query = db
-      .select()
+    let query = db
+      .select({
+        jobEntry: jobEntries,
+      })
       .from(jobEntries)
-      .leftJoin(users, eq(jobEntries.installerId, users.id))
-      .leftJoin(redoEntries, eq(jobEntries.id, redoEntries.jobEntryId))
       .orderBy(desc(jobEntries.date));
 
     if (conditions.length > 0) {
-      query.where(and(...conditions));
+      query = query.where(and(...conditions)) as any;
     }
 
     if (filters?.limit) {
-      query.limit(filters.limit);
+      query = query.limit(filters.limit) as any;
     }
 
     if (filters?.offset) {
-      query.offset(filters.offset);
+      query = query.offset(filters.offset) as any;
     }
 
-    const results = await query;
+    const entries = await query;
     
-    // Group results by job entry
-    const entriesMap = new Map<number, JobEntryWithDetails>();
+    // Get detailed information for each job entry
+    const entriesWithDetails: JobEntryWithDetails[] = [];
     
-    for (const row of results) {
-      const entry = row.job_entries;
-      const installer = row.users;
-      const redo = row.redo_entries;
-      
-      if (!entriesMap.has(entry.id)) {
-        entriesMap.set(entry.id, {
-          ...entry,
-          installer: installer!,
-          redoEntries: [],
-        });
-      }
-      
-      if (redo) {
-        entriesMap.get(entry.id)!.redoEntries.push(redo);
+    for (const { jobEntry } of entries) {
+      const fullEntry = await this.getJobEntry(jobEntry.id);
+      if (fullEntry) {
+        // Filter by installer if specified
+        if (!filters?.installerId || fullEntry.installers.some(installer => installer.id === filters.installerId)) {
+          entriesWithDetails.push(fullEntry);
+        }
       }
     }
     
-    return Array.from(entriesMap.values());
+    return entriesWithDetails;
   }
 
   async getJobEntry(id: number): Promise<JobEntryWithDetails | undefined> {
-    const results = await db
+    // Get the job entry
+    const [entry] = await db
       .select()
       .from(jobEntries)
-      .leftJoin(users, eq(jobEntries.installerId, users.id))
-      .leftJoin(redoEntries, eq(jobEntries.id, redoEntries.jobEntryId))
       .where(eq(jobEntries.id, id));
 
-    if (results.length === 0) return undefined;
+    if (!entry) return undefined;
 
-    const entry = results[0].job_entries;
-    const installer = results[0].users!;
-    const redos = results.map(r => r.redo_entries).filter(Boolean) as RedoEntry[];
+    // Get all installers for this job
+    const jobInstallersResult = await db
+      .select({
+        installer: users,
+      })
+      .from(jobInstallers)
+      .leftJoin(users, eq(jobInstallers.installerId, users.id))
+      .where(eq(jobInstallers.jobEntryId, id));
+
+    const installers = jobInstallersResult.map(r => r.installer).filter(Boolean) as User[];
+
+    // Get all redo entries with installer info
+    const redoResults = await db
+      .select({
+        redo: redoEntries,
+        installer: users,
+      })
+      .from(redoEntries)
+      .leftJoin(users, eq(redoEntries.installerId, users.id))
+      .where(eq(redoEntries.jobEntryId, id));
+
+    const redoEntriesWithInstallers = redoResults.map(r => ({
+      ...r.redo,
+      installer: r.installer!,
+    }));
 
     return {
       ...entry,
-      installer,
-      redoEntries: redos,
+      installers,
+      redoEntries: redoEntriesWithInstallers,
     };
   }
 
@@ -212,6 +231,24 @@ export class DatabaseStorage implements IStorage {
 
   async deleteJobEntry(id: number): Promise<void> {
     await db.delete(jobEntries).where(eq(jobEntries.id, id));
+  }
+
+  // Job installer operations
+  async createJobInstaller(jobInstaller: InsertJobInstaller): Promise<JobInstaller> {
+    const [installer] = await db
+      .insert(jobInstallers)
+      .values(jobInstaller)
+      .returning();
+    return installer;
+  }
+
+  async deleteJobInstaller(jobEntryId: number, installerId: string): Promise<void> {
+    await db
+      .delete(jobInstallers)
+      .where(and(
+        eq(jobInstallers.jobEntryId, jobEntryId),
+        eq(jobInstallers.installerId, installerId)
+      ));
   }
 
   // Redo entry operations
@@ -240,9 +277,6 @@ export class DatabaseStorage implements IStorage {
   }> {
     const conditions = [];
     
-    if (filters?.installerId) {
-      conditions.push(eq(jobEntries.installerId, filters.installerId));
-    }
     if (filters?.dateFrom) {
       conditions.push(gte(jobEntries.date, filters.dateFrom));
     }
@@ -270,9 +304,10 @@ export class DatabaseStorage implements IStorage {
 
     const [installerMetrics] = await db
       .select({
-        activeInstallers: sql<number>`COUNT(DISTINCT ${jobEntries.installerId})`,
+        activeInstallers: sql<number>`COUNT(DISTINCT ${jobInstallers.installerId})`,
       })
-      .from(jobEntries)
+      .from(jobInstallers)
+      .leftJoin(jobEntries, eq(jobInstallers.jobEntryId, jobEntries.id))
       .where(whereClause);
 
     return {
@@ -292,15 +327,19 @@ export class DatabaseStorage implements IStorage {
     const results = await db
       .select({
         installer: users,
-        vehicleCount: count(jobEntries.id),
+        vehicleCount: count(jobInstallers.jobEntryId),
         redoCount: sql<number>`COALESCE(COUNT(${redoEntries.id}), 0)`,
       })
       .from(users)
-      .leftJoin(jobEntries, eq(users.id, jobEntries.installerId))
-      .leftJoin(redoEntries, eq(jobEntries.id, redoEntries.jobEntryId))
+      .leftJoin(jobInstallers, eq(users.id, jobInstallers.installerId))
+      .leftJoin(jobEntries, eq(jobInstallers.jobEntryId, jobEntries.id))
+      .leftJoin(redoEntries, and(
+        eq(jobEntries.id, redoEntries.jobEntryId),
+        eq(users.id, redoEntries.installerId)
+      ))
       .where(eq(users.role, "installer"))
       .groupBy(users.id)
-      .orderBy(desc(sql`${count(jobEntries.id)} - COALESCE(COUNT(${redoEntries.id}), 0)`))
+      .orderBy(desc(sql`${count(jobInstallers.jobEntryId)} - COALESCE(COUNT(${redoEntries.id}), 0)`))
       .limit(limit);
 
     return results.map(result => ({
