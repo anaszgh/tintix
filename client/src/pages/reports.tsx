@@ -9,7 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
 import { RedoBreakdown } from "@/components/dashboard/redo-breakdown";
 import { Download, FileText, BarChart3 } from "lucide-react";
-import type { User } from "@shared/schema";
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import type { User, JobEntryWithDetails } from "@shared/schema";
 
 export default function Reports() {
   const { toast } = useToast();
@@ -55,6 +58,11 @@ export default function Reports() {
     enabled: isAuthenticated,
   });
 
+  const { data: jobEntries = [] } = useQuery<JobEntryWithDetails[]>({
+    queryKey: ["/api/job-entries"],
+    enabled: isAuthenticated,
+  });
+
   // Calculate success rate using 7-window rule
   const calculateSuccessRate = () => {
     if (!metrics) return 0;
@@ -68,17 +76,152 @@ export default function Reports() {
   const successRate = calculateSuccessRate();
 
   const exportExcel = () => {
-    toast({
-      title: "Excel Export",
-      description: "Generating Excel report...",
-    });
+    try {
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+      
+      // Job Entries sheet
+      const jobEntriesData = jobEntries.map(entry => ({
+        Date: new Date(entry.date).toLocaleDateString(),
+        Installers: entry.installers.map(i => `${i.firstName} ${i.lastName}`).join(", "),
+        Vehicle: `${entry.vehicleYear} ${entry.vehicleMake} ${entry.vehicleModel}`,
+        'Time Variance': entry.installers.map(i => `${i.firstName}: ${i.timeVariance > 0 ? '+' : ''}${i.timeVariance} min`).join(", "),
+        Redos: entry.redoEntries.length,
+        'Redo Details': entry.redoEntries.map(r => `${r.part} (${r.installer.firstName})`).join(", "),
+        Notes: entry.notes || ""
+      }));
+      
+      const ws1 = XLSX.utils.json_to_sheet(jobEntriesData);
+      XLSX.utils.book_append_sheet(wb, ws1, "Job Entries");
+      
+      // Top Performers sheet
+      const performersData = topPerformers.map(p => ({
+        Installer: `${p.installer.firstName} ${p.installer.lastName}`,
+        Email: p.installer.email,
+        'Vehicle Count': p.vehicleCount,
+        'Redo Count': p.redoCount,
+        'Success Rate': `${p.successRate}%`
+      }));
+      
+      const ws2 = XLSX.utils.json_to_sheet(performersData);
+      XLSX.utils.book_append_sheet(wb, ws2, "Top Performers");
+      
+      // Summary sheet
+      const summaryData = [{
+        'Total Vehicles': metrics?.totalVehicles || 0,
+        'Total Redos': metrics?.totalRedos || 0,
+        'Success Rate': `${successRate}%`,
+        'Avg Time Variance': `${metrics?.avgTimeVariance || 0} min`,
+        'Active Installers': metrics?.activeInstallers || 0,
+        'Report Generated': new Date().toLocaleString()
+      }];
+      
+      const ws3 = XLSX.utils.json_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(wb, ws3, "Summary");
+      
+      // Save file
+      XLSX.writeFile(wb, `tintix-performance-report-${new Date().toISOString().split('T')[0]}.xlsx`);
+      
+      toast({
+        title: "Excel Export Complete",
+        description: "Performance report has been downloaded.",
+      });
+    } catch (error) {
+      toast({
+        title: "Export Error",
+        description: "Failed to generate Excel report.",
+        variant: "destructive",
+      });
+    }
   };
 
   const exportPDF = () => {
-    toast({
-      title: "PDF Export",
-      description: "Generating PDF report...",
-    });
+    try {
+      const doc = new jsPDF();
+      
+      // Header
+      doc.setFontSize(20);
+      doc.text('Tintix Performance Report', 20, 20);
+      doc.setFontSize(12);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 20, 30);
+      
+      // Summary section
+      doc.setFontSize(16);
+      doc.text('Performance Summary', 20, 50);
+      
+      const summaryData = [
+        ['Total Vehicles', (metrics?.totalVehicles || 0).toString()],
+        ['Total Redos', (metrics?.totalRedos || 0).toString()],
+        ['Success Rate (7-Window)', `${successRate}%`],
+        ['Avg Time Variance', `${metrics?.avgTimeVariance || 0} min`],
+        ['Active Installers', (metrics?.activeInstallers || 0).toString()]
+      ];
+      
+      (doc as any).autoTable({
+        startY: 60,
+        head: [['Metric', 'Value']],
+        body: summaryData,
+        margin: { left: 20 },
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [66, 139, 202] }
+      });
+      
+      // Top Performers section
+      let finalY = (doc as any).lastAutoTable.finalY + 20;
+      doc.setFontSize(16);
+      doc.text('Top Performers', 20, finalY);
+      
+      const performersTableData = topPerformers.map(p => [
+        `${p.installer.firstName} ${p.installer.lastName}`,
+        p.vehicleCount.toString(),
+        p.redoCount.toString(),
+        `${p.successRate}%`
+      ]);
+      
+      (doc as any).autoTable({
+        startY: finalY + 10,
+        head: [['Installer', 'Vehicles', 'Redos', 'Success Rate']],
+        body: performersTableData,
+        margin: { left: 20 },
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [66, 139, 202] }
+      });
+      
+      // Job Entries section
+      finalY = (doc as any).lastAutoTable.finalY + 20;
+      doc.setFontSize(16);
+      doc.text('Recent Job Entries', 20, finalY);
+      
+      const jobEntriesTableData = jobEntries.slice(0, 10).map(entry => [
+        new Date(entry.date).toLocaleDateString(),
+        entry.installers.map(i => `${i.firstName} ${i.lastName}`).join(", "),
+        `${entry.vehicleYear} ${entry.vehicleMake} ${entry.vehicleModel}`,
+        entry.redoEntries.length.toString()
+      ]);
+      
+      (doc as any).autoTable({
+        startY: finalY + 10,
+        head: [['Date', 'Installers', 'Vehicle', 'Redos']],
+        body: jobEntriesTableData,
+        margin: { left: 20 },
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [66, 139, 202] }
+      });
+      
+      // Save PDF
+      doc.save(`tintix-performance-report-${new Date().toISOString().split('T')[0]}.pdf`);
+      
+      toast({
+        title: "PDF Export Complete",
+        description: "Performance report has been downloaded.",
+      });
+    } catch (error) {
+      toast({
+        title: "Export Error",
+        description: "Failed to generate PDF report.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (isLoading || !isAuthenticated) {
