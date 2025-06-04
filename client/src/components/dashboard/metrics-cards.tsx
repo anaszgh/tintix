@@ -33,11 +33,13 @@ export function MetricsCards() {
     }
   });
 
-  // Calculate success rate properly - percentage of jobs with NO redos
+  // Calculate success rate properly - windows done correctly vs total windows
+  // Each vehicle has 7 windows (windshield, back windshield, 4 rollups, quarter)
   const totalJobs = metrics?.totalVehicles || 0;
   const totalRedos = metrics?.totalRedos || 0;
-  const jobsWithoutRedos = metrics?.jobsWithoutRedos || 0;
-  const successRate = totalJobs > 0 ? Math.round((jobsWithoutRedos / totalJobs) * 100) : 100;
+  const totalWindows = totalJobs * 7; // 7 windows per vehicle
+  const successfulWindows = totalWindows - totalRedos;
+  const successRate = totalWindows > 0 ? Math.round((successfulWindows / totalWindows) * 100) : 100;
 
   const hasData = totalJobs > 0;
   const noDataMessage = timeFilter === "lastMonth" ? "No data for last month" : "No data available";
