@@ -22,12 +22,8 @@ import type { User, JobEntryWithDetails } from "@shared/schema";
 
 const formSchema = insertJobEntrySchema.extend({
   date: z.string(),
-  windowInstallations: z.array(z.object({
-    windowId: z.string(),
-    installerId: z.string(),
-    windowName: z.string()
-  })).min(1, "At least one window assignment is required"),
-  totalWindows: z.number().min(1, "Must have at least one window"),
+  installerIds: z.array(z.string()).min(1, "At least one installer must be selected"),
+  totalWindows: z.number().min(1, "Must have at least one window").max(20, "Maximum 20 windows"),
   installerTimeVariances: z.record(z.string(), z.number()), // installer ID -> time variance
   redoEntries: z.array(z.object({
     part: z.string(),
@@ -51,9 +47,6 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     })) : []
   );
 
-  const [windowAssignments, setWindowAssignments] = useState<Array<{ windowId: string; installerId: string; windowName: string }>>([]);
-  const [totalWindows, setTotalWindows] = useState<number>(7);
-
   const { data: installers = [] } = useQuery<User[]>({
     queryKey: ["/api/installers"],
   });
@@ -61,8 +54,9 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: editingEntry ? {
-      date: typeof editingEntry.date === 'string' ? editingEntry.date.split('T')[0] : new Date(editingEntry.date).toISOString().split('T')[0],
+      date: new Date(editingEntry.date).toISOString().split('T')[0],
       installerIds: editingEntry.installers.map(i => i.id),
+      totalWindows: editingEntry.totalWindows || 7,
       installerTimeVariances: editingEntry.installers.reduce((acc, installer) => {
         acc[installer.id] = installer.timeVariance || 0;
         return acc;
@@ -74,6 +68,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     } : {
       date: new Date().toISOString().split('T')[0],
       installerIds: [],
+      totalWindows: 7,
       installerTimeVariances: {},
       vehicleYear: "",
       vehicleMake: "",

@@ -44,7 +44,6 @@ export const jobEntries = pgTable("job_entries", {
   vehicleYear: varchar("vehicle_year").notNull(),
   vehicleMake: varchar("vehicle_make").notNull(),
   vehicleModel: varchar("vehicle_model").notNull(),
-  windowInstallations: jsonb("window_installations"), // Store window-installer assignments
   totalWindows: integer("total_windows").notNull().default(7),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
