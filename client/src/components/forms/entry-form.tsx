@@ -80,26 +80,35 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     },
   });
 
+  const [createdJobNumber, setCreatedJobNumber] = useState<string | null>(null);
+
   const createEntryMutation = useMutation({
     mutationFn: async (data: z.infer<typeof formSchema>) => {
       const method = editingEntry ? "PUT" : "POST";
       const url = editingEntry ? `/api/job-entries/${editingEntry.id}` : "/api/job-entries";
-      await apiRequest(method, url, {
+      const response = await apiRequest(method, url, {
         ...data,
         windowAssignments: windowAssignments.filter(w => w.installerId),
         redoEntries,
       });
+      return response;
     },
-    onSuccess: () => {
+    onSuccess: (response: any) => {
+      // Show job number for new entries
+      if (!editingEntry && response?.jobNumber) {
+        setCreatedJobNumber(response.jobNumber);
+      }
+      
       toast({
         title: editingEntry ? "Entry Updated" : "Entry Created",
-        description: editingEntry ? "Job entry has been successfully updated." : "Job entry has been successfully created.",
+        description: editingEntry ? "Job entry has been successfully updated." : `Job entry created with number: ${response?.jobNumber || 'N/A'}`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/job-entries"] });
       queryClient.invalidateQueries({ queryKey: ["/api/analytics/metrics"] });
       if (!editingEntry) {
         form.reset();
         setRedoEntries([]);
+        setWindowAssignments([]);
       }
       onSuccess?.();
     },
@@ -147,6 +156,41 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Job Number Display for existing entries or newly created entries */}
+        {(editingEntry || createdJobNumber) && (
+          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">Job Number</h3>
+                <p className="text-blue-700 dark:text-blue-300 text-sm">Save this number for future reference and searching</p>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-mono font-bold text-blue-800 dark:text-blue-200">
+                  {editingEntry?.jobNumber || createdJobNumber}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => {
+                    const jobNumber = editingEntry?.jobNumber || createdJobNumber;
+                    if (jobNumber) {
+                      navigator.clipboard.writeText(jobNumber);
+                      toast({
+                        title: "Copied!",
+                        description: "Job number copied to clipboard",
+                      });
+                    }
+                  }}
+                >
+                  Copy Job Number
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
