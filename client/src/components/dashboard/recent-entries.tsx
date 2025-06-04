@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -7,10 +7,13 @@ import { Edit, Trash2, ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
 import { EntryForm } from "@/components/forms/entry-form";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { JobEntryWithDetails } from "@shared/schema";
 
 export function RecentEntries() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<JobEntryWithDetails | null>(null);
   
@@ -18,9 +21,36 @@ export function RecentEntries() {
     queryKey: ["/api/job-entries", { limit: 5 }],
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest(`/api/job-entries/${id}`, "DELETE");
+    },
+    onSuccess: () => {
+      toast({
+        title: "Entry deleted",
+        description: "Job entry has been successfully deleted.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/job-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/analytics/metrics"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to delete entry. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleEdit = (entry: JobEntryWithDetails) => {
     setEditingEntry(entry);
     setIsEditDialogOpen(true);
+  };
+
+  const handleDelete = (entry: JobEntryWithDetails) => {
+    if (confirm(`Are you sure you want to delete the entry for ${entry.vehicleYear} ${entry.vehicleMake} ${entry.vehicleModel}?`)) {
+      deleteMutation.mutate(entry.id);
+    }
   };
 
   return (
@@ -112,6 +142,8 @@ export function RecentEntries() {
                           <Button 
                             variant="ghost" 
                             size="sm"
+                            onClick={() => handleDelete(entry)}
+                            disabled={deleteMutation.isPending}
                             className="text-muted-foreground hover:text-error p-1"
                           >
                             <Trash2 className="h-4 w-4" />
