@@ -320,37 +320,63 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
         </div>
 
         {/* Visual Car Window Assignment */}
-        <VisualCarSelector
-          installers={installers}
-          onWindowAssignmentsChange={(assignments) => {
-            setWindowAssignments(assignments);
-            
-            // Extract unique installer IDs from assignments
-            const uniqueInstallers = new Set<string>();
-            assignments.forEach(a => {
-              if (a.installerId) uniqueInstallers.add(a.installerId);
-            });
-            const installerIds = Array.from(uniqueInstallers);
-            form.setValue("installerIds", installerIds);
-            form.setValue("totalWindows", assignments.filter(a => a.installerId).length);
-            
-            // Initialize time variances for new installers
-            const currentVariances = form.getValues("installerTimeVariances");
-            const newVariances = { ...currentVariances };
-            installerIds.forEach(id => {
-              if (!(id in newVariances)) {
-                newVariances[id] = 0;
-              }
-            });
-            // Remove variances for installers no longer selected
-            Object.keys(newVariances).forEach(id => {
-              if (!installerIds.includes(id)) {
-                delete newVariances[id];
-              }
-            });
-            form.setValue("installerTimeVariances", newVariances);
-          }}
-        />
+        <div className="space-y-4">
+          <VisualCarSelector
+            installers={installers}
+            onWindowAssignmentsChange={(assignments) => {
+              setWindowAssignments(assignments);
+              
+              // Extract unique installer IDs from assignments (only update internally, don't trigger save)
+              const uniqueInstallers = new Set<string>();
+              assignments.forEach(a => {
+                if (a.installerId) uniqueInstallers.add(a.installerId);
+              });
+              const installerIds = Array.from(uniqueInstallers);
+              
+              // Update form values without triggering submission
+              form.setValue("installerIds", installerIds, { shouldValidate: false, shouldDirty: false });
+              form.setValue("totalWindows", assignments.filter(a => a.installerId).length, { shouldValidate: false, shouldDirty: false });
+              
+              // Initialize time variances for new installers
+              const currentVariances = form.getValues("installerTimeVariances");
+              const newVariances = { ...currentVariances };
+              installerIds.forEach(id => {
+                if (!(id in newVariances)) {
+                  newVariances[id] = 0;
+                }
+              });
+              // Remove variances for installers no longer selected
+              Object.keys(newVariances).forEach(id => {
+                if (!installerIds.includes(id)) {
+                  delete newVariances[id];
+                }
+              });
+              form.setValue("installerTimeVariances", newVariances, { shouldValidate: false, shouldDirty: false });
+            }}
+          />
+
+          {/* Window Assignment Summary */}
+          {windowAssignments.filter(w => w.installerId).length > 0 && (
+            <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+              <CardHeader>
+                <CardTitle className="text-sm">Window Assignments</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {windowAssignments.filter(w => w.installerId).map((assignment) => {
+                  const installer = installers.find(i => i.id === assignment.installerId);
+                  return (
+                    <div key={assignment.windowId} className="flex justify-between items-center text-sm">
+                      <span className="font-medium">{assignment.windowName}</span>
+                      <span className="text-blue-700 dark:text-blue-300">
+                        {installer ? `${installer.firstName} ${installer.lastName}` : 'Unknown'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
+        </div>
 
         <Card className="bg-muted/30 border-border">
           <CardHeader>

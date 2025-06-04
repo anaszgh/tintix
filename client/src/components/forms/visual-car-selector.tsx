@@ -50,7 +50,7 @@ export function VisualCarSelector({ installers, onWindowAssignmentsChange }: Vis
         : assignment
     );
     setWindowAssignments(updatedAssignments);
-    onWindowAssignmentsChange(updatedAssignments.filter(a => a.installerId));
+    onWindowAssignmentsChange(updatedAssignments);
     setSelectedWindow(null);
   };
 
