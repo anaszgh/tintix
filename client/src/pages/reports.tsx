@@ -11,7 +11,6 @@ import { RedoBreakdown } from "@/components/dashboard/redo-breakdown";
 import { Download, FileText, BarChart3 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 import type { User, JobEntryWithDetails } from "@shared/schema";
 
 export default function Reports() {
@@ -158,74 +157,72 @@ export default function Reports() {
       }
 
       const doc = new jsPDF();
+      let yPosition = 20;
       
       // Header
       doc.setFontSize(20);
-      doc.text('Tintix Performance Report', 20, 20);
+      doc.text('Tintix Performance Report', 20, yPosition);
+      yPosition += 15;
+      
       doc.setFontSize(12);
-      doc.text(`Generated: ${new Date().toLocaleString()}`, 20, 30);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 20, yPosition);
+      yPosition += 20;
       
       // Summary section
       doc.setFontSize(16);
-      doc.text('Performance Summary', 20, 50);
+      doc.text('Performance Summary', 20, yPosition);
+      yPosition += 15;
       
-      const summaryData = [
-        ['Total Vehicles', (metrics?.totalVehicles || 0).toString()],
-        ['Total Redos', (metrics?.totalRedos || 0).toString()],
-        ['Success Rate (7-Window)', `${successRate || 0}%`],
-        ['Avg Time Variance', `${metrics?.avgTimeVariance || 0} min`],
-        ['Active Installers', (metrics?.activeInstallers || 0).toString()]
-      ];
-      
-      (doc as any).autoTable({
-        startY: 60,
-        head: [['Metric', 'Value']],
-        body: summaryData,
-        margin: { left: 20 },
-        styles: { fontSize: 10 },
-        headStyles: { fillColor: [66, 139, 202] }
-      });
+      doc.setFontSize(12);
+      doc.text(`Total Vehicles: ${metrics?.totalVehicles || 0}`, 20, yPosition);
+      yPosition += 10;
+      doc.text(`Total Redos: ${metrics?.totalRedos || 0}`, 20, yPosition);
+      yPosition += 10;
+      doc.text(`Success Rate (7-Window): ${successRate || 0}%`, 20, yPosition);
+      yPosition += 10;
+      doc.text(`Avg Time Variance: ${metrics?.avgTimeVariance || 0} min`, 20, yPosition);
+      yPosition += 10;
+      doc.text(`Active Installers: ${metrics?.activeInstallers || 0}`, 20, yPosition);
+      yPosition += 20;
       
       // Top Performers section
-      let finalY = (doc as any).lastAutoTable.finalY + 20;
       doc.setFontSize(16);
-      doc.text('Top Performers', 20, finalY);
+      doc.text('Top Performers', 20, yPosition);
+      yPosition += 15;
       
-      const performersTableData = topPerformers?.map(p => [
-        `${p.installer?.firstName || ''} ${p.installer?.lastName || ''}`.trim() || 'Unknown',
-        (p.vehicleCount || 0).toString(),
-        (p.redoCount || 0).toString(),
-        `${p.successRate || 0}%`
-      ]) || [];
-      
-      (doc as any).autoTable({
-        startY: finalY + 10,
-        head: [['Installer', 'Vehicles', 'Redos', 'Success Rate']],
-        body: performersTableData,
-        margin: { left: 20 },
-        styles: { fontSize: 9 },
-        headStyles: { fillColor: [66, 139, 202] }
+      doc.setFontSize(12);
+      topPerformers?.slice(0, 5).forEach((performer, index) => {
+        const name = `${performer.installer?.firstName || ''} ${performer.installer?.lastName || ''}`.trim() || 'Unknown';
+        const stats = `${name}: ${performer.vehicleCount || 0} vehicles, ${performer.redoCount || 0} redos, ${performer.successRate || 0}% success`;
+        doc.text(`${index + 1}. ${stats}`, 20, yPosition);
+        yPosition += 10;
       });
       
+      yPosition += 10;
+      
       // Job Entries section
-      finalY = (doc as any).lastAutoTable.finalY + 20;
       doc.setFontSize(16);
-      doc.text('Recent Job Entries', 20, finalY);
+      doc.text('Recent Job Entries', 20, yPosition);
+      yPosition += 15;
       
-      const jobEntriesTableData = jobEntries.slice(0, 10).map(entry => [
-        new Date(entry.date).toLocaleDateString(),
-        entry.installers?.map(i => `${i.firstName || ''} ${i.lastName || ''}`).join(", ") || 'No installers',
-        `${entry.vehicleYear || ''} ${entry.vehicleMake || ''} ${entry.vehicleModel || ''}`.trim() || 'Unknown vehicle',
-        (entry.redoEntries?.length || 0).toString()
-      ]);
-      
-      (doc as any).autoTable({
-        startY: finalY + 10,
-        head: [['Date', 'Installers', 'Vehicle', 'Redos']],
-        body: jobEntriesTableData,
-        margin: { left: 20 },
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [66, 139, 202] }
+      doc.setFontSize(10);
+      jobEntries.slice(0, 8).forEach((entry, index) => {
+        const date = new Date(entry.date).toLocaleDateString();
+        const installers = entry.installers?.map(i => `${i.firstName || ''} ${i.lastName || ''}`).join(", ") || 'No installers';
+        const vehicle = `${entry.vehicleYear || ''} ${entry.vehicleMake || ''} ${entry.vehicleModel || ''}`.trim() || 'Unknown vehicle';
+        const redos = entry.redoEntries?.length || 0;
+        
+        doc.text(`${index + 1}. ${date} - ${vehicle}`, 20, yPosition);
+        yPosition += 8;
+        doc.text(`   Installers: ${installers}`, 20, yPosition);
+        yPosition += 8;
+        doc.text(`   Redos: ${redos}`, 20, yPosition);
+        yPosition += 12;
+        
+        if (yPosition > 260) { // Start new page if needed
+          doc.addPage();
+          yPosition = 20;
+        }
       });
       
       // Save PDF
@@ -236,9 +233,10 @@ export default function Reports() {
         description: "Performance report has been downloaded.",
       });
     } catch (error) {
+      console.error("PDF Export Error:", error);
       toast({
         title: "Export Error",
-        description: "Failed to generate PDF report.",
+        description: `Failed to generate PDF report: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: "destructive",
       });
     }
