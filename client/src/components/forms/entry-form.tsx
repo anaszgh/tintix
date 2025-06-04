@@ -316,7 +316,31 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
           />
         </div>
 
-
+        {/* Window Count Section */}
+        <FormField
+          control={form.control}
+          name="totalWindows"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-muted-foreground">Total Windows *</FormLabel>
+              <FormControl>
+                <Input 
+                  type="number"
+                  min="1"
+                  max="20"
+                  placeholder="e.g. 7 (standard car)"
+                  {...field}
+                  onChange={(e) => field.onChange(parseInt(e.target.value) || 7)}
+                  className="bg-background border-border w-32"
+                />
+              </FormControl>
+              <FormMessage />
+              <p className="text-xs text-muted-foreground">
+                Enter the total number of windows for this vehicle (affects success rate calculation)
+              </p>
+            </FormItem>
+          )}
+        />
 
         <Card className="bg-muted/30 border-border">
           <CardHeader>
