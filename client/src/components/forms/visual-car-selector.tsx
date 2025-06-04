@@ -41,7 +41,12 @@ export function VisualCarSelector({ installers, selectedInstallers, onWindowAssi
   const [selectedWindow, setSelectedWindow] = useState<string | null>(null);
 
   const handleWindowClick = (windowId: string) => {
-    setSelectedWindow(windowId);
+    // If only one installer is selected, auto-assign without opening dropdown
+    if (selectedInstallers.length === 1) {
+      handleInstallerAssign(windowId, selectedInstallers[0].id);
+    } else {
+      setSelectedWindow(windowId);
+    }
   };
 
   const handleInstallerAssign = (windowId: string, installerId: string) => {
