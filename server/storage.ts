@@ -289,6 +289,7 @@ export class DatabaseStorage implements IStorage {
   }): Promise<{
     totalVehicles: number;
     totalRedos: number;
+    totalWindows: number;
     avgTimeVariance: number;
     activeInstallers: number;
     jobsWithoutRedos: number;
@@ -304,10 +305,11 @@ export class DatabaseStorage implements IStorage {
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-    // Count distinct job entries (vehicles) that exist
+    // Count distinct job entries (vehicles) and sum total windows
     const [vehicleCount] = await db
       .select({
         totalVehicles: count(jobEntries.id),
+        totalWindows: sql<number>`COALESCE(SUM(${jobEntries.totalWindows}), 0)`,
       })
       .from(jobEntries)
       .where(whereClause);
@@ -355,6 +357,7 @@ export class DatabaseStorage implements IStorage {
     return {
       totalVehicles: vehicleCount.totalVehicles,
       totalRedos: redoCount.totalRedos,
+      totalWindows: vehicleCount.totalWindows,
       avgTimeVariance: Math.round(timeVarianceMetrics.avgTimeVariance),
       activeInstallers: installerCount.activeInstallers,
       jobsWithoutRedos: perfectJobs.jobsWithoutRedos,
