@@ -492,13 +492,13 @@ export class DatabaseStorage implements IStorage {
         try {
           const assignments = JSON.parse(entry.windowAssignments as string);
           if (Array.isArray(assignments)) {
-            totalWindows += assignments.length;
+            // Only count windows that are actually assigned to installers
+            const assignedWindows = assignments.filter((assignment: any) => assignment.installerId);
+            totalWindows += assignedWindows.length;
             
             // Count windows per installer
-            assignments.forEach((assignment: any) => {
-              if (assignment.installerId) {
-                installerWindowCounts[assignment.installerId] = (installerWindowCounts[assignment.installerId] || 0) + 1;
-              }
+            assignedWindows.forEach((assignment: any) => {
+              installerWindowCounts[assignment.installerId] = (installerWindowCounts[assignment.installerId] || 0) + 1;
             });
           }
         } catch (error) {
