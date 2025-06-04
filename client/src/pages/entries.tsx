@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -106,7 +106,7 @@ export default function Entries() {
     });
   };
 
-  const columns = [
+  const columns = useMemo(() => [
     {
       accessorKey: "date",
       header: "Date",
@@ -191,7 +191,7 @@ export default function Entries() {
         );
       },
     },
-  ];
+  ], [user?.role, deleteEntryMutation.isPending]);
 
   if (isLoading || !isAuthenticated) {
     return (
