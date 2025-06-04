@@ -384,6 +384,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/analytics/window-performance", isAuthenticated, async (req: any, res) => {
+    try {
+      const analytics = await storage.getWindowPerformanceAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching window performance analytics:", error);
+      res.status(500).json({ message: "Failed to fetch window performance analytics" });
+    }
+  });
+
   // Installers routes
   app.get("/api/installers", isAuthenticated, async (req: any, res) => {
     try {

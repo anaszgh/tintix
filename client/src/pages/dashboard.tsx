@@ -8,6 +8,7 @@ import { MetricsCards } from "@/components/dashboard/metrics-cards";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
 import { RedoBreakdown } from "@/components/dashboard/redo-breakdown";
 import { RecentEntries } from "@/components/dashboard/recent-entries";
+import { WindowPerformance } from "@/components/dashboard/window-performance";
 
 export default function Dashboard() {
   const { toast } = useToast();
@@ -52,6 +53,8 @@ export default function Dashboard() {
             <PerformanceChart />
             <RedoBreakdown />
           </div>
+          
+          <WindowPerformance />
           
           <RecentEntries />
         </div>
