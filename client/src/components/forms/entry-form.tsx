@@ -318,30 +318,33 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
           />
         </div>
 
-        {/* Window Count Section */}
-        <FormField
-          control={form.control}
-          name="totalWindows"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-muted-foreground">Total Windows *</FormLabel>
-              <FormControl>
-                <Input 
-                  type="number"
-                  min="1"
-                  max="20"
-                  placeholder="e.g. 7 (standard car)"
-                  {...field}
-                  onChange={(e) => field.onChange(parseInt(e.target.value) || 7)}
-                  className="bg-background border-border w-32"
-                />
-              </FormControl>
-              <FormMessage />
-              <p className="text-xs text-muted-foreground">
-                Enter the total number of windows for this vehicle (affects success rate calculation)
-              </p>
-            </FormItem>
-          )}
+        {/* Visual Car Window Assignment */}
+        <VisualCarSelector
+          installers={installers}
+          onWindowAssignmentsChange={(assignments) => {
+            setWindowAssignments(assignments);
+            
+            // Extract unique installer IDs from assignments
+            const installerIds = [...new Set(assignments.map(a => a.installerId).filter(Boolean))];
+            form.setValue("installerIds", installerIds as string[]);
+            form.setValue("totalWindows", assignments.length);
+            
+            // Initialize time variances for new installers
+            const currentVariances = form.getValues("installerTimeVariances");
+            const newVariances = { ...currentVariances };
+            installerIds.forEach(id => {
+              if (!(id in newVariances)) {
+                newVariances[id] = 0;
+              }
+            });
+            // Remove variances for installers no longer selected
+            Object.keys(newVariances).forEach(id => {
+              if (!installerIds.includes(id)) {
+                delete newVariances[id];
+              }
+            });
+            form.setValue("installerTimeVariances", newVariances);
+          }}
         />
 
         <Card className="bg-muted/30 border-border">
