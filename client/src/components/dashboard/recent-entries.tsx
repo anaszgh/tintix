@@ -9,6 +9,7 @@ import { Link } from "wouter";
 import { EntryForm } from "@/components/forms/entry-form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { formatDate } from "@/lib/utils";
 import type { JobEntryWithDetails } from "@shared/schema";
 
 export function RecentEntries() {
@@ -93,7 +94,7 @@ export function RecentEntries() {
                 {entries.map((entry) => (
                   <tr key={entry.id} className="hover:bg-muted/20 transition-colors">
                     <td className="py-4 text-sm text-card-foreground">
-                      {new Date(entry.date + 'T00:00:00').toLocaleDateString()}
+                      {formatDate(entry.date)}
                     </td>
                     <td className="py-4 text-sm text-card-foreground">
                       {entry.installers.map(installer => `${installer.firstName} ${installer.lastName}`).join(", ")}
