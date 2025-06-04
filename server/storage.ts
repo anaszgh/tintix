@@ -69,6 +69,19 @@ export interface IStorage {
     count: number;
   }>>;
   
+  // Window performance analytics
+  getWindowPerformanceAnalytics(): Promise<{
+    totalWindows: number;
+    totalRedos: number;
+    successRate: number;
+    installerPerformance: Array<{
+      installer: User;
+      windowsCompleted: number;
+      redoCount: number;
+      successRate: number;
+    }>;
+  }>;
+  
   // Installer operations
   getInstallers(): Promise<User[]>;
 }
@@ -114,12 +127,10 @@ export class DatabaseStorage implements IStorage {
 
   // Job entry operations
   async createJobEntry(jobEntry: InsertJobEntry & { windowAssignments?: any[] }, installerData: Array<{installerId: string, timeVariance: number}>): Promise<JobEntry> {
-    // Generate job number
-    const year = new Date().getFullYear();
-    const month = String(new Date().getMonth() + 1).padStart(2, '0');
-    const day = String(new Date().getDate()).padStart(2, '0');
-    const timestamp = Date.now().toString().slice(-6); // Last 6 digits for uniqueness
-    const jobNumber = `JOB-${year}${month}${day}-${timestamp}`;
+    // Generate sequential job number starting from 1
+    const existingEntries = await db.select({ id: jobEntries.id }).from(jobEntries);
+    const nextJobNumber = existingEntries.length + 1;
+    const jobNumber = `JOB-${nextJobNumber}`;
 
     const [entry] = await db
       .insert(jobEntries)
@@ -456,6 +467,75 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(count(redoEntries.id)));
 
     return results;
+  }
+
+  async getWindowPerformanceAnalytics(): Promise<{
+    totalWindows: number;
+    totalRedos: number;
+    successRate: number;
+    installerPerformance: Array<{
+      installer: User;
+      windowsCompleted: number;
+      redoCount: number;
+      successRate: number;
+    }>;
+  }> {
+    // Get all job entries with window assignments
+    const entries = await db.select().from(jobEntries);
+    
+    // Calculate total windows from window assignments
+    let totalWindows = 0;
+    const installerWindowCounts: Record<string, number> = {};
+    
+    for (const entry of entries) {
+      if (entry.windowAssignments) {
+        const assignments = JSON.parse(entry.windowAssignments as string);
+        totalWindows += assignments.length;
+        
+        // Count windows per installer
+        assignments.forEach((assignment: any) => {
+          if (assignment.installerId) {
+            installerWindowCounts[assignment.installerId] = (installerWindowCounts[assignment.installerId] || 0) + 1;
+          }
+        });
+      }
+    }
+    
+    // Get total redos
+    const redoResults = await db.select().from(redoEntries);
+    const totalRedos = redoResults.length;
+    
+    // Get redos per installer
+    const installerRedoCounts: Record<string, number> = {};
+    redoResults.forEach(redo => {
+      installerRedoCounts[redo.installerId] = (installerRedoCounts[redo.installerId] || 0) + 1;
+    });
+    
+    // Get all installers
+    const allInstallers = await db.select().from(users).where(eq(users.role, "installer"));
+    
+    // Calculate installer performance
+    const installerPerformance = allInstallers.map(installer => {
+      const windowsCompleted = installerWindowCounts[installer.id] || 0;
+      const redoCount = installerRedoCounts[installer.id] || 0;
+      const successRate = windowsCompleted > 0 ? ((windowsCompleted - redoCount) / windowsCompleted) * 100 : 0;
+      
+      return {
+        installer,
+        windowsCompleted,
+        redoCount,
+        successRate: Math.max(0, successRate)
+      };
+    });
+    
+    const overallSuccessRate = totalWindows > 0 ? ((totalWindows - totalRedos) / totalWindows) * 100 : 0;
+    
+    return {
+      totalWindows,
+      totalRedos,
+      successRate: Math.max(0, overallSuccessRate),
+      installerPerformance
+    };
   }
 
   async getInstallers(): Promise<User[]> {
