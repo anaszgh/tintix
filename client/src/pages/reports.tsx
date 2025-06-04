@@ -50,6 +50,7 @@ export default function Reports() {
   const { data: metrics } = useQuery<{
     totalVehicles: number;
     totalRedos: number;
+    totalWindows: number;
     avgTimeVariance: number;
     activeInstallers: number;
   }>({
@@ -62,12 +63,11 @@ export default function Reports() {
     enabled: isAuthenticated,
   });
 
-  // Calculate success rate using 7-window rule
+  // Calculate success rate using actual window counts
   const calculateSuccessRate = () => {
     if (!metrics) return 0;
-    const totalJobs = metrics.totalVehicles || 0;
+    const totalWindows = metrics.totalWindows || 0;
     const totalRedos = metrics.totalRedos || 0;
-    const totalWindows = totalJobs * 7; // 7 windows per vehicle
     const successfulWindows = totalWindows - totalRedos;
     return totalWindows > 0 ? Math.round((successfulWindows / totalWindows) * 100) : 100;
   };

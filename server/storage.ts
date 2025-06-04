@@ -367,11 +367,12 @@ export class DatabaseStorage implements IStorage {
     redoCount: number;
     successRate: number;
   }>> {
-    // Get vehicle count per installer from existing job entries only
+    // Get vehicle count and total windows per installer from existing job entries only
     const vehicleCounts = await db
       .select({
         installerId: jobInstallers.installerId,
         vehicleCount: count(jobInstallers.jobEntryId),
+        totalWindows: sql<number>`SUM(${jobEntries.totalWindows})`,
       })
       .from(jobInstallers)
       .innerJoin(jobEntries, eq(jobInstallers.jobEntryId, jobEntries.id))
@@ -400,9 +401,9 @@ export class DatabaseStorage implements IStorage {
       
       const vehicleCount = vehicleData?.vehicleCount || 0;
       const redoCount = redoData?.redoCount || 0;
+      const totalWindows = vehicleData?.totalWindows || 0;
       
-      // Calculate success rate using 7-window rule: (Total Windows - Total Redos) / Total Windows * 100
-      const totalWindows = vehicleCount * 7; // 7 windows per vehicle
+      // Calculate success rate using actual window counts: (Total Windows - Total Redos) / Total Windows * 100
       const successfulWindows = totalWindows - redoCount;
       const successRate = totalWindows > 0 
         ? Math.round((successfulWindows / totalWindows) * 100 * 10) / 10
