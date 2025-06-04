@@ -1,17 +1,27 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Edit, Trash2, ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
+import { EntryForm } from "@/components/forms/entry-form";
 import type { JobEntryWithDetails } from "@shared/schema";
 
 export function RecentEntries() {
   const { user } = useAuth();
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<JobEntryWithDetails | null>(null);
   
-  const { data: entries = [] } = useQuery<JobEntryWithDetails[]>({
+  const { data: entries = [], refetch: refetchEntries } = useQuery<JobEntryWithDetails[]>({
     queryKey: ["/api/job-entries", { limit: 5 }],
   });
+
+  const handleEdit = (entry: JobEntryWithDetails) => {
+    setEditingEntry(entry);
+    setIsEditDialogOpen(true);
+  };
 
   return (
     <Card className="bg-card border-border">
@@ -94,6 +104,7 @@ export function RecentEntries() {
                           <Button 
                             variant="ghost" 
                             size="sm"
+                            onClick={() => handleEdit(entry)}
                             className="text-muted-foreground hover:text-primary p-1"
                           >
                             <Edit className="h-4 w-4" />
@@ -115,6 +126,28 @@ export function RecentEntries() {
           </div>
         )}
       </CardContent>
+      
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+        setIsEditDialogOpen(open);
+        if (!open) {
+          setEditingEntry(null);
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-card-foreground">Edit Job Entry</DialogTitle>
+          </DialogHeader>
+          <EntryForm 
+            editingEntry={editingEntry}
+            onSuccess={() => {
+              setIsEditDialogOpen(false);
+              setEditingEntry(null);
+              refetchEntries();
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
