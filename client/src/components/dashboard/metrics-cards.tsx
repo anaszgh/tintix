@@ -2,23 +2,51 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Car, RotateCcw, Clock, Users, TrendingUp, TrendingDown, Calendar } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Car, RotateCcw, Clock, Users, TrendingUp, TrendingDown, Calendar, Filter } from "lucide-react";
 
 export function MetricsCards() {
-  const [timeFilter, setTimeFilter] = useState<"all" | "lastMonth">("all");
+  const [timeFilter, setTimeFilter] = useState<"all" | "lastMonth" | "lastWeek" | "today" | "custom">("all");
+  const [customDateFrom, setCustomDateFrom] = useState("");
+  const [customDateTo, setCustomDateTo] = useState("");
   
-  // Calculate last month date range
-  const getLastMonthRange = () => {
+  // Calculate date ranges for different filters
+  const getDateRange = () => {
     const now = new Date();
-    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-    return {
-      dateFrom: lastMonth.toISOString().split('T')[0],
-      dateTo: lastMonthEnd.toISOString().split('T')[0]
-    };
+    
+    switch (timeFilter) {
+      case "today":
+        const today = now.toISOString().split('T')[0];
+        return { dateFrom: today, dateTo: today };
+        
+      case "lastWeek":
+        const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return {
+          dateFrom: lastWeek.toISOString().split('T')[0],
+          dateTo: now.toISOString().split('T')[0]
+        };
+        
+      case "lastMonth":
+        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+        return {
+          dateFrom: lastMonth.toISOString().split('T')[0],
+          dateTo: lastMonthEnd.toISOString().split('T')[0]
+        };
+        
+      case "custom":
+        if (customDateFrom && customDateTo) {
+          return { dateFrom: customDateFrom, dateTo: customDateTo };
+        }
+        return null;
+        
+      default:
+        return null;
+    }
   };
 
-  const queryParams = timeFilter === "lastMonth" ? getLastMonthRange() : null;
+  const queryParams = getDateRange();
   
   const { data: metrics } = useQuery({
     queryKey: ["/api/analytics/metrics", queryParams],
@@ -42,7 +70,16 @@ export function MetricsCards() {
   const successRate = totalWindows > 0 ? Math.round((successfulWindows / totalWindows) * 100) : 100;
 
   const hasData = totalJobs > 0;
-  const noDataMessage = timeFilter === "lastMonth" ? "No data for last month" : "No data available";
+  const getNoDataMessage = () => {
+    switch (timeFilter) {
+      case "today": return "No data for today";
+      case "lastWeek": return "No data for last week";
+      case "lastMonth": return "No data for last month";
+      case "custom": return "No data for selected period";
+      default: return "No data available";
+    }
+  };
+  const noDataMessage = getNoDataMessage();
 
   const cards = [
     {
@@ -85,25 +122,86 @@ export function MetricsCards() {
 
   return (
     <div className="space-y-6">
-      {/* Filter Buttons */}
-      <div className="flex gap-3">
-        <Button
-          variant={timeFilter === "all" ? "default" : "outline"}
-          onClick={() => setTimeFilter("all")}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground"
-        >
-          <Calendar className="h-4 w-4 mr-2" />
-          All Time
-        </Button>
-        <Button
-          variant={timeFilter === "lastMonth" ? "default" : "outline"}
-          onClick={() => setTimeFilter("lastMonth")}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground"
-        >
-          <Calendar className="h-4 w-4 mr-2" />
-          Last Month
-        </Button>
-      </div>
+      {/* Date Range Filters */}
+      <Card className="bg-card border-border">
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Filter className="h-5 w-5 text-muted-foreground" />
+              <Label className="text-lg font-semibold text-card-foreground">Date Range Filter</Label>
+            </div>
+            
+            {/* Quick Filter Buttons */}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={timeFilter === "all" ? "default" : "outline"}
+                onClick={() => setTimeFilter("all")}
+                size="sm"
+              >
+                All Time
+              </Button>
+              <Button
+                variant={timeFilter === "today" ? "default" : "outline"}
+                onClick={() => setTimeFilter("today")}
+                size="sm"
+              >
+                Today
+              </Button>
+              <Button
+                variant={timeFilter === "lastWeek" ? "default" : "outline"}
+                onClick={() => setTimeFilter("lastWeek")}
+                size="sm"
+              >
+                Last 7 Days
+              </Button>
+              <Button
+                variant={timeFilter === "lastMonth" ? "default" : "outline"}
+                onClick={() => setTimeFilter("lastMonth")}
+                size="sm"
+              >
+                Last Month
+              </Button>
+              <Button
+                variant={timeFilter === "custom" ? "default" : "outline"}
+                onClick={() => setTimeFilter("custom")}
+                size="sm"
+              >
+                Custom Range
+              </Button>
+            </div>
+
+            {/* Custom Date Range Inputs */}
+            {timeFilter === "custom" && (
+              <div className="grid grid-cols-2 gap-4 mt-4 p-4 bg-muted/50 rounded-lg">
+                <div>
+                  <Label htmlFor="dateFrom" className="text-sm font-medium text-muted-foreground mb-2 block">
+                    From Date
+                  </Label>
+                  <Input
+                    id="dateFrom"
+                    type="date"
+                    value={customDateFrom}
+                    onChange={(e) => setCustomDateFrom(e.target.value)}
+                    className="bg-background border-border"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="dateTo" className="text-sm font-medium text-muted-foreground mb-2 block">
+                    To Date
+                  </Label>
+                  <Input
+                    id="dateTo"
+                    type="date"
+                    value={customDateTo}
+                    onChange={(e) => setCustomDateTo(e.target.value)}
+                    className="bg-background border-border"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
