@@ -488,16 +488,27 @@ export class DatabaseStorage implements IStorage {
     const installerWindowCounts: Record<string, number> = {};
     
     for (const entry of entries) {
-      if (entry.windowAssignments) {
-        const assignments = JSON.parse(entry.windowAssignments as string);
-        totalWindows += assignments.length;
-        
-        // Count windows per installer
-        assignments.forEach((assignment: any) => {
-          if (assignment.installerId) {
-            installerWindowCounts[assignment.installerId] = (installerWindowCounts[assignment.installerId] || 0) + 1;
+      if (entry.windowAssignments && entry.windowAssignments !== null) {
+        try {
+          const assignments = JSON.parse(entry.windowAssignments as string);
+          if (Array.isArray(assignments)) {
+            totalWindows += assignments.length;
+            
+            // Count windows per installer
+            assignments.forEach((assignment: any) => {
+              if (assignment.installerId) {
+                installerWindowCounts[assignment.installerId] = (installerWindowCounts[assignment.installerId] || 0) + 1;
+              }
+            });
           }
-        });
+        } catch (error) {
+          console.error('Error parsing window assignments:', error);
+          // Fallback to totalWindows if JSON parsing fails
+          totalWindows += entry.totalWindows || 0;
+        }
+      } else {
+        // Use totalWindows from job entry if windowAssignments is null
+        totalWindows += entry.totalWindows || 0;
       }
     }
     
@@ -514,6 +525,23 @@ export class DatabaseStorage implements IStorage {
     // Get all installers
     const allInstallers = await db.select().from(users).where(eq(users.role, "installer"));
     
+    // For installers without window assignments, get counts from job_installers table
+    const jobInstallerCounts = await db
+      .select({
+        installerId: jobInstallers.installerId,
+        totalWindows: sql<number>`SUM(${jobEntries.totalWindows})`,
+      })
+      .from(jobInstallers)
+      .innerJoin(jobEntries, eq(jobInstallers.jobEntryId, jobEntries.id))
+      .groupBy(jobInstallers.installerId);
+
+    // Merge window counts from assignments and job installers
+    jobInstallerCounts.forEach(({ installerId, totalWindows }) => {
+      if (!installerWindowCounts[installerId]) {
+        installerWindowCounts[installerId] = totalWindows;
+      }
+    });
+
     // Calculate installer performance
     const installerPerformance = allInstallers.map(installer => {
       const windowsCompleted = installerWindowCounts[installer.id] || 0;
