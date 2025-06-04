@@ -75,7 +75,7 @@ export function CarWindowSelector({ installers, onWindowAssignmentsChange, initi
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
           <Car className="h-5 w-5" />
           Window Installation Assignment
         </CardTitle>
