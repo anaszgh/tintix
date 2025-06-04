@@ -12,7 +12,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { EntryForm } from "@/components/forms/entry-form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Download, Filter, RotateCcw, Edit, Trash2 } from "lucide-react";
+import { Plus, Download, Filter, RotateCcw, Edit, Trash2, FileText } from "lucide-react";
+import jsPDF from "jspdf";
 import type { JobEntryWithDetails, User } from "@shared/schema";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
@@ -107,7 +108,72 @@ export default function Entries() {
     });
   };
 
+  const generateJobPDF = (entry: JobEntryWithDetails) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    
+    // Header
+    doc.setFontSize(20);
+    doc.text('Tintix - Job Entry Report', pageWidth / 2, 20, { align: 'center' });
+    
+    // Job Information
+    doc.setFontSize(12);
+    doc.text(`Job Number: ${entry.jobNumber || `JOB-${entry.id}`}`, 20, 40);
+    doc.text(`Date: ${new Date(entry.date).toLocaleDateString()}`, 20, 50);
+    doc.text(`Vehicle: ${entry.vehicleYear} ${entry.vehicleMake} ${entry.vehicleModel}`, 20, 60);
+    doc.text(`Total Windows: ${entry.totalWindows}`, 20, 70);
+    
+    // Installers
+    doc.text('Installers:', 20, 90);
+    let yPos = 100;
+    entry.installers.forEach((installer) => {
+      doc.text(`- ${installer.firstName} ${installer.lastName} (Time Variance: ${installer.timeVariance} min)`, 30, yPos);
+      yPos += 10;
+    });
+    
+    // Window Assignments
+    if (entry.windowAssignments) {
+      doc.text('Window Assignments:', 20, yPos + 10);
+      yPos += 20;
+      try {
+        const assignments = JSON.parse(entry.windowAssignments as string);
+        assignments.forEach((assignment: any) => {
+          const installer = installers?.find(i => i.id === assignment.installerId);
+          doc.text(`- ${assignment.windowName}: ${installer ? `${installer.firstName} ${installer.lastName}` : 'Unassigned'}`, 30, yPos);
+          yPos += 10;
+        });
+      } catch (e) {
+        doc.text('- No window assignments available', 30, yPos);
+      }
+    }
+    
+    // Redo Entries
+    if (entry.redoEntries.length > 0) {
+      doc.text('Redo Entries:', 20, yPos + 10);
+      yPos += 20;
+      entry.redoEntries.forEach((redo) => {
+        const installer = redo.installer;
+        doc.text(`- ${redo.part}: ${installer ? `${installer.firstName} ${installer.lastName}` : 'No installer'}`, 30, yPos);
+        yPos += 10;
+      });
+    }
+    
+    // Notes
+    if (entry.notes) {
+      doc.text('Notes:', 20, yPos + 10);
+      doc.text(entry.notes, 20, yPos + 20);
+    }
+    
+    // Save PDF
+    doc.save(`Job-${entry.jobNumber || entry.id}.pdf`);
+  };
+
   const columns = useMemo(() => [
+    {
+      accessorKey: "jobNumber",
+      header: "Job #",
+      cell: ({ row }: any) => row.original.jobNumber || `JOB-${row.original.id}`,
+    },
     {
       accessorKey: "date",
       header: "Date",
@@ -164,6 +230,14 @@ export default function Entries() {
         const entry = row.original;
         return (
           <div className="flex items-center space-x-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => generateJobPDF(entry)}
+              title="Export PDF"
+            >
+              <FileText className="h-4 w-4" />
+            </Button>
             <Button
               variant="ghost"
               size="sm"
