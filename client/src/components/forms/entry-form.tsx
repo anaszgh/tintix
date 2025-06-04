@@ -138,6 +138,9 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
   };
 
   const onSubmit = (data: z.infer<typeof formSchema>) => {
+    console.log('Form submission data:', data);
+    console.log('Window assignments:', windowAssignments);
+    console.log('Form errors:', form.formState.errors);
     createEntryMutation.mutate(data);
   };
 
