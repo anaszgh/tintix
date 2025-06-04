@@ -41,10 +41,16 @@ export function VisualCarSelector({ installers, selectedInstallers, onWindowAssi
   const [selectedWindow, setSelectedWindow] = useState<string | null>(null);
 
   const handleWindowClick = (windowId: string) => {
+    console.log('Window clicked:', windowId);
+    console.log('Selected installers count:', selectedInstallers.length);
+    console.log('Selected installers:', selectedInstallers);
+    
     // If only one installer is selected, auto-assign without opening dropdown
     if (selectedInstallers.length === 1) {
+      console.log('Auto-assigning to:', selectedInstallers[0].firstName);
       handleInstallerAssign(windowId, selectedInstallers[0].id);
     } else {
+      console.log('Opening manual selection dropdown');
       setSelectedWindow(windowId);
     }
   };
