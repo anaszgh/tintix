@@ -117,6 +117,7 @@ export function VisualCarSelector({ installers, onWindowAssignmentsChange }: Vis
               return (
                 <button
                   key={window.id}
+                  type="button"
                   className={cn(
                     "absolute border-2 rounded cursor-pointer transition-all",
                     "hover:scale-110 hover:shadow-lg",
@@ -129,7 +130,11 @@ export function VisualCarSelector({ installers, onWindowAssignmentsChange }: Vis
                     width: window.width,
                     height: window.height
                   }}
-                  onClick={() => handleWindowClick(window.id)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleWindowClick(window.id);
+                  }}
                   title={`${window.name}${assignment?.installerId ? ` - ${getInstallerName(assignment.installerId)}` : ' - Unassigned'}`}
                 >
                   <span className="text-xs font-medium">
@@ -160,9 +165,14 @@ export function VisualCarSelector({ installers, onWindowAssignmentsChange }: Vis
                   Assign {CAR_WINDOWS.find(w => w.id === selectedWindow)?.name}
                 </h4>
                 <Button
+                  type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => setSelectedWindow(null)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setSelectedWindow(null);
+                  }}
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -209,9 +219,14 @@ export function VisualCarSelector({ installers, onWindowAssignmentsChange }: Vis
               </Select>
             </div>
             <Button
+              type="button"
               variant="outline"
               size="sm"
-              onClick={() => removeCustomWindow(window.windowId)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                removeCustomWindow(window.windowId);
+              }}
             >
               <X className="h-4 w-4" />
             </Button>
@@ -222,7 +237,11 @@ export function VisualCarSelector({ installers, onWindowAssignmentsChange }: Vis
           <Button
             type="button"
             variant="outline"
-            onClick={addCustomWindow}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              addCustomWindow();
+            }}
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Custom Window
