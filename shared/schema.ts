@@ -105,6 +105,7 @@ export const redoEntriesRelations = relations(redoEntries, ({ one }) => ({
 // Insert schemas
 export const insertJobEntrySchema = createInsertSchema(jobEntries).omit({
   id: true,
+  jobNumber: true,
   createdAt: true,
   updatedAt: true,
 });
