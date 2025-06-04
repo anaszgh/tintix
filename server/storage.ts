@@ -400,8 +400,12 @@ export class DatabaseStorage implements IStorage {
       
       const vehicleCount = vehicleData?.vehicleCount || 0;
       const redoCount = redoData?.redoCount || 0;
-      const successRate = vehicleCount > 0 
-        ? Math.round(((vehicleCount - redoCount) / vehicleCount) * 100 * 10) / 10
+      
+      // Calculate success rate using 7-window rule: (Total Windows - Total Redos) / Total Windows * 100
+      const totalWindows = vehicleCount * 7; // 7 windows per vehicle
+      const successfulWindows = totalWindows - redoCount;
+      const successRate = totalWindows > 0 
+        ? Math.round((successfulWindows / totalWindows) * 100 * 10) / 10
         : 100;
 
       return {
