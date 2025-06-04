@@ -30,15 +30,42 @@ export default function Reports() {
     }
   }, [isAuthenticated, isLoading, toast]);
 
-  const { data: topPerformers = [] } = useQuery({
+  const { data: topPerformers = [] } = useQuery<Array<{
+    installer: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string | null;
+    };
+    vehicleCount: number;
+    redoCount: number;
+    successRate: number;
+  }>>({
     queryKey: ["/api/analytics/top-performers"],
     enabled: isAuthenticated,
   });
 
-  const { data: metrics } = useQuery({
+  const { data: metrics } = useQuery<{
+    totalVehicles: number;
+    totalRedos: number;
+    avgTimeVariance: number;
+    activeInstallers: number;
+  }>({
     queryKey: ["/api/analytics/metrics"],
     enabled: isAuthenticated,
   });
+
+  // Calculate success rate using 7-window rule
+  const calculateSuccessRate = () => {
+    if (!metrics) return 0;
+    const totalJobs = metrics.totalVehicles || 0;
+    const totalRedos = metrics.totalRedos || 0;
+    const totalWindows = totalJobs * 7; // 7 windows per vehicle
+    const successfulWindows = totalWindows - totalRedos;
+    return totalWindows > 0 ? Math.round((successfulWindows / totalWindows) * 100) : 100;
+  };
+
+  const successRate = calculateSuccessRate();
 
   const exportExcel = () => {
     toast({
@@ -117,12 +144,10 @@ export default function Reports() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-success">
-                  {metrics && metrics.totalVehicles > 0 
-                    ? Math.round(((metrics.totalVehicles - metrics.totalRedos) / metrics.totalVehicles) * 100)
-                    : 100}%
+                  {successRate}%
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Jobs without redos
+                  7-window rule calculation
                 </p>
               </CardContent>
             </Card>
