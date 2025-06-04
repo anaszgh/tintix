@@ -9,6 +9,7 @@ import { PerformanceChart } from "@/components/dashboard/performance-chart";
 import { RedoBreakdown } from "@/components/dashboard/redo-breakdown";
 import { RecentEntries } from "@/components/dashboard/recent-entries";
 import { WindowPerformance } from "@/components/dashboard/window-performance";
+import { QuickSnapshot } from "@/components/dashboard/quick-snapshot";
 
 export default function Dashboard() {
   const { toast } = useToast();
@@ -47,7 +48,12 @@ export default function Dashboard() {
         />
         
         <div className="p-8 overflow-y-auto h-full space-y-8">
-          <MetricsCards />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <MetricsCards />
+            </div>
+            <QuickSnapshot />
+          </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <PerformanceChart />
