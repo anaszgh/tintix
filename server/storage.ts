@@ -303,36 +303,46 @@ export class DatabaseStorage implements IStorage {
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-    const [vehicleMetrics] = await db
+    // Count distinct job entries (vehicles) that exist
+    const [vehicleCount] = await db
       .select({
         totalVehicles: count(jobEntries.id),
-        avgTimeVariance: sql<number>`COALESCE(AVG(${jobInstallers.timeVariance}::numeric), 0)`,
       })
       .from(jobEntries)
-      .leftJoin(jobInstallers, eq(jobEntries.id, jobInstallers.jobEntryId))
       .where(whereClause);
 
-    const [redoMetrics] = await db
+    // Calculate average time variance from existing job entries only
+    const [timeVarianceMetrics] = await db
+      .select({
+        avgTimeVariance: sql<number>`COALESCE(AVG(${jobInstallers.timeVariance}::numeric), 0)`,
+      })
+      .from(jobInstallers)
+      .innerJoin(jobEntries, eq(jobInstallers.jobEntryId, jobEntries.id))
+      .where(whereClause);
+
+    // Count redo entries that belong to existing job entries only
+    const [redoCount] = await db
       .select({
         totalRedos: count(redoEntries.id),
       })
       .from(redoEntries)
-      .leftJoin(jobEntries, eq(redoEntries.jobEntryId, jobEntries.id))
+      .innerJoin(jobEntries, eq(redoEntries.jobEntryId, jobEntries.id))
       .where(whereClause);
 
-    const [installerMetrics] = await db
+    // Count active installers from existing job entries only
+    const [installerCount] = await db
       .select({
         activeInstallers: sql<number>`COUNT(DISTINCT ${jobInstallers.installerId})`,
       })
       .from(jobInstallers)
-      .leftJoin(jobEntries, eq(jobInstallers.jobEntryId, jobEntries.id))
+      .innerJoin(jobEntries, eq(jobInstallers.jobEntryId, jobEntries.id))
       .where(whereClause);
 
     return {
-      totalVehicles: vehicleMetrics.totalVehicles,
-      totalRedos: redoMetrics.totalRedos,
-      avgTimeVariance: Math.round(vehicleMetrics.avgTimeVariance),
-      activeInstallers: installerMetrics.activeInstallers,
+      totalVehicles: vehicleCount.totalVehicles,
+      totalRedos: redoCount.totalRedos,
+      avgTimeVariance: Math.round(timeVarianceMetrics.avgTimeVariance),
+      activeInstallers: installerCount.activeInstallers,
     };
   }
 
@@ -342,22 +352,24 @@ export class DatabaseStorage implements IStorage {
     redoCount: number;
     successRate: number;
   }>> {
-    // Get vehicle count per installer
+    // Get vehicle count per installer from existing job entries only
     const vehicleCounts = await db
       .select({
         installerId: jobInstallers.installerId,
         vehicleCount: count(jobInstallers.jobEntryId),
       })
       .from(jobInstallers)
+      .innerJoin(jobEntries, eq(jobInstallers.jobEntryId, jobEntries.id))
       .groupBy(jobInstallers.installerId);
 
-    // Get redo count per installer
+    // Get redo count per installer from existing job entries only
     const redoCounts = await db
       .select({
         installerId: redoEntries.installerId,
         redoCount: count(redoEntries.id),
       })
       .from(redoEntries)
+      .innerJoin(jobEntries, eq(redoEntries.jobEntryId, jobEntries.id))
       .groupBy(redoEntries.installerId);
 
     // Get all installers
