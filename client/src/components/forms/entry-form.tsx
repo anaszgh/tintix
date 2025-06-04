@@ -440,6 +440,14 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
           )}
         />
 
+        {/* Show form errors for debugging */}
+        {Object.keys(form.formState.errors).length > 0 && (
+          <div className="bg-red-50 border border-red-200 rounded-md p-4">
+            <h4 className="text-red-800 font-medium mb-2">Form Validation Errors:</h4>
+            <pre className="text-red-600 text-sm">{JSON.stringify(form.formState.errors, null, 2)}</pre>
+          </div>
+        )}
+
         <div className="flex items-center justify-end space-x-3 pt-6 border-t border-border">
           <Button 
             type="submit" 
