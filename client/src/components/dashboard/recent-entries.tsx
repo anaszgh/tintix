@@ -23,7 +23,7 @@ export function RecentEntries() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest(`/api/job-entries/${id}`, "DELETE");
+      await apiRequest("DELETE", `/api/job-entries/${id}`);
     },
     onSuccess: () => {
       toast({
