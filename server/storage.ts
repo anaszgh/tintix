@@ -14,7 +14,7 @@ import {
   type JobEntryWithDetails,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lte, sql, count } from "drizzle-orm";
+import { eq, desc, and, gte, lte, sql, count, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -291,6 +291,7 @@ export class DatabaseStorage implements IStorage {
     totalRedos: number;
     avgTimeVariance: number;
     activeInstallers: number;
+    jobsWithoutRedos: number;
   }> {
     const conditions = [];
     
@@ -338,11 +339,25 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(jobEntries, eq(jobInstallers.jobEntryId, jobEntries.id))
       .where(whereClause);
 
+    // Count jobs that have NO redos (perfect jobs)
+    const [perfectJobs] = await db
+      .select({
+        jobsWithoutRedos: sql<number>`COUNT(DISTINCT ${jobEntries.id})`,
+      })
+      .from(jobEntries)
+      .leftJoin(redoEntries, eq(jobEntries.id, redoEntries.jobEntryId))
+      .where(
+        whereClause 
+          ? and(whereClause, sql`${redoEntries.id} IS NULL`)
+          : sql`${redoEntries.id} IS NULL`
+      );
+
     return {
       totalVehicles: vehicleCount.totalVehicles,
       totalRedos: redoCount.totalRedos,
       avgTimeVariance: Math.round(timeVarianceMetrics.avgTimeVariance),
       activeInstallers: installerCount.activeInstallers,
+      jobsWithoutRedos: perfectJobs.jobsWithoutRedos,
     };
   }
 

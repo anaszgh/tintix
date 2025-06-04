@@ -33,10 +33,11 @@ export function MetricsCards() {
     }
   });
 
-  // Calculate success rate properly
+  // Calculate success rate properly - percentage of jobs with NO redos
   const totalJobs = metrics?.totalVehicles || 0;
   const totalRedos = metrics?.totalRedos || 0;
-  const successRate = totalJobs > 0 ? Math.round(((totalJobs - totalRedos) / totalJobs) * 100) : 100;
+  const jobsWithoutRedos = metrics?.jobsWithoutRedos || 0;
+  const successRate = totalJobs > 0 ? Math.round((jobsWithoutRedos / totalJobs) * 100) : 100;
 
   const hasData = totalJobs > 0;
   const noDataMessage = timeFilter === "lastMonth" ? "No data for last month" : "No data available";
