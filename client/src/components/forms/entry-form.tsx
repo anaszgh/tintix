@@ -52,7 +52,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: editingEntry ? {
-      date: new Date(editingEntry.date).toISOString().split('T')[0],
+      date: editingEntry.date.split('T')[0],
       installerIds: editingEntry.installers.map(i => i.id),
       installerTimeVariances: editingEntry.installers.reduce((acc, installer) => {
         acc[installer.id] = installer.timeVariance || 0;
