@@ -375,32 +375,8 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
             onWindowAssignmentsChange={(assignments) => {
               setWindowAssignments(assignments);
               
-              // Extract unique installer IDs from assignments (only update internally, don't trigger save)
-              const uniqueInstallers = new Set<string>();
-              assignments.forEach(a => {
-                if (a.installerId) uniqueInstallers.add(a.installerId);
-              });
-              const installerIds = Array.from(uniqueInstallers);
-              
-              // Update form values without triggering submission
-              form.setValue("installerIds", installerIds, { shouldValidate: false, shouldDirty: false });
+              // Only update total windows count, don't modify job-level installer selection
               form.setValue("totalWindows", assignments.filter(a => a.installerId).length, { shouldValidate: false, shouldDirty: false });
-              
-              // Initialize time variances for new installers
-              const currentVariances = form.getValues("installerTimeVariances");
-              const newVariances = { ...currentVariances };
-              installerIds.forEach(id => {
-                if (!(id in newVariances)) {
-                  newVariances[id] = 0;
-                }
-              });
-              // Remove variances for installers no longer selected
-              Object.keys(newVariances).forEach(id => {
-                if (!installerIds.includes(id)) {
-                  delete newVariances[id];
-                }
-              });
-              form.setValue("installerTimeVariances", newVariances, { shouldValidate: false, shouldDirty: false });
             }}
           />
 
