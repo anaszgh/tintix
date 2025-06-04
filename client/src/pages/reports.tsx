@@ -206,7 +206,7 @@ export default function Reports() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {topPerformers.map((performer: any, index: number) => (
+                    {topPerformers.map((performer, index: number) => (
                       <tr key={performer.installer.id} className="hover:bg-muted/20 transition-colors">
                         <td className="py-4 text-sm text-card-foreground">
                           <div className="flex items-center space-x-3">
