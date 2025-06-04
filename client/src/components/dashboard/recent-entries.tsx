@@ -63,7 +63,7 @@ export function RecentEntries() {
                 {entries.map((entry) => (
                   <tr key={entry.id} className="hover:bg-muted/20 transition-colors">
                     <td className="py-4 text-sm text-card-foreground">
-                      {new Date(entry.date).toLocaleDateString()}
+                      {new Date(entry.date + 'T00:00:00').toLocaleDateString()}
                     </td>
                     <td className="py-4 text-sm text-card-foreground">
                       {entry.installers.map(installer => `${installer.firstName} ${installer.lastName}`).join(", ")}
