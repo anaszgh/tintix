@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { RedoEntry } from "./redo-entry";
+import { CarWindowSelector } from "./car-window-selector";
 import { Plus, Save } from "lucide-react";
 import { insertJobEntrySchema } from "@shared/schema";
 import { z } from "zod";
@@ -21,7 +22,12 @@ import type { User, JobEntryWithDetails } from "@shared/schema";
 
 const formSchema = insertJobEntrySchema.extend({
   date: z.string(),
-  installerIds: z.array(z.string()).min(1, "At least one installer must be selected"),
+  windowInstallations: z.array(z.object({
+    windowId: z.string(),
+    installerId: z.string(),
+    windowName: z.string()
+  })).min(1, "At least one window assignment is required"),
+  totalWindows: z.number().min(1, "Must have at least one window"),
   installerTimeVariances: z.record(z.string(), z.number()), // installer ID -> time variance
   redoEntries: z.array(z.object({
     part: z.string(),
@@ -44,6 +50,9 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       installerId: redo.installerId
     })) : []
   );
+
+  const [windowAssignments, setWindowAssignments] = useState<Array<{ windowId: string; installerId: string; windowName: string }>>([]);
+  const [totalWindows, setTotalWindows] = useState<number>(7);
 
   const { data: installers = [] } = useQuery<User[]>({
     queryKey: ["/api/installers"],
