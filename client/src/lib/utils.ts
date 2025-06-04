@@ -11,6 +11,13 @@ export function formatTimeVariance(minutes: number): string {
 }
 
 export function formatDate(date: string | Date): string {
+  // Handle date strings without timezone conversion
+  if (typeof date === 'string' && date.includes('T')) {
+    // For ISO date strings, parse the date part only to avoid timezone shifts
+    const dateOnly = date.split('T')[0];
+    const [year, month, day] = dateOnly.split('-');
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day)).toLocaleDateString();
+  }
   return new Date(date).toLocaleDateString();
 }
 
