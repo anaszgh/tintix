@@ -323,6 +323,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
         <div className="space-y-4">
           <VisualCarSelector
             installers={installers}
+            selectedInstallers={form.getValues("installerIds").map(id => installers.find(i => i.id === id)).filter(Boolean) as User[]}
             onWindowAssignmentsChange={(assignments) => {
               setWindowAssignments(assignments);
               

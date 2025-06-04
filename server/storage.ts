@@ -114,10 +114,18 @@ export class DatabaseStorage implements IStorage {
 
   // Job entry operations
   async createJobEntry(jobEntry: InsertJobEntry & { windowAssignments?: any[] }, installerData: Array<{installerId: string, timeVariance: number}>): Promise<JobEntry> {
+    // Generate job number
+    const year = new Date().getFullYear();
+    const month = String(new Date().getMonth() + 1).padStart(2, '0');
+    const day = String(new Date().getDate()).padStart(2, '0');
+    const timestamp = Date.now().toString().slice(-6); // Last 6 digits for uniqueness
+    const jobNumber = `JOB-${year}${month}${day}-${timestamp}`;
+
     const [entry] = await db
       .insert(jobEntries)
       .values({
         ...jobEntry,
+        jobNumber,
         windowAssignments: jobEntry.windowAssignments ? JSON.stringify(jobEntry.windowAssignments) : null,
       })
       .returning();

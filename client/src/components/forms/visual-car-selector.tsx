@@ -15,6 +15,7 @@ interface WindowAssignment {
 
 interface VisualCarSelectorProps {
   installers: User[];
+  selectedInstallers: User[];
   onWindowAssignmentsChange: (assignments: WindowAssignment[]) => void;
 }
 
@@ -29,7 +30,7 @@ const CAR_WINDOWS = [
   { id: "passenger_quarter", name: "Passenger Quarter", x: "69%", y: "70%", width: "6%", height: "8%" },
 ];
 
-export function VisualCarSelector({ installers, onWindowAssignmentsChange }: VisualCarSelectorProps) {
+export function VisualCarSelector({ installers, selectedInstallers, onWindowAssignmentsChange }: VisualCarSelectorProps) {
   const [windowAssignments, setWindowAssignments] = useState<WindowAssignment[]>(
     CAR_WINDOWS.map(window => ({
       windowId: window.id,
@@ -185,7 +186,7 @@ export function VisualCarSelector({ installers, onWindowAssignmentsChange }: Vis
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No installer</SelectItem>
-                  {installers.map((installer) => (
+                  {selectedInstallers.map((installer) => (
                     <SelectItem key={installer.id} value={installer.id}>
                       {installer.firstName} {installer.lastName}
                     </SelectItem>
@@ -210,7 +211,7 @@ export function VisualCarSelector({ installers, onWindowAssignmentsChange }: Vis
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No installer</SelectItem>
-                  {installers.map((installer) => (
+                  {selectedInstallers.map((installer) => (
                     <SelectItem key={installer.id} value={installer.id}>
                       {installer.firstName} {installer.lastName}
                     </SelectItem>

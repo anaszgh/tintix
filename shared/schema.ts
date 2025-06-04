@@ -40,6 +40,7 @@ export const users = pgTable("users", {
 
 export const jobEntries = pgTable("job_entries", {
   id: serial("id").primaryKey(),
+  jobNumber: varchar("job_number").notNull().unique(),
   date: timestamp("date").notNull(),
   vehicleYear: varchar("vehicle_year").notNull(),
   vehicleMake: varchar("vehicle_make").notNull(),
