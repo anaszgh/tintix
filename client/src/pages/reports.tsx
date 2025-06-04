@@ -77,17 +77,27 @@ export default function Reports() {
 
   const exportExcel = () => {
     try {
+      // Validate data
+      if (!jobEntries || jobEntries.length === 0) {
+        toast({
+          title: "No Data",
+          description: "No job entries available to export.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Create workbook
       const wb = XLSX.utils.book_new();
       
       // Job Entries sheet
       const jobEntriesData = jobEntries.map(entry => ({
         Date: new Date(entry.date).toLocaleDateString(),
-        Installers: entry.installers.map(i => `${i.firstName} ${i.lastName}`).join(", "),
-        Vehicle: `${entry.vehicleYear} ${entry.vehicleMake} ${entry.vehicleModel}`,
-        'Time Variance': entry.installers.map(i => `${i.firstName}: ${i.timeVariance > 0 ? '+' : ''}${i.timeVariance} min`).join(", "),
-        Redos: entry.redoEntries.length,
-        'Redo Details': entry.redoEntries.map(r => `${r.part} (${r.installer.firstName})`).join(", "),
+        Installers: entry.installers?.map(i => `${i.firstName || ''} ${i.lastName || ''}`).join(", ") || "No installers",
+        Vehicle: `${entry.vehicleYear || ''} ${entry.vehicleMake || ''} ${entry.vehicleModel || ''}`.trim(),
+        'Time Variance': entry.installers?.map(i => `${i.firstName || 'Unknown'}: ${i.timeVariance > 0 ? '+' : ''}${i.timeVariance || 0} min`).join(", ") || "No data",
+        Redos: entry.redoEntries?.length || 0,
+        'Redo Details': entry.redoEntries?.map(r => `${r.part} (${r.installer?.firstName || 'Unknown'})`).join(", ") || "None",
         Notes: entry.notes || ""
       }));
       
@@ -95,13 +105,13 @@ export default function Reports() {
       XLSX.utils.book_append_sheet(wb, ws1, "Job Entries");
       
       // Top Performers sheet
-      const performersData = topPerformers.map(p => ({
-        Installer: `${p.installer.firstName} ${p.installer.lastName}`,
-        Email: p.installer.email,
-        'Vehicle Count': p.vehicleCount,
-        'Redo Count': p.redoCount,
-        'Success Rate': `${p.successRate}%`
-      }));
+      const performersData = topPerformers?.map(p => ({
+        Installer: `${p.installer?.firstName || ''} ${p.installer?.lastName || ''}`.trim() || 'Unknown',
+        Email: p.installer?.email || 'No email',
+        'Vehicle Count': p.vehicleCount || 0,
+        'Redo Count': p.redoCount || 0,
+        'Success Rate': `${p.successRate || 0}%`
+      })) || [];
       
       const ws2 = XLSX.utils.json_to_sheet(performersData);
       XLSX.utils.book_append_sheet(wb, ws2, "Top Performers");
@@ -137,6 +147,16 @@ export default function Reports() {
 
   const exportPDF = () => {
     try {
+      // Validate data
+      if (!jobEntries || jobEntries.length === 0) {
+        toast({
+          title: "No Data",
+          description: "No job entries available to export.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const doc = new jsPDF();
       
       // Header
@@ -152,7 +172,7 @@ export default function Reports() {
       const summaryData = [
         ['Total Vehicles', (metrics?.totalVehicles || 0).toString()],
         ['Total Redos', (metrics?.totalRedos || 0).toString()],
-        ['Success Rate (7-Window)', `${successRate}%`],
+        ['Success Rate (7-Window)', `${successRate || 0}%`],
         ['Avg Time Variance', `${metrics?.avgTimeVariance || 0} min`],
         ['Active Installers', (metrics?.activeInstallers || 0).toString()]
       ];
@@ -171,12 +191,12 @@ export default function Reports() {
       doc.setFontSize(16);
       doc.text('Top Performers', 20, finalY);
       
-      const performersTableData = topPerformers.map(p => [
-        `${p.installer.firstName} ${p.installer.lastName}`,
-        p.vehicleCount.toString(),
-        p.redoCount.toString(),
-        `${p.successRate}%`
-      ]);
+      const performersTableData = topPerformers?.map(p => [
+        `${p.installer?.firstName || ''} ${p.installer?.lastName || ''}`.trim() || 'Unknown',
+        (p.vehicleCount || 0).toString(),
+        (p.redoCount || 0).toString(),
+        `${p.successRate || 0}%`
+      ]) || [];
       
       (doc as any).autoTable({
         startY: finalY + 10,
@@ -194,9 +214,9 @@ export default function Reports() {
       
       const jobEntriesTableData = jobEntries.slice(0, 10).map(entry => [
         new Date(entry.date).toLocaleDateString(),
-        entry.installers.map(i => `${i.firstName} ${i.lastName}`).join(", "),
-        `${entry.vehicleYear} ${entry.vehicleMake} ${entry.vehicleModel}`,
-        entry.redoEntries.length.toString()
+        entry.installers?.map(i => `${i.firstName || ''} ${i.lastName || ''}`).join(", ") || 'No installers',
+        `${entry.vehicleYear || ''} ${entry.vehicleMake || ''} ${entry.vehicleModel || ''}`.trim() || 'Unknown vehicle',
+        (entry.redoEntries?.length || 0).toString()
       ]);
       
       (doc as any).autoTable({
