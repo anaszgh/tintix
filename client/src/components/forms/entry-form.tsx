@@ -49,8 +49,9 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
 
   const [windowAssignments, setWindowAssignments] = useState<Array<{ windowId: string; installerId: string | null; windowName: string }>>([]);
 
-  const { data: installers = [] } = useQuery<User[]>({
+  const { data: installers = [], isLoading: installersLoading } = useQuery<User[]>({
     queryKey: ["/api/installers"],
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -323,7 +324,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
         <div className="space-y-4">
           <VisualCarSelector
             installers={installers}
-            selectedInstallers={form.getValues("installerIds").map(id => installers.find(i => i.id === id)).filter(Boolean) as User[]}
+            selectedInstallers={form.watch("installerIds").map(id => installers.find(i => i.id === id)).filter(Boolean) as User[]}
             onWindowAssignmentsChange={(assignments) => {
               setWindowAssignments(assignments);
               
