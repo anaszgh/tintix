@@ -4,12 +4,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Car, RotateCcw, Clock, Users, TrendingUp, TrendingDown, Calendar, Filter } from "lucide-react";
+import { Car, RotateCcw, Clock, Users, TrendingUp, TrendingDown, Calendar, Filter, Search, X } from "lucide-react";
 
 export function MetricsCards() {
   const [timeFilter, setTimeFilter] = useState<"all" | "lastMonth" | "lastWeek" | "today" | "custom">("all");
   const [customDateFrom, setCustomDateFrom] = useState("");
   const [customDateTo, setCustomDateTo] = useState("");
+  const [appliedCustomRange, setAppliedCustomRange] = useState<{dateFrom: string, dateTo: string} | null>(null);
   
   // Calculate date ranges for different filters
   const getDateRange = () => {
@@ -36,8 +37,8 @@ export function MetricsCards() {
         };
         
       case "custom":
-        if (customDateFrom && customDateTo) {
-          return { dateFrom: customDateFrom, dateTo: customDateTo };
+        if (appliedCustomRange) {
+          return appliedCustomRange;
         }
         return null;
         
@@ -47,6 +48,21 @@ export function MetricsCards() {
   };
 
   const queryParams = getDateRange();
+
+  // Apply custom date range
+  const applyCustomRange = () => {
+    if (customDateFrom && customDateTo) {
+      setAppliedCustomRange({ dateFrom: customDateFrom, dateTo: customDateTo });
+    }
+  };
+
+  // Clear custom date range
+  const clearCustomRange = () => {
+    setCustomDateFrom("");
+    setCustomDateTo("");
+    setAppliedCustomRange(null);
+    setTimeFilter("all");
+  };
   
   const { data: metrics } = useQuery({
     queryKey: ["/api/analytics/metrics", queryParams],
@@ -172,31 +188,61 @@ export function MetricsCards() {
 
             {/* Custom Date Range Inputs */}
             {timeFilter === "custom" && (
-              <div className="grid grid-cols-2 gap-4 mt-4 p-4 bg-muted/50 rounded-lg">
-                <div>
-                  <Label htmlFor="dateFrom" className="text-sm font-medium text-muted-foreground mb-2 block">
-                    From Date
-                  </Label>
-                  <Input
-                    id="dateFrom"
-                    type="date"
-                    value={customDateFrom}
-                    onChange={(e) => setCustomDateFrom(e.target.value)}
-                    className="bg-background border-border"
-                  />
+              <div className="mt-4 p-4 bg-muted/50 rounded-lg space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="dateFrom" className="text-sm font-medium text-muted-foreground mb-2 block">
+                      From Date
+                    </Label>
+                    <Input
+                      id="dateFrom"
+                      type="date"
+                      value={customDateFrom}
+                      onChange={(e) => setCustomDateFrom(e.target.value)}
+                      className="bg-background border-border"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="dateTo" className="text-sm font-medium text-muted-foreground mb-2 block">
+                      To Date
+                    </Label>
+                    <Input
+                      id="dateTo"
+                      type="date"
+                      value={customDateTo}
+                      onChange={(e) => setCustomDateTo(e.target.value)}
+                      className="bg-background border-border"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="dateTo" className="text-sm font-medium text-muted-foreground mb-2 block">
-                    To Date
-                  </Label>
-                  <Input
-                    id="dateTo"
-                    type="date"
-                    value={customDateTo}
-                    onChange={(e) => setCustomDateTo(e.target.value)}
-                    className="bg-background border-border"
-                  />
+                
+                {/* Apply and Clear Buttons */}
+                <div className="flex gap-2">
+                  <Button
+                    onClick={applyCustomRange}
+                    disabled={!customDateFrom || !customDateTo}
+                    size="sm"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                  >
+                    <Search className="h-4 w-4 mr-2" />
+                    Apply Filter
+                  </Button>
+                  <Button
+                    onClick={clearCustomRange}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Clear
+                  </Button>
                 </div>
+                
+                {/* Show Applied Range */}
+                {appliedCustomRange && (
+                  <div className="text-sm text-muted-foreground bg-background p-2 rounded border">
+                    Applied Range: {appliedCustomRange.dateFrom} to {appliedCustomRange.dateTo}
+                  </div>
+                )}
               </div>
             )}
           </div>
