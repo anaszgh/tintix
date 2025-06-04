@@ -172,9 +172,9 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-screen bg-background">
       <Sidebar />
-      <div className="pl-64">
+      <main className="flex-1 overflow-hidden">
         <Header
           title="User Management"
           description="Manage user roles and permissions"
@@ -186,7 +186,7 @@ export default function UsersPage() {
           }
         />
         
-        <div className="p-6 space-y-6">
+        <div className="p-8 overflow-y-auto h-full space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -238,7 +238,7 @@ export default function UsersPage() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
