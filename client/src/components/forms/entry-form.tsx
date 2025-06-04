@@ -326,7 +326,11 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
             setWindowAssignments(assignments);
             
             // Extract unique installer IDs from assignments
-            const installerIds = [...new Set(assignments.map(a => a.installerId).filter(Boolean))] as string[];
+            const uniqueInstallers = new Set<string>();
+            assignments.forEach(a => {
+              if (a.installerId) uniqueInstallers.add(a.installerId);
+            });
+            const installerIds = Array.from(uniqueInstallers);
             form.setValue("installerIds", installerIds);
             form.setValue("totalWindows", assignments.filter(a => a.installerId).length);
             
