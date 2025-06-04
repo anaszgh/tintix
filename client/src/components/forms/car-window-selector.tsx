@@ -3,29 +3,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Car } from "lucide-react";
+import { Car, Plus, X } from "lucide-react";
 import type { User } from "@shared/schema";
 
 interface WindowAssignment {
   windowId: string;
   installerId: string | null;
   windowName: string;
+  position: { x: number; y: number };
 }
 
 interface CarWindowSelectorProps {
   installers: User[];
-  onWindowAssignmentsChange: (assignments: WindowAssignment[], totalWindows: number) => void;
+  onWindowAssignmentsChange: (assignments: WindowAssignment[]) => void;
   initialAssignments?: WindowAssignment[];
 }
 
 const DEFAULT_WINDOWS: WindowAssignment[] = [
-  { windowId: "windshield", installerId: null, windowName: "Windshield" },
-  { windowId: "back_windshield", installerId: null, windowName: "Back Windshield" },
-  { windowId: "front_left", installerId: null, windowName: "Front Left" },
-  { windowId: "front_right", installerId: null, windowName: "Front Right" },
-  { windowId: "rear_left", installerId: null, windowName: "Rear Left" },
-  { windowId: "rear_right", installerId: null, windowName: "Rear Right" },
-  { windowId: "quarter_left", installerId: null, windowName: "Quarter Left" },
+  { windowId: "windshield", installerId: null, windowName: "Windshield", position: { x: 50, y: 15 } },
+  { windowId: "back_windshield", installerId: null, windowName: "Back Windshield", position: { x: 50, y: 85 } },
+  { windowId: "front_left", installerId: null, windowName: "Front Left", position: { x: 15, y: 35 } },
+  { windowId: "front_right", installerId: null, windowName: "Front Right", position: { x: 85, y: 35 } },
+  { windowId: "rear_left", installerId: null, windowName: "Rear Left", position: { x: 15, y: 65 } },
+  { windowId: "rear_right", installerId: null, windowName: "Rear Right", position: { x: 85, y: 65 } },
+  { windowId: "quarter_left", installerId: null, windowName: "Quarter Left", position: { x: 25, y: 75 } },
 ];
 
 export function CarWindowSelector({ installers, onWindowAssignmentsChange, initialAssignments }: CarWindowSelectorProps) {

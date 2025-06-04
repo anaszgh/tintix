@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { RedoEntry } from "./redo-entry";
-import { CarWindowSelector } from "./car-window-selector";
+import { VisualCarSelector } from "./visual-car-selector";
 import { Plus, Save } from "lucide-react";
 import { insertJobEntrySchema } from "@shared/schema";
 import { z } from "zod";
@@ -46,6 +46,8 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       installerId: redo.installerId
     })) : []
   );
+
+  const [windowAssignments, setWindowAssignments] = useState<Array<{ windowId: string; installerId: string; windowName: string }>>([]);
 
   const { data: installers = [] } = useQuery<User[]>({
     queryKey: ["/api/installers"],
