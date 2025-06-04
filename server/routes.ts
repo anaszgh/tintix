@@ -156,6 +156,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/job-entries/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Manager role check for editing entries
+      if (user.role !== "manager") {
+        return res.status(403).json({ message: "Only managers can edit job entries" });
+      }
+
+      const entryId = parseInt(req.params.id);
+      if (isNaN(entryId)) {
+        return res.status(400).json({ message: "Invalid entry ID" });
+      }
+
+      const validatedData = insertJobEntrySchema.parse({
+        ...req.body,
+        date: new Date(req.body.date),
+      });
+
+      // Handle installer data with individual time variances
+      const { installerIds, installerTimeVariances } = req.body;
+      if (!installerIds || !Array.isArray(installerIds) || installerIds.length === 0) {
+        return res.status(400).json({ message: "At least one installer must be selected" });
+      }
+
+      // Update the job entry
+      await storage.updateJobEntry(entryId, validatedData);
+
+      // Delete existing job installers and redo entries
+      const existingEntry = await storage.getJobEntry(entryId);
+      if (existingEntry) {
+        for (const installer of existingEntry.installers) {
+          await storage.deleteJobInstaller(entryId, installer.id);
+        }
+        for (const redo of existingEntry.redoEntries) {
+          await storage.deleteRedoEntry(redo.id);
+        }
+      }
+
+      // Recreate job installers with new time variances
+      const installerData = installerIds.map((installerId: string) => ({
+        installerId,
+        timeVariance: installerTimeVariances?.[installerId] || 0
+      }));
+
+      for (const installer of installerData) {
+        await storage.createJobInstaller({
+          jobEntryId: entryId,
+          installerId: installer.installerId,
+          timeVariance: installer.timeVariance
+        });
+      }
+
+      // Recreate redo entries if provided
+      if (req.body.redoEntries && Array.isArray(req.body.redoEntries)) {
+        for (const redoData of req.body.redoEntries) {
+          const validatedRedo = insertRedoEntrySchema.parse({
+            jobEntryId: entryId,
+            installerId: redoData.installerId || installerIds[0],
+            part: redoData.part,
+            timestamp: new Date(),
+          });
+          await storage.createRedoEntry(validatedRedo);
+        }
+      }
+
+      const updatedEntry = await storage.getJobEntry(entryId);
+      res.json(updatedEntry);
+    } catch (error) {
+      console.error("Error updating job entry:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to update job entry" });
+    }
+  });
+
   app.get("/api/job-entries/:id", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

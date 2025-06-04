@@ -38,7 +38,12 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [redoEntries, setRedoEntries] = useState<Array<{ part: string; installerId?: string }>>([]);
+  const [redoEntries, setRedoEntries] = useState<Array<{ part: string; installerId?: string }>>(
+    editingEntry ? editingEntry.redoEntries.map(redo => ({
+      part: redo.part,
+      installerId: redo.installerId
+    })) : []
+  );
 
   const { data: installers = [] } = useQuery<User[]>({
     queryKey: ["/api/installers"],
@@ -70,20 +75,24 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
 
   const createEntryMutation = useMutation({
     mutationFn: async (data: z.infer<typeof formSchema>) => {
-      await apiRequest("POST", "/api/job-entries", {
+      const method = editingEntry ? "PUT" : "POST";
+      const url = editingEntry ? `/api/job-entries/${editingEntry.id}` : "/api/job-entries";
+      await apiRequest(method, url, {
         ...data,
         redoEntries,
       });
     },
     onSuccess: () => {
       toast({
-        title: "Entry Created",
-        description: "Job entry has been successfully created.",
+        title: editingEntry ? "Entry Updated" : "Entry Created",
+        description: editingEntry ? "Job entry has been successfully updated." : "Job entry has been successfully created.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/job-entries"] });
       queryClient.invalidateQueries({ queryKey: ["/api/analytics/metrics"] });
-      form.reset();
-      setRedoEntries([]);
+      if (!editingEntry) {
+        form.reset();
+        setRedoEntries([]);
+      }
       onSuccess?.();
     },
     onError: (error) => {
@@ -373,7 +382,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
             ) : (
               <Save className="h-4 w-4 mr-2" />
             )}
-            Save Entry
+            {editingEntry ? "Update Entry" : "Save Entry"}
           </Button>
         </div>
       </form>
