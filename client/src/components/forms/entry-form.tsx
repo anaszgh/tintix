@@ -357,17 +357,17 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
 
           {/* Window Assignment Summary */}
           {windowAssignments.filter(w => w.installerId).length > 0 && (
-            <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+            <Card className="bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-600">
               <CardHeader>
-                <CardTitle className="text-sm">Window Assignments</CardTitle>
+                <CardTitle className="text-sm text-slate-900 dark:text-slate-100">Window Assignments</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {windowAssignments.filter(w => w.installerId).map((assignment) => {
                   const installer = installers.find(i => i.id === assignment.installerId);
                   return (
                     <div key={assignment.windowId} className="flex justify-between items-center text-sm">
-                      <span className="font-medium">{assignment.windowName}</span>
-                      <span className="text-blue-700 dark:text-blue-300">
+                      <span className="font-medium text-slate-900 dark:text-slate-100">{assignment.windowName}</span>
+                      <span className="text-blue-700 dark:text-blue-300 font-semibold">
                         {installer ? `${installer.firstName} ${installer.lastName}` : 'Unknown'}
                       </span>
                     </div>

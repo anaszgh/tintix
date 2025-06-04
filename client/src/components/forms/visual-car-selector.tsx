@@ -94,7 +94,7 @@ export function VisualCarSelector({ installers, onWindowAssignmentsChange }: Vis
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
           <Car className="h-5 w-5" />
           Window Installation Assignment
         </CardTitle>
@@ -137,7 +137,7 @@ export function VisualCarSelector({ installers, onWindowAssignmentsChange }: Vis
                   }}
                   title={`${window.name}${assignment?.installerId ? ` - ${getInstallerName(assignment.installerId)}` : ' - Unassigned'}`}
                 >
-                  <span className="text-xs font-medium">
+                  <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
                     {window.name.split(' ').map(w => w[0]).join('')}
                   </span>
                 </button>
@@ -150,7 +150,7 @@ export function VisualCarSelector({ installers, onWindowAssignmentsChange }: Vis
             {installers.slice(0, 5).map((installer, index) => (
               <div key={installer.id} className="flex items-center gap-2">
                 <div className={cn("w-4 h-4 rounded border-2", getInstallerColor(installer.id))}></div>
-                <span>{installer.firstName} {installer.lastName}</span>
+                <span className="text-slate-900 dark:text-slate-100 font-medium">{installer.firstName} {installer.lastName}</span>
               </div>
             ))}
           </div>
@@ -161,7 +161,7 @@ export function VisualCarSelector({ installers, onWindowAssignmentsChange }: Vis
           <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium">
+                <h4 className="font-medium text-slate-900 dark:text-slate-100">
                   Assign {CAR_WINDOWS.find(w => w.id === selectedWindow)?.name}
                 </h4>
                 <Button
@@ -200,7 +200,7 @@ export function VisualCarSelector({ installers, onWindowAssignmentsChange }: Vis
         {windowAssignments.filter(w => w.windowId.startsWith('custom_')).map((window) => (
           <div key={window.windowId} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900 rounded">
             <div className="flex-1">
-              <label className="text-sm font-medium">{window.windowName}</label>
+              <label className="text-sm font-medium text-slate-900 dark:text-slate-100">{window.windowName}</label>
               <Select 
                 value={window.installerId || "none"} 
                 onValueChange={(value) => handleInstallerAssign(window.windowId, value)}
@@ -246,7 +246,7 @@ export function VisualCarSelector({ installers, onWindowAssignmentsChange }: Vis
             <Plus className="h-4 w-4 mr-2" />
             Add Custom Window
           </Button>
-          <div className="text-sm text-gray-600 dark:text-gray-400">
+          <div className="text-sm text-slate-700 dark:text-slate-300 font-medium">
             Click windows to assign installers
           </div>
         </div>
