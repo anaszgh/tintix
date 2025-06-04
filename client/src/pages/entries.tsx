@@ -21,6 +21,7 @@ export default function Entries() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const queryClient = useQueryClient();
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<JobEntryWithDetails | null>(null);
   const [filters, setFilters] = useState({
     installer: "all",
     dateFrom: "",
@@ -167,11 +168,8 @@ export default function Entries() {
               variant="ghost"
               size="sm"
               onClick={() => {
-                // TODO: Implement edit functionality
-                toast({
-                  title: "Edit Feature",
-                  description: "Edit functionality coming soon",
-                });
+                setEditingEntry(entry);
+                setIsFormOpen(true);
               }}
               disabled={user?.role !== "manager"}
               className="h-8 w-8 p-0"
@@ -218,20 +216,32 @@ export default function Entries() {
                 <Download className="h-4 w-4 mr-2" />
                 Export
               </Button>
-              <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+              <Dialog open={isFormOpen} onOpenChange={(open) => {
+                setIsFormOpen(open);
+                if (!open) {
+                  setEditingEntry(null);
+                }
+              }}>
                 <DialogTrigger asChild>
-                  <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                  <Button 
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                    onClick={() => setEditingEntry(null)}
+                  >
                     <Plus className="h-4 w-4 mr-2" />
                     New Entry
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-border">
                   <DialogHeader>
-                    <DialogTitle className="text-card-foreground">New Vehicle Entry</DialogTitle>
+                    <DialogTitle className="text-card-foreground">
+                      {editingEntry ? "Edit Vehicle Entry" : "New Vehicle Entry"}
+                    </DialogTitle>
                   </DialogHeader>
                   <EntryForm 
+                    editingEntry={editingEntry}
                     onSuccess={() => {
                       setIsFormOpen(false);
+                      setEditingEntry(null);
                       refetchEntries();
                     }}
                   />

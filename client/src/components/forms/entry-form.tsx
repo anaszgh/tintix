@@ -17,7 +17,7 @@ import { RedoEntry } from "./redo-entry";
 import { Plus, Save } from "lucide-react";
 import { insertJobEntrySchema } from "@shared/schema";
 import { z } from "zod";
-import type { User } from "@shared/schema";
+import type { User, JobEntryWithDetails } from "@shared/schema";
 
 const formSchema = insertJobEntrySchema.extend({
   date: z.string(),
@@ -31,9 +31,10 @@ const formSchema = insertJobEntrySchema.extend({
 
 interface EntryFormProps {
   onSuccess?: () => void;
+  editingEntry?: JobEntryWithDetails | null;
 }
 
-export function EntryForm({ onSuccess }: EntryFormProps) {
+export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -45,7 +46,18 @@ export function EntryForm({ onSuccess }: EntryFormProps) {
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
+    defaultValues: editingEntry ? {
+      date: new Date(editingEntry.date).toISOString().split('T')[0],
+      installerIds: editingEntry.installers.map(i => i.id),
+      installerTimeVariances: editingEntry.installers.reduce((acc, installer) => {
+        acc[installer.id] = installer.timeVariance || 0;
+        return acc;
+      }, {} as Record<string, number>),
+      vehicleYear: editingEntry.vehicleYear,
+      vehicleMake: editingEntry.vehicleMake,
+      vehicleModel: editingEntry.vehicleModel,
+      notes: editingEntry.notes || "",
+    } : {
       date: new Date().toISOString().split('T')[0],
       installerIds: [],
       installerTimeVariances: {},
