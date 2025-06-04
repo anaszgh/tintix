@@ -19,14 +19,14 @@ interface VisualCarSelectorProps {
 }
 
 const CAR_WINDOWS = [
-  { id: "windshield", name: "Windshield", x: "45%", y: "10%", width: "10%", height: "15%" },
-  { id: "back_windshield", name: "Back Windshield", x: "45%", y: "75%", width: "10%", height: "15%" },
-  { id: "front_left", name: "Front Left", x: "15%", y: "25%", width: "8%", height: "12%" },
-  { id: "front_right", name: "Front Right", x: "77%", y: "25%", width: "8%", height: "12%" },
-  { id: "rear_left", name: "Rear Left", x: "15%", y: "55%", width: "8%", height: "12%" },
-  { id: "rear_right", name: "Rear Right", x: "77%", y: "55%", width: "8%", height: "12%" },
-  { id: "quarter_left", name: "Quarter Left", x: "25%", y: "70%", width: "6%", height: "8%" },
-  { id: "quarter_right", name: "Quarter Right", x: "69%", y: "70%", width: "6%", height: "8%" },
+  { id: "front_windshield", name: "Front Windshield", x: "45%", y: "10%", width: "10%", height: "15%" },
+  { id: "rear_windshield", name: "Rear Windshield", x: "45%", y: "75%", width: "10%", height: "15%" },
+  { id: "front_driver", name: "Front Driver", x: "15%", y: "25%", width: "8%", height: "12%" },
+  { id: "front_passenger", name: "Front Passenger", x: "77%", y: "25%", width: "8%", height: "12%" },
+  { id: "rear_driver", name: "Rear Driver", x: "15%", y: "55%", width: "8%", height: "12%" },
+  { id: "rear_passenger", name: "Rear Passenger", x: "77%", y: "55%", width: "8%", height: "12%" },
+  { id: "driver_quarter", name: "Driver Quarter", x: "25%", y: "70%", width: "6%", height: "8%" },
+  { id: "passenger_quarter", name: "Passenger Quarter", x: "69%", y: "70%", width: "6%", height: "8%" },
 ];
 
 export function VisualCarSelector({ installers, onWindowAssignmentsChange }: VisualCarSelectorProps) {

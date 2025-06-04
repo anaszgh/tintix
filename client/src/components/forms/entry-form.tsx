@@ -47,7 +47,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     })) : []
   );
 
-  const [windowAssignments, setWindowAssignments] = useState<Array<{ windowId: string; installerId: string; windowName: string }>>([]);
+  const [windowAssignments, setWindowAssignments] = useState<Array<{ windowId: string; installerId: string | null; windowName: string }>>([]);
 
   const { data: installers = [] } = useQuery<User[]>({
     queryKey: ["/api/installers"],
@@ -85,6 +85,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       const url = editingEntry ? `/api/job-entries/${editingEntry.id}` : "/api/job-entries";
       await apiRequest(method, url, {
         ...data,
+        windowAssignments: windowAssignments.filter(w => w.installerId),
         redoEntries,
       });
     },
@@ -325,9 +326,9 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
             setWindowAssignments(assignments);
             
             // Extract unique installer IDs from assignments
-            const installerIds = [...new Set(assignments.map(a => a.installerId).filter(Boolean))];
-            form.setValue("installerIds", installerIds as string[]);
-            form.setValue("totalWindows", assignments.length);
+            const installerIds = [...new Set(assignments.map(a => a.installerId).filter(Boolean))] as string[];
+            form.setValue("installerIds", installerIds);
+            form.setValue("totalWindows", assignments.filter(a => a.installerId).length);
             
             // Initialize time variances for new installers
             const currentVariances = form.getValues("installerTimeVariances");

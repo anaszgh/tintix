@@ -113,10 +113,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Job entry operations
-  async createJobEntry(jobEntry: InsertJobEntry, installerData: Array<{installerId: string, timeVariance: number}>): Promise<JobEntry> {
+  async createJobEntry(jobEntry: InsertJobEntry & { windowAssignments?: any[] }, installerData: Array<{installerId: string, timeVariance: number}>): Promise<JobEntry> {
     const [entry] = await db
       .insert(jobEntries)
-      .values(jobEntry)
+      .values({
+        ...jobEntry,
+        windowAssignments: jobEntry.windowAssignments ? JSON.stringify(jobEntry.windowAssignments) : null,
+      })
       .returning();
     
     // Add installers to the job with their individual time variances
