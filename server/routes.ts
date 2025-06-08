@@ -130,7 +130,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timeVariance: installerTimeVariances?.[installerId] || 0
       }));
 
-      const jobEntry = await storage.createJobEntry(validatedData, installerData);
+      // Handle window assignments properly for storage
+      const jobEntryData = {
+        ...validatedData,
+        windowAssignments: req.body.windowAssignments || []
+      };
+      
+      const jobEntry = await storage.createJobEntry(jobEntryData, installerData);
 
       // Create redo entries if provided
       if (req.body.redoEntries && Array.isArray(req.body.redoEntries)) {

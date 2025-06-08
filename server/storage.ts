@@ -28,7 +28,7 @@ export interface IStorage {
   deleteUser(id: string): Promise<void>;
   
   // Job entry operations
-  createJobEntry(jobEntry: InsertJobEntry, installerData: Array<{installerId: string, timeVariance: number}>): Promise<JobEntry>;
+  createJobEntry(jobEntry: InsertJobEntry & { windowAssignments?: any[] }, installerData: Array<{installerId: string, timeVariance: number}>): Promise<JobEntry>;
   getJobEntries(filters?: {
     installerId?: string;
     dateFrom?: Date;
@@ -164,9 +164,18 @@ export class DatabaseStorage implements IStorage {
 
     // Calculate and store individual installer time allocations
     if (jobEntry.durationMinutes && jobEntry.windowAssignments) {
-      const assignments = Array.isArray(jobEntry.windowAssignments) 
-        ? jobEntry.windowAssignments 
-        : JSON.parse(jobEntry.windowAssignments as string);
+      let assignments: any[] = [];
+      
+      if (Array.isArray(jobEntry.windowAssignments)) {
+        assignments = jobEntry.windowAssignments;
+      } else if (typeof jobEntry.windowAssignments === 'string') {
+        try {
+          assignments = JSON.parse(jobEntry.windowAssignments);
+        } catch (error) {
+          console.error('Error parsing window assignments:', error);
+          assignments = [];
+        }
+      }
       
       // Count windows per installer
       const installerWindowCounts: Record<string, number> = {};
