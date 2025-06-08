@@ -9,6 +9,7 @@ import { PerformanceChart } from "@/components/dashboard/performance-chart";
 import { RedoBreakdown } from "@/components/dashboard/redo-breakdown";
 import { RecentEntries } from "@/components/dashboard/recent-entries";
 import { WindowPerformance } from "@/components/dashboard/window-performance";
+import { TimePerformance } from "@/components/dashboard/time-performance";
 import { QuickSnapshot } from "@/components/dashboard/quick-snapshot";
 
 export default function Dashboard() {
@@ -61,6 +62,8 @@ export default function Dashboard() {
           </div>
           
           <WindowPerformance />
+          
+          <TimePerformance />
           
           <RecentEntries />
         </div>

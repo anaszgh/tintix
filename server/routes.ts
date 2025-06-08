@@ -394,6 +394,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/analytics/time-performance", isAuthenticated, async (req: any, res) => {
+    try {
+      const analytics = await storage.getInstallerTimePerformance();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching time performance analytics:", error);
+      res.status(500).json({ message: "Failed to fetch time performance analytics" });
+    }
+  });
+
   // Installers routes
   app.get("/api/installers", isAuthenticated, async (req: any, res) => {
     try {
