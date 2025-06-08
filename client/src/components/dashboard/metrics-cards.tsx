@@ -252,43 +252,43 @@ export function MetricsCards() {
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {isLoading ? (
-        Array.from({ length: 4 }).map((_, index) => (
-          <MetricCardSkeleton key={index} />
-        ))
-      ) : (
-        cards.map((card, index) => (
-        <Card key={index} className="bg-card border-border">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className={`w-12 h-12 ${card.iconBg} rounded-lg flex items-center justify-center`}>
-                <card.icon className={`h-6 w-6 ${card.iconColor}`} />
-              </div>
-              <span className={`text-xs px-2 py-1 rounded-full ${
-                card.trendType === "up" 
-                  ? "text-success bg-success/20" 
-                  : card.trendType === "down"
-                  ? "text-error bg-error/20"
-                  : "text-muted-foreground bg-muted"
-              }`}>
-                {card.trendType !== "neutral" && (
-                  card.trendType === "up" ? (
-                    <TrendingUp className="h-3 w-3 inline mr-1" />
-                  ) : (
-                    <TrendingDown className="h-3 w-3 inline mr-1" />
-                  )
-                )}
-                {card.trend}
-              </span>
-            </div>
-            <h3 className="text-2xl font-bold text-card-foreground mb-1">
-              {card.value}
-            </h3>
-            <p className="text-muted-foreground text-sm">{card.title}</p>
-          </CardContent>
-        </Card>
-        )
-      )}
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, index) => (
+            <MetricCardSkeleton key={index} />
+          ))
+        ) : (
+          cards.map((card, index) => (
+            <Card key={index} className="bg-card border-border">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`w-12 h-12 ${card.iconBg} rounded-lg flex items-center justify-center`}>
+                    <card.icon className={`h-6 w-6 ${card.iconColor}`} />
+                  </div>
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    card.trendType === "up" 
+                      ? "text-success bg-success/20" 
+                      : card.trendType === "down"
+                      ? "text-error bg-error/20"
+                      : "text-muted-foreground bg-muted"
+                  }`}>
+                    {card.trendType !== "neutral" && (
+                      card.trendType === "up" ? (
+                        <TrendingUp className="h-3 w-3 inline mr-1" />
+                      ) : (
+                        <TrendingDown className="h-3 w-3 inline mr-1" />
+                      )
+                    )}
+                    {card.trend}
+                  </span>
+                </div>
+                <h3 className="text-2xl font-bold text-card-foreground mb-1">
+                  {card.value}
+                </h3>
+                <p className="text-muted-foreground text-sm">{card.title}</p>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
     </div>
   );
