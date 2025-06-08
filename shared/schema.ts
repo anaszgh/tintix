@@ -8,6 +8,7 @@ import {
   serial,
   integer,
   boolean,
+  real,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -47,6 +48,9 @@ export const jobEntries = pgTable("job_entries", {
   vehicleModel: varchar("vehicle_model").notNull(),
   windowAssignments: jsonb("window_assignments"), // Store detailed window-installer assignments
   totalWindows: integer("total_windows").notNull().default(7),
+  startTime: timestamp("start_time"), // Job start time
+  endTime: timestamp("end_time"), // Job end time
+  durationMinutes: integer("duration_minutes"), // Total job duration in minutes
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -69,15 +73,27 @@ export const redoEntries = pgTable("redo_entries", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Time tracking for installer performance
+export const installerTimeEntries = pgTable("installer_time_entries", {
+  id: serial("id").primaryKey(),
+  jobEntryId: integer("job_entry_id").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
+  installerId: varchar("installer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  windowsCompleted: integer("windows_completed").notNull().default(0), // Number of windows assigned to this installer
+  timeMinutes: integer("time_minutes").notNull(), // Time allocated to this installer for this job (in minutes)
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   jobInstallers: many(jobInstallers),
   redoEntries: many(redoEntries),
+  timeEntries: many(installerTimeEntries),
 }));
 
 export const jobEntriesRelations = relations(jobEntries, ({ many }) => ({
   jobInstallers: many(jobInstallers),
   redoEntries: many(redoEntries),
+  timeEntries: many(installerTimeEntries),
 }));
 
 export const jobInstallersRelations = relations(jobInstallers, ({ one }) => ({
