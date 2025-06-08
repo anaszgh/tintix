@@ -645,10 +645,10 @@ export class DatabaseStorage implements IStorage {
 
     return result.map(row => ({
       installer: row.installer,
-      totalMinutes: row.totalMinutes,
-      totalWindows: row.totalWindows,
-      avgTimePerWindow: row.totalWindows > 0 ? Math.round((row.totalMinutes / row.totalWindows) * 10) / 10 : 0,
-      jobCount: row.jobCount,
+      totalMinutes: Number(row.totalMinutes) || 0,
+      totalWindows: Number(row.totalWindows) || 0,
+      avgTimePerWindow: row.totalWindows > 0 ? Math.round((Number(row.totalMinutes) / Number(row.totalWindows)) * 10) / 10 : 0,
+      jobCount: Number(row.jobCount) || 0,
     }));
   }
 }

@@ -403,6 +403,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/analytics/time-performance", isAuthenticated, async (req: any, res) => {
     try {
       const analytics = await storage.getInstallerTimePerformance();
+      console.log("Time performance data:", JSON.stringify(analytics, null, 2));
       res.json(analytics);
     } catch (error) {
       console.error("Error fetching time performance analytics:", error);
