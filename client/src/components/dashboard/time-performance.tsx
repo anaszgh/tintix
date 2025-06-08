@@ -173,10 +173,11 @@ export function TimePerformance() {
               </div>
               <div>
                 <div className="text-2xl font-bold text-primary">
-                  {(
-                    sortedData.reduce((sum, item) => sum + item.avgTimePerWindow, 0) /
-                    sortedData.length
-                  ).toFixed(1)}m
+                  {(() => {
+                    const totalMinutes = sortedData.reduce((sum, item) => sum + item.totalMinutes, 0);
+                    const totalWindows = sortedData.reduce((sum, item) => sum + item.totalWindows, 0);
+                    return totalWindows > 0 ? (totalMinutes / totalWindows).toFixed(1) : "0";
+                  })()}m
                 </div>
                 <div className="text-sm text-muted-foreground">Avg Time/Window</div>
               </div>
