@@ -67,21 +67,12 @@ export function MetricsCards() {
   
   const { data: metrics, isLoading } = useQuery({
     queryKey: ["/api/analytics/metrics", queryParams],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (queryParams?.dateFrom) params.set('dateFrom', queryParams.dateFrom);
-      if (queryParams?.dateTo) params.set('dateTo', queryParams.dateTo);
-      
-      const response = await fetch(`/api/analytics/metrics?${params.toString()}`);
-      if (!response.ok) throw new Error('Failed to fetch metrics');
-      return response.json();
-    }
   });
 
   // Calculate success rate properly - windows done correctly vs total windows
   // Each vehicle has 7 windows (windshield, back windshield, 4 rollups, quarter)
-  const totalJobs = metrics?.totalVehicles || 0;
-  const totalRedos = metrics?.totalRedos || 0;
+  const totalJobs = (metrics as any)?.totalVehicles || 0;
+  const totalRedos = (metrics as any)?.totalRedos || 0;
   const totalWindows = totalJobs * 7; // 7 windows per vehicle
   const successfulWindows = totalWindows - totalRedos;
   const successRate = totalWindows > 0 ? Math.round((successfulWindows / totalWindows) * 100) : 100;
@@ -119,16 +110,16 @@ export function MetricsCards() {
     },
     {
       title: "Avg Time Variance",
-      value: hasData ? `${metrics?.avgTimeVariance || 0} min` : noDataMessage,
+      value: hasData ? `${(metrics as any)?.avgTimeVariance || 0} min` : noDataMessage,
       icon: Clock,
       iconBg: "bg-success/20",
       iconColor: "text-success",
-      trend: hasData ? (metrics?.avgTimeVariance && metrics.avgTimeVariance > 0 ? "Over Target" : "On Time") : "",
+      trend: hasData ? ((metrics as any)?.avgTimeVariance && (metrics as any).avgTimeVariance > 0 ? "Over Target" : "On Time") : "",
       trendType: "neutral" as const,
     },
     {
       title: "Active Installers",
-      value: hasData ? (metrics?.activeInstallers || 0) : noDataMessage,
+      value: hasData ? ((metrics as any)?.activeInstallers || 0) : noDataMessage,
       icon: Users,
       iconBg: "bg-secondary/20",
       iconColor: "text-secondary",

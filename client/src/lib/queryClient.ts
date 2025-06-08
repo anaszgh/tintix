@@ -29,7 +29,25 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey[0] as string, {
+    let url = queryKey[0] as string;
+    
+    // Handle query parameters from the second element of queryKey
+    if (queryKey[1] && typeof queryKey[1] === 'object') {
+      const params = new URLSearchParams();
+      const queryParams = queryKey[1] as Record<string, any>;
+      
+      Object.entries(queryParams).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          params.set(key, String(value));
+        }
+      });
+      
+      if (params.toString()) {
+        url += (url.includes('?') ? '&' : '?') + params.toString();
+      }
+    }
+    
+    const res = await fetch(url, {
       credentials: "include",
     });
 
@@ -47,7 +65,7 @@ export const queryClient = new QueryClient({
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
+      staleTime: 5 * 60 * 1000, // 5 minutes
       retry: false,
     },
     mutations: {
