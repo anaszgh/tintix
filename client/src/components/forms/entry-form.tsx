@@ -149,6 +149,25 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     setRedoEntries(updated);
   };
 
+  const calculateDuration = () => {
+    const startTime = form.getValues("startTime");
+    const endTime = form.getValues("endTime");
+    
+    if (startTime && endTime) {
+      const start = new Date(`2000-01-01T${startTime}:00`);
+      const end = new Date(`2000-01-01T${endTime}:00`);
+      
+      let diffMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+      
+      // Handle overnight jobs (end time is next day)
+      if (diffMinutes < 0) {
+        diffMinutes += 24 * 60; // Add 24 hours
+      }
+      
+      form.setValue("durationMinutes", Math.round(diffMinutes));
+    }
+  };
+
   const onSubmit = (data: z.infer<typeof formSchema>) => {
     console.log('Form submission data:', data);
     console.log('Window assignments:', windowAssignments);
