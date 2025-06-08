@@ -26,11 +26,7 @@ export function PerformanceChart() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {isLoading ? (
-          Array.from({ length: 3 }).map((_, index) => (
-            <InstallerCardSkeleton key={index} />
-          ))
-        ) : (performers as any[]).length === 0 ? (
+        {(performers as any[]).length === 0 ? (
           <div className="text-center py-8">
             <p className="text-muted-foreground">No performance data available</p>
           </div>

@@ -11,8 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Download, Trophy, Clock, Target, Award, FileText } from "lucide-react";
-import { LoadingScreen, PageLoader } from "@/components/ui/loading-screen";
-import { InstallerCardSkeleton } from "@/components/ui/skeleton";
+
 import { formatDate } from "@/lib/utils";
 import jsPDF from "jspdf";
 
@@ -35,7 +34,7 @@ export default function TimeReports() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  const { data: timeData, isLoading: isLoadingTime, refetch } = useQuery<TimePerformanceData[]>({
+  const { data: timeData, refetch } = useQuery<TimePerformanceData[]>({
     queryKey: ["/api/analytics/time-performance", { dateFrom, dateTo }],
     enabled: isAuthenticated,
   });
@@ -236,13 +235,7 @@ export default function TimeReports() {
               </Button>
             </CardHeader>
             <CardContent>
-              {isLoadingTime ? (
-                <div className="space-y-4">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <InstallerCardSkeleton key={i} />
-                  ))}
-                </div>
-              ) : sortedByEfficiency.length === 0 ? (
+              {sortedByEfficiency.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   No time performance data available for the selected period.
                   <br />
