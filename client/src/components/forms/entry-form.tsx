@@ -22,6 +22,9 @@ import type { User, JobEntryWithDetails } from "@shared/schema";
 
 const formSchema = insertJobEntrySchema.extend({
   date: z.string(),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
+  durationMinutes: z.number().min(1, "Duration must be at least 1 minute").optional(),
   installerIds: z.array(z.string()).min(1, "At least one installer must be selected"),
   totalWindows: z.number().min(1, "Must have at least one window").max(20, "Maximum 20 windows"),
   installerTimeVariances: z.record(z.string(), z.number()), // installer ID -> time variance
@@ -209,6 +212,74 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
               </FormItem>
             )}
           />
+
+          {/* Time Tracking Section */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+            <FormField
+              control={form.control}
+              name="startTime"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-muted-foreground">Start Time</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="time"
+                      {...field}
+                      className="bg-background border-border"
+                      onChange={(e) => {
+                        field.onChange(e);
+                        calculateDuration();
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="endTime"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-muted-foreground">End Time</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="time"
+                      {...field}
+                      className="bg-background border-border"
+                      onChange={(e) => {
+                        field.onChange(e);
+                        calculateDuration();
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="durationMinutes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-muted-foreground">Duration (minutes)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number"
+                      min="1"
+                      placeholder="Enter duration"
+                      {...field}
+                      onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                      className="bg-background border-border"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
           <FormField
             control={form.control}

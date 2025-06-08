@@ -118,6 +118,17 @@ export const redoEntriesRelations = relations(redoEntries, ({ one }) => ({
   }),
 }));
 
+export const installerTimeEntriesRelations = relations(installerTimeEntries, ({ one }) => ({
+  jobEntry: one(jobEntries, {
+    fields: [installerTimeEntries.jobEntryId],
+    references: [jobEntries.id],
+  }),
+  installer: one(users, {
+    fields: [installerTimeEntries.installerId],
+    references: [users.id],
+  }),
+}));
+
 // Insert schemas
 export const insertJobEntrySchema = createInsertSchema(jobEntries).omit({
   id: true,
@@ -136,6 +147,11 @@ export const insertRedoEntrySchema = createInsertSchema(redoEntries).omit({
   createdAt: true,
 });
 
+export const insertInstallerTimeEntrySchema = createInsertSchema(installerTimeEntries).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -145,6 +161,8 @@ export type JobInstaller = typeof jobInstallers.$inferSelect;
 export type InsertJobInstaller = z.infer<typeof insertJobInstallerSchema>;
 export type RedoEntry = typeof redoEntries.$inferSelect;
 export type InsertRedoEntry = z.infer<typeof insertRedoEntrySchema>;
+export type InstallerTimeEntry = typeof installerTimeEntries.$inferSelect;
+export type InsertInstallerTimeEntry = z.infer<typeof insertInstallerTimeEntrySchema>;
 
 // Combined types for API responses
 export type JobEntryWithDetails = JobEntry & {
