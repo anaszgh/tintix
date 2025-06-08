@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { RedoEntry } from "./redo-entry";
 import { VisualCarSelector } from "./visual-car-selector";
 import { Plus, Save } from "lucide-react";
@@ -22,9 +22,7 @@ import type { User, JobEntryWithDetails } from "@shared/schema";
 
 const formSchema = insertJobEntrySchema.extend({
   date: z.string(),
-  startTime: z.string().optional(),
-  endTime: z.string().optional(),
-  durationMinutes: z.number().min(1, "Duration must be at least 1 minute").optional(),
+  durationMinutes: z.number().min(1, "Duration must be at least 1 minute"),
   installerIds: z.array(z.string()).min(1, "At least one installer must be selected"),
   totalWindows: z.number().min(1, "Must have at least one window").max(20, "Maximum 20 windows"),
   installerTimeVariances: z.record(z.string(), z.number()), // installer ID -> time variance
@@ -149,24 +147,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     setRedoEntries(updated);
   };
 
-  const calculateDuration = () => {
-    const startTime = form.getValues("startTime");
-    const endTime = form.getValues("endTime");
-    
-    if (startTime && endTime) {
-      const start = new Date(`2000-01-01T${startTime}:00`);
-      const end = new Date(`2000-01-01T${endTime}:00`);
-      
-      let diffMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
-      
-      // Handle overnight jobs (end time is next day)
-      if (diffMinutes < 0) {
-        diffMinutes += 24 * 60; // Add 24 hours
-      }
-      
-      form.setValue("durationMinutes", Math.round(diffMinutes));
-    }
-  };
+
 
   const onSubmit = (data: z.infer<typeof formSchema>) => {
     console.log('Form submission data:', data);
@@ -232,72 +213,40 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
             )}
           />
 
-          {/* Time Tracking Section */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
-            <FormField
-              control={form.control}
-              name="startTime"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-muted-foreground">Start Time</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="time"
-                      {...field}
-                      className="bg-background border-border"
-                      onChange={(e) => {
-                        field.onChange(e);
-                        calculateDuration();
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="endTime"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-muted-foreground">End Time</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="time"
-                      {...field}
-                      className="bg-background border-border"
-                      onChange={(e) => {
-                        field.onChange(e);
-                        calculateDuration();
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
+          {/* Job Duration Section */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
             <FormField
               control={form.control}
               name="durationMinutes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-muted-foreground">Duration (minutes)</FormLabel>
+                  <FormLabel className="text-muted-foreground">Job Duration (minutes) *</FormLabel>
                   <FormControl>
                     <Input 
                       type="number"
                       min="1"
-                      placeholder="Enter duration"
+                      placeholder="Enter total job duration"
                       {...field}
                       onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
                       className="bg-background border-border"
                     />
                   </FormControl>
+                  <div className="text-sm text-muted-foreground">
+                    Total time for this job in minutes (e.g., 80 for 1 hour 20 minutes)
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
             />
+            <div className="flex items-center justify-center">
+              <div className="text-sm text-muted-foreground bg-background border rounded-lg p-4">
+                <p className="font-medium">Quick Reference:</p>
+                <p>30 min = 30</p>
+                <p>1 hr = 60</p>
+                <p>1 hr 30 min = 90</p>
+                <p>2 hr = 120</p>
+              </div>
+            </div>
           </div>
 
           <FormField
