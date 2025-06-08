@@ -8,6 +8,7 @@ import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import Entries from "@/pages/entries";
 import Reports from "@/pages/reports";
+import TimeReports from "@/pages/time-reports";
 import UsersPage from "@/pages/users";
 import InstallerManagement from "@/pages/installer-management";
 import NotFound from "@/pages/not-found";
