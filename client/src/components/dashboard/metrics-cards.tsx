@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Car, RotateCcw, Clock, Users, TrendingUp, TrendingDown, Calendar, Filter, Search, X } from "lucide-react";
+import { MetricCardSkeleton } from "@/components/ui/skeleton";
 
 export function MetricsCards() {
   const [timeFilter, setTimeFilter] = useState<"all" | "lastMonth" | "lastWeek" | "today" | "custom">("all");
@@ -64,7 +65,7 @@ export function MetricsCards() {
     setTimeFilter("all");
   };
   
-  const { data: metrics } = useQuery({
+  const { data: metrics, isLoading } = useQuery({
     queryKey: ["/api/analytics/metrics", queryParams],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -251,7 +252,12 @@ export function MetricsCards() {
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {cards.map((card, index) => (
+      {isLoading ? (
+        Array.from({ length: 4 }).map((_, index) => (
+          <MetricCardSkeleton key={index} />
+        ))
+      ) : (
+        cards.map((card, index) => (
         <Card key={index} className="bg-card border-border">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
@@ -281,7 +287,8 @@ export function MetricsCards() {
             <p className="text-muted-foreground text-sm">{card.title}</p>
           </CardContent>
         </Card>
-      ))}
+        )
+      )}
       </div>
     </div>
   );
