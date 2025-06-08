@@ -3,6 +3,7 @@ import {
   jobEntries,
   jobInstallers,
   redoEntries,
+  installerTimeEntries,
   type User,
   type UpsertUser,
   type JobEntry,
@@ -11,6 +12,8 @@ import {
   type InsertJobInstaller,
   type RedoEntry,
   type InsertRedoEntry,
+  type InstallerTimeEntry,
+  type InsertInstallerTimeEntry,
   type JobEntryWithDetails,
 } from "@shared/schema";
 import { db } from "./db";
@@ -84,6 +87,15 @@ export interface IStorage {
   
   // Installer operations
   getInstallers(): Promise<User[]>;
+  
+  // Time performance analytics
+  getInstallerTimePerformance(): Promise<Array<{
+    installer: User;
+    totalMinutes: number;
+    totalWindows: number;
+    avgTimePerWindow: number;
+    jobCount: number;
+  }>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -148,6 +160,35 @@ export class DatabaseStorage implements IStorage {
         installerId: installer.installerId,
         timeVariance: installer.timeVariance,
       });
+    }
+
+    // Calculate and store individual installer time allocations
+    if (jobEntry.durationMinutes && jobEntry.windowAssignments) {
+      const assignments = Array.isArray(jobEntry.windowAssignments) 
+        ? jobEntry.windowAssignments 
+        : JSON.parse(jobEntry.windowAssignments as string);
+      
+      // Count windows per installer
+      const installerWindowCounts: Record<string, number> = {};
+      assignments.forEach((assignment: any) => {
+        if (assignment.installerId) {
+          installerWindowCounts[assignment.installerId] = (installerWindowCounts[assignment.installerId] || 0) + 1;
+        }
+      });
+
+      const totalAssignedWindows = Object.values(installerWindowCounts).reduce((sum, count) => sum + count, 0);
+      
+      // Distribute time proportionally based on windows assigned
+      for (const [installerId, windowCount] of Object.entries(installerWindowCounts)) {
+        const allocatedTime = Math.round((windowCount / totalAssignedWindows) * jobEntry.durationMinutes);
+        
+        await db.insert(installerTimeEntries).values({
+          jobEntryId: entry.id,
+          installerId,
+          windowsCompleted: windowCount,
+          timeMinutes: allocatedTime,
+        });
+      }
     }
     
     return entry;
@@ -572,6 +613,34 @@ export class DatabaseStorage implements IStorage {
       .from(users)
       .where(eq(users.role, "installer"))
       .orderBy(users.firstName, users.lastName);
+  }
+
+  async getInstallerTimePerformance(): Promise<Array<{
+    installer: User;
+    totalMinutes: number;
+    totalWindows: number;
+    avgTimePerWindow: number;
+    jobCount: number;
+  }>> {
+    const result = await db
+      .select({
+        installer: users,
+        totalMinutes: sql<number>`COALESCE(SUM(${installerTimeEntries.timeMinutes}), 0)`,
+        totalWindows: sql<number>`COALESCE(SUM(${installerTimeEntries.windowsCompleted}), 0)`,
+        jobCount: sql<number>`COUNT(DISTINCT ${installerTimeEntries.jobEntryId})`,
+      })
+      .from(users)
+      .leftJoin(installerTimeEntries, eq(users.id, installerTimeEntries.installerId))
+      .where(eq(users.role, "installer"))
+      .groupBy(users.id, users.email, users.firstName, users.lastName, users.profileImageUrl, users.role, users.createdAt, users.updatedAt);
+
+    return result.map(row => ({
+      installer: row.installer,
+      totalMinutes: row.totalMinutes,
+      totalWindows: row.totalWindows,
+      avgTimePerWindow: row.totalWindows > 0 ? Math.round((row.totalMinutes / row.totalWindows) * 10) / 10 : 0,
+      jobCount: row.jobCount,
+    }));
   }
 }
 
