@@ -13,7 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, Download, Trophy, Clock, Target, Award, FileText } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
 
 interface TimePerformanceData {
   installer: {
@@ -69,81 +68,36 @@ export default function TimeReports() {
     
     // Header
     doc.setFontSize(20);
-    doc.setFont(undefined, 'bold');
     doc.text('Time Performance Analysis Report', 20, 25);
     
     // Date range
     doc.setFontSize(12);
-    doc.setFont(undefined, 'normal');
     const dateRange = dateFrom && dateTo 
-      ? `Period: ${formatDate(dateFrom)} - ${formatDate(dateTo)}`
-      : `Generated: ${formatDate(new Date().toISOString())}`;
+      ? 'Period: ' + formatDate(dateFrom) + ' - ' + formatDate(dateTo)
+      : 'Generated: ' + formatDate(new Date().toISOString());
     doc.text(dateRange, 20, 35);
     
     // Winner section
     doc.setFontSize(16);
-    doc.setFont(undefined, 'bold');
     doc.text('TOP PERFORMER', 20, 50);
     
     doc.setFontSize(14);
-    doc.setFont(undefined, 'bold');
-    doc.text(`${winner.installer.firstName} ${winner.installer.lastName}`, 20, 65);
+    doc.text(winner.installer.firstName + ' ' + winner.installer.lastName, 20, 65);
     
     doc.setFontSize(11);
-    doc.setFont(undefined, 'normal');
-    doc.text(`Email: ${winner.installer.email || 'N/A'}`, 20, 75);
-    doc.text(`Average Time per Window: ${winner.avgTimePerWindow.toFixed(1)} minutes`, 20, 85);
-    doc.text(`Total Windows Completed: ${winner.totalWindows.toString()}`, 20, 95);
-    doc.text(`Total Time Worked: ${formatTime(winner.totalMinutes)}`, 20, 105);
-    doc.text(`Jobs Completed: ${winner.jobCount.toString()}`, 20, 115);
-
-    // Performance table
-    doc.setFontSize(14);
-    doc.setFont(undefined, 'bold');
-    doc.text('All Installer Performance', 20, 135);
-
-    const tableData = sortedByEfficiency.map((item, index) => [
-      index + 1,
-      `${item.installer.firstName} ${item.installer.lastName}`,
-      item.totalWindows.toString(),
-      formatTime(item.totalMinutes),
-      `${item.avgTimePerWindow.toFixed(1)}m`,
-      item.jobCount.toString(),
-    ]);
-
-    (doc as any).autoTable({
-      startY: 145,
-      head: [['Rank', 'Installer', 'Windows', 'Total Time', 'Avg/Window', 'Jobs']],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [59, 130, 246] },
-      alternateRowStyles: { fillColor: [249, 250, 251] },
-      styles: { fontSize: 10 },
-    });
-
-    // Summary statistics
-    const totalMinutes = activeInstallers.reduce((sum, item) => sum + item.totalMinutes, 0);
-    const totalWindows = activeInstallers.reduce((sum, item) => sum + item.totalWindows, 0);
-    const avgEfficiency = totalWindows > 0 ? totalMinutes / totalWindows : 0;
-
-    const finalY = (doc as any).lastAutoTable.finalY + 20;
-    doc.setFontSize(12);
-    doc.setFont(undefined, 'bold');
-    doc.text('Summary Statistics', 20, finalY);
-    
-    doc.setFont(undefined, 'normal');
-    doc.text(`Total Time Tracked: ${formatTime(totalMinutes)}`, 20, finalY + 15);
-    doc.text(`Total Windows Completed: ${totalWindows.toString()}`, 20, finalY + 25);
-    doc.text(`Overall Average Time per Window: ${avgEfficiency.toFixed(1)} minutes`, 20, finalY + 35);
-    doc.text(`Active Installers: ${activeInstallers.length.toString()}`, 20, finalY + 45);
+    doc.text('Email: ' + (winner.installer.email || 'N/A'), 20, 75);
+    doc.text('Average Time per Window: ' + winner.avgTimePerWindow.toFixed(1) + ' minutes', 20, 85);
+    doc.text('Total Windows Completed: ' + winner.totalWindows.toString(), 20, 95);
+    doc.text('Total Time Worked: ' + formatTime(winner.totalMinutes), 20, 105);
+    doc.text('Jobs Completed: ' + winner.jobCount.toString(), 20, 115);
 
     // Save the PDF
-    const fileName = `time-performance-report-${dateFrom || 'all'}-${dateTo || 'time'}.pdf`;
+    const fileName = 'time-performance-report-' + (dateFrom || 'all') + '-' + (dateTo || 'time') + '.pdf';
     doc.save(fileName);
 
     toast({
       title: "Report Generated",
-      description: `Time performance report saved as ${fileName}`,
+      description: 'Time performance report saved as ' + fileName,
     });
   };
 
