@@ -540,13 +540,7 @@ export class DatabaseStorage implements IStorage {
     for (const entry of entries) {
       if (entry.windowAssignments && entry.windowAssignments !== null) {
         try {
-          let assignments;
-          if (typeof entry.windowAssignments === 'string') {
-            assignments = JSON.parse(entry.windowAssignments);
-          } else {
-            assignments = entry.windowAssignments;
-          }
-          
+          const assignments = JSON.parse(entry.windowAssignments as string);
           if (Array.isArray(assignments)) {
             // Only count windows that are actually assigned to installers
             const assignedWindows = assignments.filter((assignment: any) => assignment.installerId);

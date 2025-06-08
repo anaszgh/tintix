@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Download, Trophy, Clock, Target, Award, FileText } from "lucide-react";
-
 import { formatDate } from "@/lib/utils";
 import jsPDF from "jspdf";
 
@@ -34,7 +33,7 @@ export default function TimeReports() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  const { data: timeData, refetch } = useQuery<TimePerformanceData[]>({
+  const { data: timeData, isLoading: isLoadingTime, refetch } = useQuery<TimePerformanceData[]>({
     queryKey: ["/api/analytics/time-performance", { dateFrom, dateTo }],
     enabled: isAuthenticated,
   });
@@ -235,7 +234,19 @@ export default function TimeReports() {
               </Button>
             </CardHeader>
             <CardContent>
-              {sortedByEfficiency.length === 0 ? (
+              {isLoadingTime ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="animate-pulse flex items-center space-x-4 p-4 border rounded-lg">
+                      <div className="rounded-full bg-muted h-10 w-10"></div>
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-muted rounded w-3/4"></div>
+                        <div className="h-3 bg-muted rounded w-1/2"></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : sortedByEfficiency.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   No time performance data available for the selected period.
                   <br />

@@ -9,7 +9,6 @@ import Dashboard from "@/pages/dashboard";
 import Entries from "@/pages/entries";
 import Reports from "@/pages/reports";
 import TimeReports from "@/pages/time-reports";
-import LoadingDemo from "@/pages/loading-demo";
 import UsersPage from "@/pages/users";
 import InstallerManagement from "@/pages/installer-management";
 import NotFound from "@/pages/not-found";
@@ -27,7 +26,6 @@ function Router() {
           <Route path="/entries" component={Entries} />
           <Route path="/reports" component={Reports} />
           <Route path="/time-reports" component={TimeReports} />
-          <Route path="/loading-demo" component={LoadingDemo} />
           <Route path="/installers" component={InstallerManagement} />
           <Route path="/users" component={UsersPage} />
         </>

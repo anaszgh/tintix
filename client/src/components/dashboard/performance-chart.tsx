@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-
 export function PerformanceChart() {
   const { data: performers = [] } = useQuery({
     queryKey: ["/api/analytics/top-performers"],
@@ -26,12 +25,12 @@ export function PerformanceChart() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {(performers as any[]).length === 0 ? (
+        {performers.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-muted-foreground">No performance data available</p>
           </div>
         ) : (
-          (performers as any[]).slice(0, 3).map((performer: any, index: number) => (
+          performers.slice(0, 3).map((performer: any, index: number) => (
             <div key={performer.installer.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
               <div className="flex items-center space-x-3">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${

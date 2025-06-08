@@ -12,7 +12,6 @@ export function Sidebar() {
     { name: "Job Entries", href: "/entries", icon: Plus, current: location === "/entries" },
     { name: "Reports", href: "/reports", icon: BarChart3, current: location === "/reports" },
     { name: "Time Reports", href: "/time-reports", icon: Clock, current: location === "/time-reports" },
-    { name: "Loading Demo", href: "/loading-demo", icon: List, current: location === "/loading-demo" },
     ...(user?.role === "manager" ? [
       { name: "Installer Management", href: "/installers", icon: User, current: location === "/installers" },
       { name: "User Management", href: "/users", icon: Users, current: location === "/users" }

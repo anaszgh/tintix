@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Car, RotateCcw, Clock, Users, TrendingUp, TrendingDown, Calendar, Filter, Search, X } from "lucide-react";
-
+import { MetricCardSkeleton } from "@/components/ui/skeleton";
 
 export function MetricsCards() {
   const [timeFilter, setTimeFilter] = useState<"all" | "lastMonth" | "lastWeek" | "today" | "custom">("all");
@@ -65,14 +65,23 @@ export function MetricsCards() {
     setTimeFilter("all");
   };
   
-  const { data: metrics } = useQuery({
+  const { data: metrics, isLoading } = useQuery({
     queryKey: ["/api/analytics/metrics", queryParams],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (queryParams?.dateFrom) params.set('dateFrom', queryParams.dateFrom);
+      if (queryParams?.dateTo) params.set('dateTo', queryParams.dateTo);
+      
+      const response = await fetch(`/api/analytics/metrics?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch metrics');
+      return response.json();
+    }
   });
 
   // Calculate success rate properly - windows done correctly vs total windows
   // Each vehicle has 7 windows (windshield, back windshield, 4 rollups, quarter)
-  const totalJobs = (metrics as any)?.totalVehicles || 0;
-  const totalRedos = (metrics as any)?.totalRedos || 0;
+  const totalJobs = metrics?.totalVehicles || 0;
+  const totalRedos = metrics?.totalRedos || 0;
   const totalWindows = totalJobs * 7; // 7 windows per vehicle
   const successfulWindows = totalWindows - totalRedos;
   const successRate = totalWindows > 0 ? Math.round((successfulWindows / totalWindows) * 100) : 100;
@@ -110,16 +119,16 @@ export function MetricsCards() {
     },
     {
       title: "Avg Time Variance",
-      value: hasData ? `${(metrics as any)?.avgTimeVariance || 0} min` : noDataMessage,
+      value: hasData ? `${metrics?.avgTimeVariance || 0} min` : noDataMessage,
       icon: Clock,
       iconBg: "bg-success/20",
       iconColor: "text-success",
-      trend: hasData ? ((metrics as any)?.avgTimeVariance && (metrics as any).avgTimeVariance > 0 ? "Over Target" : "On Time") : "",
+      trend: hasData ? (metrics?.avgTimeVariance && metrics.avgTimeVariance > 0 ? "Over Target" : "On Time") : "",
       trendType: "neutral" as const,
     },
     {
       title: "Active Installers",
-      value: hasData ? ((metrics as any)?.activeInstallers || 0) : noDataMessage,
+      value: hasData ? (metrics?.activeInstallers || 0) : noDataMessage,
       icon: Users,
       iconBg: "bg-secondary/20",
       iconColor: "text-secondary",
@@ -243,37 +252,43 @@ export function MetricsCards() {
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {cards.map((card, index) => (
-          <Card key={index} className="bg-card border-border">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className={`w-12 h-12 ${card.iconBg} rounded-lg flex items-center justify-center`}>
-                  <card.icon className={`h-6 w-6 ${card.iconColor}`} />
-                </div>
-                <span className={`text-xs px-2 py-1 rounded-full ${
-                  card.trendType === "up" 
-                    ? "text-success bg-success/20" 
-                    : card.trendType === "down"
-                    ? "text-error bg-error/20"
-                    : "text-muted-foreground bg-muted"
-                }`}>
-                  {card.trendType !== "neutral" && (
-                    card.trendType === "up" ? (
-                      <TrendingUp className="h-3 w-3 inline mr-1" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3 inline mr-1" />
-                    )
-                  )}
-                  {card.trend}
-                </span>
+      {isLoading ? (
+        Array.from({ length: 4 }).map((_, index) => (
+          <MetricCardSkeleton key={index} />
+        ))
+      ) : (
+        cards.map((card, index) => (
+        <Card key={index} className="bg-card border-border">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className={`w-12 h-12 ${card.iconBg} rounded-lg flex items-center justify-center`}>
+                <card.icon className={`h-6 w-6 ${card.iconColor}`} />
               </div>
-              <h3 className="text-2xl font-bold text-card-foreground mb-1">
-                {card.value}
-              </h3>
-              <p className="text-muted-foreground text-sm">{card.title}</p>
-            </CardContent>
-          </Card>
-        ))}
+              <span className={`text-xs px-2 py-1 rounded-full ${
+                card.trendType === "up" 
+                  ? "text-success bg-success/20" 
+                  : card.trendType === "down"
+                  ? "text-error bg-error/20"
+                  : "text-muted-foreground bg-muted"
+              }`}>
+                {card.trendType !== "neutral" && (
+                  card.trendType === "up" ? (
+                    <TrendingUp className="h-3 w-3 inline mr-1" />
+                  ) : (
+                    <TrendingDown className="h-3 w-3 inline mr-1" />
+                  )
+                )}
+                {card.trend}
+              </span>
+            </div>
+            <h3 className="text-2xl font-bold text-card-foreground mb-1">
+              {card.value}
+            </h3>
+            <p className="text-muted-foreground text-sm">{card.title}</p>
+          </CardContent>
+        </Card>
+        )
+      )}
       </div>
     </div>
   );
