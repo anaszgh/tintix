@@ -181,9 +181,9 @@ export class DatabaseStorage implements IStorage {
         
         await db.insert(jobDimensions).values({
           jobEntryId: entry.id,
-          lengthInches: dimension.lengthInches,
-          widthInches: dimension.widthInches,
-          sqft,
+          lengthInches: dimension.lengthInches.toString(),
+          widthInches: dimension.widthInches.toString(),
+          sqft: sqft.toString(),
           description: dimension.description || null,
         });
       }
