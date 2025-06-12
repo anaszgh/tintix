@@ -182,6 +182,71 @@ export default function Reports() {
     window.print();
   };
 
+  const printFilmConsumptionReport = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    
+    // Header
+    doc.setFontSize(20);
+    doc.text('Tintix - Daily Film Consumption Report', pageWidth / 2, 20, { align: 'center' });
+    
+    // Date range info
+    doc.setFontSize(12);
+    let dateRangeText = 'All Time';
+    if (appliedDateFilter?.dateFrom || appliedDateFilter?.dateTo) {
+      const fromDate = appliedDateFilter?.dateFrom ? new Date(appliedDateFilter.dateFrom).toLocaleDateString() : 'Start';
+      const toDate = appliedDateFilter?.dateTo ? new Date(appliedDateFilter.dateTo).toLocaleDateString() : 'End';
+      dateRangeText = `${fromDate} - ${toDate}`;
+    }
+    doc.text(`Date Range: ${dateRangeText}`, pageWidth / 2, 30, { align: 'center' });
+    
+    // Film consumption table
+    if (filmConsumption.length > 0) {
+      const tableHeaders = ['Date', 'Film Type', 'Film Name', 'Sq Ft Used', 'Total Cost', 'Jobs'];
+      const tableData = filmConsumption.map(item => [
+        new Date(item.date).toLocaleDateString(),
+        item.filmType,
+        item.filmName,
+        item.totalSqft.toFixed(2),
+        `$${item.totalCost.toFixed(2)}`,
+        item.jobCount.toString()
+      ]);
+      
+      autoTable(doc, {
+        head: [tableHeaders],
+        body: tableData,
+        startY: 45,
+        theme: 'grid',
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [41, 128, 185] },
+        columnStyles: {
+          3: { halign: 'right' }, // Sq Ft
+          4: { halign: 'right' }, // Cost
+          5: { halign: 'right' }  // Jobs
+        }
+      });
+      
+      // Summary totals
+      const finalY = (doc as any).lastAutoTable.finalY + 20;
+      const totalSqft = filmConsumption.reduce((sum, item) => sum + item.totalSqft, 0);
+      const totalCost = filmConsumption.reduce((sum, item) => sum + item.totalCost, 0);
+      const totalJobs = filmConsumption.reduce((sum, item) => sum + item.jobCount, 0);
+      
+      doc.setFontSize(14);
+      doc.text('Summary Totals:', 20, finalY);
+      doc.setFontSize(12);
+      doc.text(`Total Square Footage: ${totalSqft.toFixed(2)} sq ft`, 20, finalY + 15);
+      doc.text(`Total Cost: $${totalCost.toFixed(2)}`, 20, finalY + 25);
+      doc.text(`Total Jobs: ${totalJobs}`, 20, finalY + 35);
+      
+    } else {
+      doc.text('No film consumption data available for the selected date range.', 20, 50);
+    }
+    
+    // Save PDF
+    doc.save(`film-consumption-report-${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   const exportExcel = () => {
     try {
       // Validate data
@@ -223,6 +288,19 @@ export default function Reports() {
       const ws2 = XLSX.utils.json_to_sheet(performersData);
       XLSX.utils.book_append_sheet(wb, ws2, "Top Performers");
       
+      // Film Consumption sheet
+      const filmConsumptionData = filmConsumption.map(item => ({
+        Date: new Date(item.date).toLocaleDateString(),
+        'Film Type': item.filmType,
+        'Film Name': item.filmName,
+        'Sq Ft Used': item.totalSqft.toFixed(2),
+        'Total Cost': `$${item.totalCost.toFixed(2)}`,
+        'Job Count': item.jobCount
+      }));
+      
+      const ws3 = XLSX.utils.json_to_sheet(filmConsumptionData);
+      XLSX.utils.book_append_sheet(wb, ws3, "Film Consumption");
+      
       // Summary sheet
       const summaryData = [{
         'Total Vehicles': metrics?.totalVehicles || 0,
@@ -230,11 +308,13 @@ export default function Reports() {
         'Success Rate': `${successRate}%`,
         'Avg Time Variance': `${metrics?.avgTimeVariance || 0} min`,
         'Active Installers': metrics?.activeInstallers || 0,
+        'Total Film Sq Ft': filmConsumption.reduce((sum, item) => sum + item.totalSqft, 0).toFixed(2),
+        'Total Film Cost': `$${filmConsumption.reduce((sum, item) => sum + item.totalCost, 0).toFixed(2)}`,
         'Report Generated': new Date().toLocaleString()
       }];
       
-      const ws3 = XLSX.utils.json_to_sheet(summaryData);
-      XLSX.utils.book_append_sheet(wb, ws3, "Summary");
+      const ws4 = XLSX.utils.json_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(wb, ws4, "Summary");
       
       // Save file
       XLSX.writeFile(wb, `tintix-performance-report-${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -525,9 +605,19 @@ export default function Reports() {
           {/* Film Consumption Report */}
           <Card className="bg-card border-border">
             <CardHeader>
-              <CardTitle className="text-card-foreground flex items-center space-x-2">
-                <BarChart3 className="h-5 w-5" />
-                <span>Daily Film Consumption Report</span>
+              <CardTitle className="text-card-foreground flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <BarChart3 className="h-5 w-5" />
+                  <span>Daily Film Consumption Report</span>
+                </div>
+                <Button 
+                  variant="outline" 
+                  onClick={() => printFilmConsumptionReport()}
+                  className="border-border hover:bg-muted"
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print Report
+                </Button>
               </CardTitle>
             </CardHeader>
             <CardContent>
