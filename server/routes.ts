@@ -371,8 +371,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not found" });
       }
 
+      const { dateFrom, dateTo } = req.query;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
-      const performers = await storage.getTopPerformers(limit);
+      
+      const filters: any = {};
+      if (dateFrom) filters.dateFrom = new Date(dateFrom as string);
+      if (dateTo) filters.dateTo = new Date(dateTo as string);
+      
+      const performers = await storage.getTopPerformers(limit, filters);
       res.json(performers);
     } catch (error) {
       console.error("Error fetching top performers:", error);

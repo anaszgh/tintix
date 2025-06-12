@@ -60,7 +60,10 @@ export interface IStorage {
     activeInstallers: number;
   }>;
   
-  getTopPerformers(limit?: number): Promise<Array<{
+  getTopPerformers(limit?: number, filters?: {
+    dateFrom?: Date;
+    dateTo?: Date;
+  }): Promise<Array<{
     installer: User;
     vehicleCount: number;
     redoCount: number;
@@ -436,14 +439,27 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getTopPerformers(limit = 10): Promise<Array<{
+  async getTopPerformers(limit = 10, filters?: {
+    dateFrom?: Date;
+    dateTo?: Date;
+  }): Promise<Array<{
     installer: User;
     vehicleCount: number;
     redoCount: number;
     successRate: number;
   }>> {
+    // Build where clause for date filtering
+    let whereClause: any = undefined;
+    if (filters?.dateFrom && filters?.dateTo) {
+      whereClause = sql`${jobEntries.date} BETWEEN ${filters.dateFrom.toISOString().split('T')[0]} AND ${filters.dateTo.toISOString().split('T')[0]}`;
+    } else if (filters?.dateFrom) {
+      whereClause = sql`${jobEntries.date} >= ${filters.dateFrom.toISOString().split('T')[0]}`;
+    } else if (filters?.dateTo) {
+      whereClause = sql`${jobEntries.date} <= ${filters.dateTo.toISOString().split('T')[0]}`;
+    }
+
     // Get vehicle count and total windows per installer from existing job entries only
-    const vehicleCounts = await db
+    const vehicleCountsQuery = db
       .select({
         installerId: jobInstallers.installerId,
         vehicleCount: count(jobInstallers.jobEntryId),
@@ -452,9 +468,15 @@ export class DatabaseStorage implements IStorage {
       .from(jobInstallers)
       .innerJoin(jobEntries, eq(jobInstallers.jobEntryId, jobEntries.id))
       .groupBy(jobInstallers.installerId);
+    
+    if (whereClause) {
+      vehicleCountsQuery.where(whereClause);
+    }
+    
+    const vehicleCounts = await vehicleCountsQuery;
 
     // Get redo count per installer from existing job entries only
-    const redoCounts = await db
+    const redoCountsQuery = db
       .select({
         installerId: redoEntries.installerId,
         redoCount: count(redoEntries.id),
@@ -462,6 +484,12 @@ export class DatabaseStorage implements IStorage {
       .from(redoEntries)
       .innerJoin(jobEntries, eq(redoEntries.jobEntryId, jobEntries.id))
       .groupBy(redoEntries.installerId);
+    
+    if (whereClause) {
+      redoCountsQuery.where(whereClause);
+    }
+    
+    const redoCounts = await redoCountsQuery;
 
     // Get all installers
     const allInstallers = await db
