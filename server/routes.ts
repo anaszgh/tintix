@@ -113,13 +113,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('Raw request body:', JSON.stringify(req.body, null, 2));
 
-      const validatedData = insertJobEntrySchema.parse({
-        ...req.body,
-        date: new Date(req.body.date),
-      });
+      // Extract fields that shouldn't be validated by job entry schema
+      const { dimensions, installerIds, installerTimeVariances, windowAssignments, redoEntries, ...jobEntryFields } = req.body;
 
-      // Handle installer data with individual time variances
-      const { installerIds, installerTimeVariances } = req.body;
+      let validatedData;
+      try {
+        validatedData = insertJobEntrySchema.parse({
+          ...jobEntryFields,
+          date: new Date(req.body.date),
+        });
+      } catch (validationError) {
+        console.log('Validation error details:', validationError);
+        return res.status(400).json({ 
+          message: "Invalid data", 
+          errors: (validationError as any).errors || validationError 
+        });
+      }
+
       if (!installerIds || !Array.isArray(installerIds) || installerIds.length === 0) {
         return res.status(400).json({ message: "At least one installer must be selected" });
       }
@@ -130,10 +140,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timeVariance: installerTimeVariances?.[installerId] || 0
       }));
 
-      // Handle window assignments properly for storage
+      // Handle window assignments and dimensions properly for storage
       const jobEntryData = {
         ...validatedData,
-        windowAssignments: req.body.windowAssignments || []
+        windowAssignments: windowAssignments || [],
+        dimensions: dimensions || []
       };
       
       const jobEntry = await storage.createJobEntry(jobEntryData, installerData);
