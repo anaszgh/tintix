@@ -147,10 +147,58 @@ export default function Entries() {
       }
     }
     
+    // Consumption Breakdown and Cost Details
+    doc.text('Material Consumption Breakdown:', 20, yPos + 10);
+    yPos += 20;
+    
+    // Dimensions table
+    if (entry.dimensions && entry.dimensions.length > 0) {
+      const dimensionHeaders = ['Description', 'Length (in)', 'Width (in)', 'Sq Ft'];
+      const dimensionData = entry.dimensions.map((dim, index) => [
+        dim.description || `Dimension ${index + 1}`,
+        Number(dim.lengthInches).toFixed(1),
+        Number(dim.widthInches).toFixed(1),
+        ((Number(dim.lengthInches) * Number(dim.widthInches)) / 144).toFixed(2)
+      ]);
+      
+      // Add table using autoTable
+      (doc as any).autoTable({
+        head: [dimensionHeaders],
+        body: dimensionData,
+        startY: yPos,
+        theme: 'grid',
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [41, 128, 185] }
+      });
+      
+      yPos = (doc as any).lastAutoTable.finalY + 10;
+      
+      // Total calculations
+      const totalSqft = entry.dimensions.reduce((total, dim) => 
+        total + ((Number(dim.lengthInches) * Number(dim.widthInches)) / 144), 0
+      );
+      
+      doc.setFontSize(12);
+      doc.text(`Total Square Footage: ${totalSqft.toFixed(2)} sq ft`, 20, yPos);
+      yPos += 10;
+      
+      // Film cost details
+      if (entry.filmCost && entry.totalSqft) {
+        const costPerSqft = Number(entry.filmCost) / Number(entry.totalSqft);
+        doc.text(`Film Cost per Sq Ft: $${costPerSqft.toFixed(2)}`, 20, yPos);
+        yPos += 10;
+        doc.text(`Total Film Cost: $${Number(entry.filmCost).toFixed(2)}`, 20, yPos);
+        yPos += 15;
+      }
+    } else {
+      doc.text('No dimension data available', 30, yPos);
+      yPos += 15;
+    }
+    
     // Redo Entries
     if (entry.redoEntries.length > 0) {
-      doc.text('Redo Entries:', 20, yPos + 10);
-      yPos += 20;
+      doc.text('Redo Entries:', 20, yPos + 5);
+      yPos += 15;
       entry.redoEntries.forEach((redo) => {
         const installer = redo.installer;
         doc.text(`- ${redo.part}: ${installer ? `${installer.firstName} ${installer.lastName}` : 'No installer'}`, 30, yPos);
