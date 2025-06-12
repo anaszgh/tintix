@@ -121,6 +121,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         validatedData = insertJobEntrySchema.parse({
           ...jobEntryFields,
           date: new Date(req.body.date),
+          filmCost: jobEntryFields.filmCost ? jobEntryFields.filmCost.toString() : undefined,
+          totalSqft: jobEntryFields.totalSqft ? Number(jobEntryFields.totalSqft) : undefined,
         });
       } catch (validationError) {
         console.log('Validation error details:', validationError);
