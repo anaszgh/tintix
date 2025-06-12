@@ -501,10 +501,13 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                 )}
               />
 
-              {/* Dimension Entries */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium">Dimensions</Label>
+              {/* Dimensions Section */}
+              <div className="col-span-full">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-medium">Dimensions</h3>
+                    <p className="text-sm text-muted-foreground">Enter length and width measurements</p>
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
@@ -512,92 +515,110 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                     onClick={() => {
                       setDimensions([...dimensions, { lengthInches: 0, widthInches: 0, description: "" }]);
                     }}
+                    className="shrink-0"
                   >
+                    <Plus className="h-4 w-4 mr-2" />
                     Add Dimension
                   </Button>
                 </div>
                 
-                {dimensions.map((dimension, index) => (
-                  <div key={index} className="border rounded-lg p-4 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm font-medium">Dimension {index + 1}</Label>
-                      {dimensions.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            const newDimensions = dimensions.filter((_, i) => i !== index);
-                            setDimensions(newDimensions);
-                          }}
-                        >
-                          Remove
-                        </Button>
-                      )}
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor={`length-${index}`}>Length (inches)</Label>
-                        <Input
-                          id={`length-${index}`}
-                          type="number"
-                          step="0.1"
-                          value={dimension.lengthInches || ""}
-                          onChange={(e) => {
-                            const newDimensions = [...dimensions];
-                            newDimensions[index].lengthInches = Number(e.target.value);
-                            setDimensions(newDimensions);
-                            updateTotalSqftFromDimensions(newDimensions);
-                          }}
-                          placeholder="0"
-                        />
+                <div className="space-y-4">
+                  {dimensions.map((dimension, index) => (
+                    <div key={index} className="border rounded-lg p-4 bg-card">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-medium">Dimension {index + 1}</h4>
+                        {dimensions.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const newDimensions = dimensions.filter((_, i) => i !== index);
+                              setDimensions(newDimensions);
+                              updateTotalSqftFromDimensions(newDimensions);
+                            }}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                       
-                      <div>
-                        <Label htmlFor={`width-${index}`}>Width (inches)</Label>
-                        <Input
-                          id={`width-${index}`}
-                          type="number"
-                          step="0.1"
-                          value={dimension.widthInches || ""}
-                          onChange={(e) => {
-                            const newDimensions = [...dimensions];
-                            newDimensions[index].widthInches = Number(e.target.value);
-                            setDimensions(newDimensions);
-                            updateTotalSqftFromDimensions(newDimensions);
-                          }}
-                          placeholder="0"
-                        />
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor={`length-${index}`} className="text-sm font-medium">
+                            Length (inches)
+                          </Label>
+                          <Input
+                            id={`length-${index}`}
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            value={dimension.lengthInches || ""}
+                            onChange={(e) => {
+                              const newDimensions = [...dimensions];
+                              newDimensions[index].lengthInches = Number(e.target.value) || 0;
+                              setDimensions(newDimensions);
+                              updateTotalSqftFromDimensions(newDimensions);
+                            }}
+                            placeholder="0.0"
+                            className="mt-1"
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label htmlFor={`width-${index}`} className="text-sm font-medium">
+                            Width (inches)
+                          </Label>
+                          <Input
+                            id={`width-${index}`}
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            value={dimension.widthInches || ""}
+                            onChange={(e) => {
+                              const newDimensions = [...dimensions];
+                              newDimensions[index].widthInches = Number(e.target.value) || 0;
+                              setDimensions(newDimensions);
+                              updateTotalSqftFromDimensions(newDimensions);
+                            }}
+                            placeholder="0.0"
+                            className="mt-1"
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label htmlFor={`description-${index}`} className="text-sm font-medium">
+                            Description (optional)
+                          </Label>
+                          <Input
+                            id={`description-${index}`}
+                            value={dimension.description || ""}
+                            onChange={(e) => {
+                              const newDimensions = [...dimensions];
+                              newDimensions[index].description = e.target.value;
+                              setDimensions(newDimensions);
+                            }}
+                            placeholder="e.g., Front windshield"
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="mt-3 text-sm text-muted-foreground">
+                        Square footage: {dimension.lengthInches && dimension.widthInches 
+                          ? ((dimension.lengthInches * dimension.widthInches) / 144).toFixed(2) 
+                          : "0.00"} sq ft
                       </div>
                     </div>
-                    
-                    <div>
-                      <Label htmlFor={`description-${index}`}>Description (optional)</Label>
-                      <Input
-                        id={`description-${index}`}
-                        value={dimension.description || ""}
-                        onChange={(e) => {
-                          const newDimensions = [...dimensions];
-                          newDimensions[index].description = e.target.value;
-                          setDimensions(newDimensions);
-                        }}
-                        placeholder="e.g., Front windshield, Side windows"
-                      />
-                    </div>
-                    
-                    <div className="text-sm text-muted-foreground">
-                      Square footage: {dimension.lengthInches && dimension.widthInches 
-                        ? ((dimension.lengthInches * dimension.widthInches) / 144).toFixed(2) 
-                        : "0.00"} sq ft
+                  ))}
+                  
+                  <div className="bg-muted p-4 rounded-lg">
+                    <div className="text-lg font-semibold">
+                      Total Square Footage: {dimensions.reduce((total, dim) => 
+                        total + ((dim.lengthInches * dim.widthInches) / 144), 0
+                      ).toFixed(2)} sq ft
                     </div>
                   </div>
-                ))}
-                
-                <div className="text-sm font-medium bg-muted p-3 rounded">
-                  Total Square Footage: {dimensions.reduce((total, dim) => 
-                    total + ((dim.lengthInches * dim.widthInches) / 144), 0
-                  ).toFixed(2)} sq ft
                 </div>
               </div>
 
