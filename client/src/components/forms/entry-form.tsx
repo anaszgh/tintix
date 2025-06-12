@@ -18,7 +18,7 @@ import { VisualCarSelector } from "./visual-car-selector";
 import { Plus, Save } from "lucide-react";
 import { insertJobEntrySchema } from "@shared/schema";
 import { z } from "zod";
-import type { User, JobEntryWithDetails } from "@shared/schema";
+import type { User, JobEntryWithDetails, Film } from "@shared/schema";
 
 const formSchema = insertJobEntrySchema.extend({
   date: z.string(),
@@ -58,7 +58,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
-  const { data: films = [], isLoading: filmsLoading } = useQuery({
+  const { data: films = [], isLoading: filmsLoading } = useQuery<any[]>({
     queryKey: ["/api/films"],
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
