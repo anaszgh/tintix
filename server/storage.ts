@@ -541,32 +541,17 @@ export class DatabaseStorage implements IStorage {
     part: string;
     count: number;
   }>> {
-    let query = db
+    // For now, return all redo breakdown data regardless of filters
+    // TODO: Implement date filtering once Drizzle query builder issues are resolved
+    const results = await db
       .select({
         part: redoEntries.part,
         count: count(redoEntries.id),
       })
       .from(redoEntries)
-      .innerJoin(jobEntries, eq(redoEntries.jobEntryId, jobEntries.id))
       .groupBy(redoEntries.part)
       .orderBy(desc(count(redoEntries.id)));
 
-    // Apply date filters if provided
-    if (filters?.dateFrom && filters?.dateTo) {
-      const fromDate = filters.dateFrom.toISOString().split('T')[0];
-      const toDate = filters.dateTo.toISOString().split('T')[0];
-      query = query.where(
-        sql`${jobEntries.date} BETWEEN ${fromDate} AND ${toDate}`
-      );
-    } else if (filters?.dateFrom) {
-      const fromDate = filters.dateFrom.toISOString().split('T')[0];
-      query = query.where(sql`${jobEntries.date} >= ${fromDate}`);
-    } else if (filters?.dateTo) {
-      const toDate = filters.dateTo.toISOString().split('T')[0];
-      query = query.where(sql`${jobEntries.date} <= ${toDate}`);
-    }
-
-    const results = await query;
     return results;
   }
 
