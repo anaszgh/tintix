@@ -11,6 +11,7 @@ import Reports from "@/pages/reports";
 import TimeReports from "@/pages/time-reports";
 import UsersPage from "@/pages/users";
 import InstallerManagement from "@/pages/installer-management";
+import FilmManagement from "@/pages/film-management";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -28,6 +29,7 @@ function Router() {
           <Route path="/time-reports" component={TimeReports} />
           <Route path="/installers" component={InstallerManagement} />
           <Route path="/users" component={UsersPage} />
+          <Route path="/film-management" component={FilmManagement} />
         </>
       )}
       <Route component={NotFound} />
