@@ -15,7 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { RedoEntry } from "./redo-entry";
 import { VisualCarSelector } from "./visual-car-selector";
-import { Plus, Save } from "lucide-react";
+import { Plus, Save, X } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import { insertJobEntrySchema } from "@shared/schema";
 import { z } from "zod";
 import type { User, JobEntryWithDetails, Film } from "@shared/schema";
@@ -65,6 +66,21 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
   );
 
   const [windowAssignments, setWindowAssignments] = useState<Array<{ windowId: string; installerId: string | null; windowName: string }>>([]);
+
+  const updateTotalSqftFromDimensions = (dims: Array<{ lengthInches: number; widthInches: number; description?: string }>) => {
+    const totalSqft = dims.reduce((total, dim) => 
+      total + ((dim.lengthInches * dim.widthInches) / 144), 0
+    );
+    form.setValue("totalSqft", totalSqft);
+    
+    // Auto-calculate cost when sqft changes
+    const filmId = form.getValues("filmId");
+    const selectedFilm = films.find(f => f.id === filmId);
+    if (selectedFilm && totalSqft > 0) {
+      const calculatedCost = Number(selectedFilm.costPerSqft) * totalSqft;
+      form.setValue("filmCost", calculatedCost);
+    }
+  };
 
   const { data: installers = [], isLoading: installersLoading } = useQuery<User[]>({
     queryKey: ["/api/installers"],
@@ -481,83 +497,105 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="lengthInches"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-muted-foreground">Length (inches)</FormLabel>
-                    <FormControl>
+              {/* Dimension Entries */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Dimensions</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setDimensions([...dimensions, { lengthInches: 0, widthInches: 0, description: "" }]);
+                    }}
+                  >
+                    Add Dimension
+                  </Button>
+                </div>
+                
+                {dimensions.map((dimension, index) => (
+                  <div key={index} className="border rounded-lg p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">Dimension {index + 1}</Label>
+                      {dimensions.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const newDimensions = dimensions.filter((_, i) => i !== index);
+                            setDimensions(newDimensions);
+                          }}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor={`length-${index}`}>Length (inches)</Label>
+                        <Input
+                          id={`length-${index}`}
+                          type="number"
+                          step="0.1"
+                          value={dimension.lengthInches || ""}
+                          onChange={(e) => {
+                            const newDimensions = [...dimensions];
+                            newDimensions[index].lengthInches = Number(e.target.value);
+                            setDimensions(newDimensions);
+                            updateTotalSqftFromDimensions(newDimensions);
+                          }}
+                          placeholder="0"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor={`width-${index}`}>Width (inches)</Label>
+                        <Input
+                          id={`width-${index}`}
+                          type="number"
+                          step="0.1"
+                          value={dimension.widthInches || ""}
+                          onChange={(e) => {
+                            const newDimensions = [...dimensions];
+                            newDimensions[index].widthInches = Number(e.target.value);
+                            setDimensions(newDimensions);
+                            updateTotalSqftFromDimensions(newDimensions);
+                          }}
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor={`description-${index}`}>Description (optional)</Label>
                       <Input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        placeholder="e.g. 48.5"
-                        {...field}
+                        id={`description-${index}`}
+                        value={dimension.description || ""}
                         onChange={(e) => {
-                          const value = e.target.value ? parseFloat(e.target.value) : 0;
-                          field.onChange(value);
-                          // Auto-calculate square footage using L*W/144
-                          const width = form.getValues("widthInches") || 0;
-                          if (value > 0 && width > 0) {
-                            const sqft = (value * width) / 144;
-                            form.setValue("totalSqft", sqft);
-                            
-                            // Auto-calculate cost when sqft changes
-                            const filmId = form.getValues("filmId");
-                            const selectedFilm = films.find(f => f.id === filmId);
-                            if (selectedFilm) {
-                              const calculatedCost = Number(selectedFilm.costPerSqft) * sqft;
-                              form.setValue("filmCost", calculatedCost);
-                            }
-                          }
+                          const newDimensions = [...dimensions];
+                          newDimensions[index].description = e.target.value;
+                          setDimensions(newDimensions);
                         }}
-                        className="bg-background border-border"
+                        placeholder="e.g., Front windshield, Side windows"
                       />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="widthInches"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-muted-foreground">Width (inches)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        placeholder="e.g. 36.0"
-                        {...field}
-                        onChange={(e) => {
-                          const value = e.target.value ? parseFloat(e.target.value) : 0;
-                          field.onChange(value);
-                          // Auto-calculate square footage using L*W/144
-                          const length = form.getValues("lengthInches") || 0;
-                          if (value > 0 && length > 0) {
-                            const sqft = (length * value) / 144;
-                            form.setValue("totalSqft", sqft);
-                            
-                            // Auto-calculate cost when sqft changes
-                            const filmId = form.getValues("filmId");
-                            const selectedFilm = films.find(f => f.id === filmId);
-                            if (selectedFilm) {
-                              const calculatedCost = Number(selectedFilm.costPerSqft) * sqft;
-                              form.setValue("filmCost", calculatedCost);
-                            }
-                          }
-                        }}
-                        className="bg-background border-border"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                    </div>
+                    
+                    <div className="text-sm text-muted-foreground">
+                      Square footage: {dimension.lengthInches && dimension.widthInches 
+                        ? ((dimension.lengthInches * dimension.widthInches) / 144).toFixed(2) 
+                        : "0.00"} sq ft
+                    </div>
+                  </div>
+                ))}
+                
+                <div className="text-sm font-medium bg-muted p-3 rounded">
+                  Total Square Footage: {dimensions.reduce((total, dim) => 
+                    total + ((dim.lengthInches * dim.widthInches) / 144), 0
+                  ).toFixed(2)} sq ft
+                </div>
+              </div>
 
               <FormField
                 control={form.control}
