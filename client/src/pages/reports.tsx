@@ -522,6 +522,86 @@ export default function Reports() {
             />
           </div>
 
+          {/* Film Consumption Report */}
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="text-card-foreground flex items-center space-x-2">
+                <BarChart3 className="h-5 w-5" />
+                <span>Daily Film Consumption Report</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left p-3 font-medium text-muted-foreground">Date</th>
+                      <th className="text-left p-3 font-medium text-muted-foreground">Film Type</th>
+                      <th className="text-left p-3 font-medium text-muted-foreground">Film Name</th>
+                      <th className="text-right p-3 font-medium text-muted-foreground">Sq Ft Used</th>
+                      <th className="text-right p-3 font-medium text-muted-foreground">Total Cost</th>
+                      <th className="text-right p-3 font-medium text-muted-foreground">Jobs</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filmConsumption.length > 0 ? (
+                      filmConsumption.map((item, index) => (
+                        <tr key={index} className="border-b border-border hover:bg-muted/50">
+                          <td className="p-3 text-card-foreground">
+                            {new Date(item.date).toLocaleDateString()}
+                          </td>
+                          <td className="p-3 text-card-foreground">{item.filmType}</td>
+                          <td className="p-3 text-card-foreground">{item.filmName}</td>
+                          <td className="p-3 text-right text-card-foreground font-mono">
+                            {item.totalSqft.toFixed(2)}
+                          </td>
+                          <td className="p-3 text-right text-card-foreground font-mono">
+                            ${item.totalCost.toFixed(2)}
+                          </td>
+                          <td className="p-3 text-right text-card-foreground">
+                            {item.jobCount}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                          No film consumption data available for the selected date range.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Summary totals */}
+              {filmConsumption.length > 0 && (
+                <div className="mt-6 pt-4 border-t border-border">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-card-foreground">
+                        {filmConsumption.reduce((sum, item) => sum + item.totalSqft, 0).toFixed(2)}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Total Sq Ft</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-card-foreground">
+                        ${filmConsumption.reduce((sum, item) => sum + item.totalCost, 0).toFixed(2)}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Total Cost</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-card-foreground">
+                        {filmConsumption.reduce((sum, item) => sum + item.jobCount, 0)}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Total Jobs</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Detailed Performance Table */}
           <Card className="bg-card border-border">
             <CardHeader>
