@@ -160,11 +160,18 @@ export class DatabaseStorage implements IStorage {
     const nextJobNumber = existingEntries.length + 1;
     const jobNumber = `JOB-${nextJobNumber}`;
 
+    // Calculate total square footage if length and width are provided
+    let calculatedSqft = jobEntry.totalSqft;
+    if (jobEntry.lengthInches && jobEntry.widthInches) {
+      calculatedSqft = (Number(jobEntry.lengthInches) * Number(jobEntry.widthInches)) / 144;
+    }
+
     const [entry] = await db
       .insert(jobEntries)
       .values({
         ...jobEntry,
         jobNumber,
+        totalSqft: calculatedSqft,
         windowAssignments: jobEntry.windowAssignments ? JSON.stringify(jobEntry.windowAssignments) : null,
       })
       .returning();

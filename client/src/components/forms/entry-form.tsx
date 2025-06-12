@@ -433,7 +433,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
             <p className="text-sm text-muted-foreground">Select film type and calculate material costs</p>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <FormField
                 control={form.control}
                 name="filmId"
@@ -474,29 +474,98 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
 
               <FormField
                 control={form.control}
-                name="totalSqft"
+                name="lengthInches"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-muted-foreground">Total Square Footage</FormLabel>
+                    <FormLabel className="text-muted-foreground">Length (inches)</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
                         step="0.1"
                         min="0"
-                        placeholder="e.g. 15.5"
+                        placeholder="e.g. 48.5"
                         {...field}
                         onChange={(e) => {
-                          const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                          const value = e.target.value ? parseFloat(e.target.value) : 0;
                           field.onChange(value);
-                          // Auto-calculate cost when sqft changes
-                          const filmId = form.getValues("filmId");
-                          const selectedFilm = films.find(f => f.id === filmId);
-                          if (selectedFilm && value) {
-                            const calculatedCost = Number(selectedFilm.costPerSqft) * value;
-                            form.setValue("filmCost", calculatedCost);
+                          // Auto-calculate square footage using L*W/144
+                          const width = form.getValues("widthInches") || 0;
+                          if (value > 0 && width > 0) {
+                            const sqft = (value * width) / 144;
+                            form.setValue("totalSqft", sqft);
+                            
+                            // Auto-calculate cost when sqft changes
+                            const filmId = form.getValues("filmId");
+                            const selectedFilm = films.find(f => f.id === filmId);
+                            if (selectedFilm) {
+                              const calculatedCost = Number(selectedFilm.costPerSqft) * sqft;
+                              form.setValue("filmCost", calculatedCost);
+                            }
                           }
                         }}
                         className="bg-background border-border"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="widthInches"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-muted-foreground">Width (inches)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        placeholder="e.g. 36.0"
+                        {...field}
+                        onChange={(e) => {
+                          const value = e.target.value ? parseFloat(e.target.value) : 0;
+                          field.onChange(value);
+                          // Auto-calculate square footage using L*W/144
+                          const length = form.getValues("lengthInches") || 0;
+                          if (value > 0 && length > 0) {
+                            const sqft = (length * value) / 144;
+                            form.setValue("totalSqft", sqft);
+                            
+                            // Auto-calculate cost when sqft changes
+                            const filmId = form.getValues("filmId");
+                            const selectedFilm = films.find(f => f.id === filmId);
+                            if (selectedFilm) {
+                              const calculatedCost = Number(selectedFilm.costPerSqft) * sqft;
+                              form.setValue("filmCost", calculatedCost);
+                            }
+                          }
+                        }}
+                        className="bg-background border-border"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="totalSqft"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-muted-foreground">Total Square Footage (calculated)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="Auto-calculated from L×W÷144"
+                        {...field}
+                        value={field.value?.toFixed(4) || ''}
+                        readOnly
+                        className="bg-muted border-border text-muted-foreground"
                       />
                     </FormControl>
                     <FormMessage />
