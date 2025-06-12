@@ -420,6 +420,141 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
           />
         </div>
 
+        {/* Film Information Section */}
+        <Card className="bg-muted/30 border-muted">
+          <CardHeader>
+            <CardTitle className="text-lg text-card-foreground">Film Information</CardTitle>
+            <p className="text-sm text-muted-foreground">Select film type and calculate material costs</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <FormField
+                control={form.control}
+                name="filmId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-muted-foreground">Film Type</FormLabel>
+                    <Select 
+                      onValueChange={(value) => {
+                        field.onChange(value ? parseInt(value) : undefined);
+                        // Auto-calculate cost when film type or sqft changes
+                        const filmId = parseInt(value);
+                        const selectedFilm = films.find(f => f.id === filmId);
+                        const totalSqft = form.getValues("totalSqft");
+                        if (selectedFilm && totalSqft) {
+                          const calculatedCost = Number(selectedFilm.costPerSqft) * totalSqft;
+                          form.setValue("filmCost", calculatedCost);
+                        }
+                      }} 
+                      value={field.value?.toString()}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="bg-background border-border">
+                          <SelectValue placeholder="Select film type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {films.map((film) => (
+                          <SelectItem key={film.id} value={film.id.toString()}>
+                            {film.name} - ${Number(film.costPerSqft).toFixed(2)}/sqft
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="totalSqft"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-muted-foreground">Total Square Footage</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        placeholder="e.g. 15.5"
+                        {...field}
+                        onChange={(e) => {
+                          const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                          field.onChange(value);
+                          // Auto-calculate cost when sqft changes
+                          const filmId = form.getValues("filmId");
+                          const selectedFilm = films.find(f => f.id === filmId);
+                          if (selectedFilm && value) {
+                            const calculatedCost = Number(selectedFilm.costPerSqft) * value;
+                            form.setValue("filmCost", calculatedCost);
+                          }
+                        }}
+                        className="bg-background border-border"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="filmCost"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-muted-foreground">Film Cost</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="Auto-calculated"
+                        {...field}
+                        onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                        className="bg-background border-border"
+                      />
+                    </FormControl>
+                    <div className="text-xs text-muted-foreground">
+                      Automatically calculated when film type and sqft are selected
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Cost Summary */}
+            {form.watch("filmId") && form.watch("totalSqft") && (
+              <div className="bg-background border border-border rounded-lg p-4">
+                <h4 className="font-medium text-card-foreground mb-2">Cost Summary</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Film Type:</span>
+                    <span className="text-card-foreground">
+                      {films.find(f => f.id === form.watch("filmId"))?.name}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Rate per sqft:</span>
+                    <span className="text-card-foreground">
+                      ${Number(films.find(f => f.id === form.watch("filmId"))?.costPerSqft || 0).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total sqft:</span>
+                    <span className="text-card-foreground">{form.watch("totalSqft")} sqft</span>
+                  </div>
+                  <div className="flex justify-between font-medium border-t border-border pt-1">
+                    <span className="text-card-foreground">Total Cost:</span>
+                    <span className="text-success">${Number(form.watch("filmCost") || 0).toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Visual Car Window Assignment */}
         <div className="space-y-4">
           <VisualCarSelector
