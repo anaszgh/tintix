@@ -27,10 +27,13 @@ const formSchema = insertJobEntrySchema.extend({
   totalWindows: z.number().min(1, "Must have at least one window").max(20, "Maximum 20 windows"),
   installerTimeVariances: z.record(z.string(), z.number()), // installer ID -> time variance
   filmId: z.number().optional(),
-  lengthInches: z.number().min(0.1, "Length must be greater than 0"),
-  widthInches: z.number().min(0.1, "Width must be greater than 0"),
   totalSqft: z.number().min(0.1, "Total square footage must be greater than 0").optional(),
   filmCost: z.number().min(0, "Film cost cannot be negative").optional(),
+  dimensions: z.array(z.object({
+    lengthInches: z.number().min(0.1, "Length must be greater than 0"),
+    widthInches: z.number().min(0.1, "Width must be greater than 0"),
+    description: z.string().optional(),
+  })).min(1, "At least one dimension entry is required"),
   redoEntries: z.array(z.object({
     part: z.string(),
     installerId: z.string().optional(),
@@ -51,6 +54,14 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       part: redo.part,
       installerId: redo.installerId
     })) : []
+  );
+
+  const [dimensions, setDimensions] = useState<Array<{ lengthInches: number; widthInches: number; description?: string }>>(
+    editingEntry && editingEntry.dimensions ? editingEntry.dimensions.map(dim => ({
+      lengthInches: Number(dim.lengthInches),
+      widthInches: Number(dim.widthInches),
+      description: dim.description || ""
+    })) : [{ lengthInches: 0, widthInches: 0, description: "" }]
   );
 
   const [windowAssignments, setWindowAssignments] = useState<Array<{ windowId: string; installerId: string | null; windowName: string }>>([]);
