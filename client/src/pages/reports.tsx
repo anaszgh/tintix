@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
@@ -6,16 +6,22 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
 import { RedoBreakdown } from "@/components/dashboard/redo-breakdown";
-import { Download, FileText, BarChart3 } from "lucide-react";
+import { Download, FileText, BarChart3, Printer, Calendar, Filter, X } from "lucide-react";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import type { User, JobEntryWithDetails } from "@shared/schema";
 
 export default function Reports() {
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading } = useAuth();
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [appliedDateFilter, setAppliedDateFilter] = useState<{dateFrom: string, dateTo: string} | null>(null);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -32,6 +38,17 @@ export default function Reports() {
     }
   }, [isAuthenticated, isLoading, toast]);
 
+  // Create query parameters for date filtering
+  const getQueryParams = () => {
+    if (!appliedDateFilter) return {};
+    return {
+      dateFrom: appliedDateFilter.dateFrom,
+      dateTo: appliedDateFilter.dateTo
+    };
+  };
+
+  const queryParams = getQueryParams();
+
   const { data: topPerformers = [] } = useQuery<Array<{
     installer: {
       id: string;
@@ -43,7 +60,16 @@ export default function Reports() {
     redoCount: number;
     successRate: number;
   }>>({
-    queryKey: ["/api/analytics/top-performers"],
+    queryKey: ["/api/analytics/top-performers", queryParams],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (queryParams.dateFrom) params.set('dateFrom', queryParams.dateFrom);
+      if (queryParams.dateTo) params.set('dateTo', queryParams.dateTo);
+      
+      const response = await fetch(`/api/analytics/top-performers?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch top performers');
+      return response.json();
+    },
     enabled: isAuthenticated,
   });
 
@@ -54,12 +80,30 @@ export default function Reports() {
     avgTimeVariance: number;
     activeInstallers: number;
   }>({
-    queryKey: ["/api/analytics/metrics"],
+    queryKey: ["/api/analytics/metrics", queryParams],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (queryParams.dateFrom) params.set('dateFrom', queryParams.dateFrom);
+      if (queryParams.dateTo) params.set('dateTo', queryParams.dateTo);
+      
+      const response = await fetch(`/api/analytics/metrics?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch metrics');
+      return response.json();
+    },
     enabled: isAuthenticated,
   });
 
   const { data: jobEntries = [] } = useQuery<JobEntryWithDetails[]>({
-    queryKey: ["/api/job-entries"],
+    queryKey: ["/api/job-entries", queryParams],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (queryParams.dateFrom) params.set('dateFrom', queryParams.dateFrom);
+      if (queryParams.dateTo) params.set('dateTo', queryParams.dateTo);
+      
+      const response = await fetch(`/api/job-entries?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch job entries');
+      return response.json();
+    },
     enabled: isAuthenticated,
   });
 
@@ -73,6 +117,49 @@ export default function Reports() {
   };
 
   const successRate = calculateSuccessRate();
+
+  // Apply date filter
+  const applyDateFilter = () => {
+    if (!dateFrom || !dateTo) {
+      toast({
+        title: "Invalid Date Range",
+        description: "Please select both start and end dates.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (new Date(dateFrom) > new Date(dateTo)) {
+      toast({
+        title: "Invalid Date Range",
+        description: "Start date must be before end date.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setAppliedDateFilter({ dateFrom, dateTo });
+    toast({
+      title: "Filter Applied",
+      description: `Showing data from ${dateFrom} to ${dateTo}`,
+    });
+  };
+
+  // Clear date filter
+  const clearDateFilter = () => {
+    setDateFrom("");
+    setDateTo("");
+    setAppliedDateFilter(null);
+    toast({
+      title: "Filter Cleared",
+      description: "Showing all available data",
+    });
+  };
+
+  // Print function
+  const printReport = () => {
+    window.print();
+  };
 
   const exportExcel = () => {
     try {
