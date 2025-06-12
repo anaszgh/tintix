@@ -541,17 +541,7 @@ export class DatabaseStorage implements IStorage {
     part: string;
     count: number;
   }>> {
-    // Build where clause for date filtering
-    let whereClause: any = undefined;
-    if (filters?.dateFrom && filters?.dateTo) {
-      whereClause = sql`${jobEntries.date} BETWEEN ${filters.dateFrom.toISOString().split('T')[0]} AND ${filters.dateTo.toISOString().split('T')[0]}`;
-    } else if (filters?.dateFrom) {
-      whereClause = sql`${jobEntries.date} >= ${filters.dateFrom.toISOString().split('T')[0]}`;
-    } else if (filters?.dateTo) {
-      whereClause = sql`${jobEntries.date} <= ${filters.dateTo.toISOString().split('T')[0]}`;
-    }
-
-    const query = db
+    let query = db
       .select({
         part: redoEntries.part,
         count: count(redoEntries.id),
@@ -561,8 +551,19 @@ export class DatabaseStorage implements IStorage {
       .groupBy(redoEntries.part)
       .orderBy(desc(count(redoEntries.id)));
 
-    if (whereClause) {
-      query.where(whereClause);
+    // Apply date filters if provided
+    if (filters?.dateFrom && filters?.dateTo) {
+      const fromDate = filters.dateFrom.toISOString().split('T')[0];
+      const toDate = filters.dateTo.toISOString().split('T')[0];
+      query = query.where(
+        sql`${jobEntries.date} BETWEEN ${fromDate} AND ${toDate}`
+      );
+    } else if (filters?.dateFrom) {
+      const fromDate = filters.dateFrom.toISOString().split('T')[0];
+      query = query.where(sql`${jobEntries.date} >= ${fromDate}`);
+    } else if (filters?.dateTo) {
+      const toDate = filters.dateTo.toISOString().split('T')[0];
+      query = query.where(sql`${jobEntries.date} <= ${toDate}`);
     }
 
     const results = await query;

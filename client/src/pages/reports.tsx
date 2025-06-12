@@ -495,7 +495,10 @@ export default function Reports() {
           {/* Charts Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <PerformanceChart />
-            <RedoBreakdown />
+            <RedoBreakdown 
+              dateFilters={appliedDateFilter ? { dateFrom: appliedDateFilter.dateFrom, dateTo: appliedDateFilter.dateTo } : undefined}
+              showPrintButton={true}
+            />
           </div>
 
           {/* Detailed Performance Table */}
