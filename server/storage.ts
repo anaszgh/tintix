@@ -326,9 +326,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateJobEntry(id: number, jobEntry: Partial<InsertJobEntry>): Promise<JobEntry> {
+    // Calculate total square footage if length and width are provided
+    let updateData = { ...jobEntry, updatedAt: new Date() };
+    if (jobEntry.lengthInches && jobEntry.widthInches) {
+      updateData.totalSqft = (Number(jobEntry.lengthInches) * Number(jobEntry.widthInches)) / 144;
+    }
+
     const [entry] = await db
       .update(jobEntries)
-      .set({ ...jobEntry, updatedAt: new Date() })
+      .set(updateData)
       .where(eq(jobEntries.id, id))
       .returning();
     return entry;
