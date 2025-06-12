@@ -70,7 +70,10 @@ export interface IStorage {
     successRate: number;
   }>>;
   
-  getRedoBreakdown(): Promise<Array<{
+  getRedoBreakdown(filters?: {
+    dateFrom?: Date;
+    dateTo?: Date;
+  }): Promise<Array<{
     part: string;
     count: number;
   }>>;
@@ -531,19 +534,38 @@ export class DatabaseStorage implements IStorage {
       .slice(0, limit);
   }
 
-  async getRedoBreakdown(): Promise<Array<{
+  async getRedoBreakdown(filters?: {
+    dateFrom?: Date;
+    dateTo?: Date;
+  }): Promise<Array<{
     part: string;
     count: number;
   }>> {
-    const results = await db
+    // Build where clause for date filtering
+    let whereClause: any = undefined;
+    if (filters?.dateFrom && filters?.dateTo) {
+      whereClause = sql`${jobEntries.date} BETWEEN ${filters.dateFrom.toISOString().split('T')[0]} AND ${filters.dateTo.toISOString().split('T')[0]}`;
+    } else if (filters?.dateFrom) {
+      whereClause = sql`${jobEntries.date} >= ${filters.dateFrom.toISOString().split('T')[0]}`;
+    } else if (filters?.dateTo) {
+      whereClause = sql`${jobEntries.date} <= ${filters.dateTo.toISOString().split('T')[0]}`;
+    }
+
+    const query = db
       .select({
         part: redoEntries.part,
         count: count(redoEntries.id),
       })
       .from(redoEntries)
+      .innerJoin(jobEntries, eq(redoEntries.jobEntryId, jobEntries.id))
       .groupBy(redoEntries.part)
       .orderBy(desc(count(redoEntries.id)));
 
+    if (whereClause) {
+      query.where(whereClause);
+    }
+
+    const results = await query;
     return results;
   }
 

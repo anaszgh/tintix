@@ -388,7 +388,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/analytics/redo-breakdown", isAuthenticated, async (req: any, res) => {
     try {
-      const breakdown = await storage.getRedoBreakdown();
+      const { dateFrom, dateTo } = req.query;
+      
+      const filters: any = {};
+      if (dateFrom) filters.dateFrom = new Date(dateFrom as string);
+      if (dateTo) filters.dateTo = new Date(dateTo as string);
+      
+      const breakdown = await storage.getRedoBreakdown(filters);
       res.json(breakdown);
     } catch (error) {
       console.error("Error fetching redo breakdown:", error);
