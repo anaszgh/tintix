@@ -530,6 +530,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Film management routes
+  app.get("/api/films", isAuthenticated, async (req: any, res) => {
+    try {
+      const films = await storage.getActiveFilms();
+      res.json(films);
+    } catch (error) {
+      console.error("Error fetching films:", error);
+      res.status(500).json({ message: "Failed to fetch films" });
+    }
+  });
+
+  app.get("/api/films/all", isAuthenticated, async (req: any, res) => {
+    try {
+      const films = await storage.getAllFilms();
+      res.json(films);
+    } catch (error) {
+      console.error("Error fetching all films:", error);
+      res.status(500).json({ message: "Failed to fetch all films" });
+    }
+  });
+
+  app.post("/api/films", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== "manager") {
+        return res.status(403).json({ message: "Only managers can create films" });
+      }
+
+      const film = await storage.createFilm(req.body);
+      res.json(film);
+    } catch (error) {
+      console.error("Error creating film:", error);
+      res.status(500).json({ message: "Failed to create film" });
+    }
+  });
+
+  app.put("/api/films/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== "manager") {
+        return res.status(403).json({ message: "Only managers can update films" });
+      }
+
+      const filmId = parseInt(req.params.id);
+      const film = await storage.updateFilm(filmId, req.body);
+      res.json(film);
+    } catch (error) {
+      console.error("Error updating film:", error);
+      res.status(500).json({ message: "Failed to update film" });
+    }
+  });
+
+  app.delete("/api/films/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== "manager") {
+        return res.status(403).json({ message: "Only managers can delete films" });
+      }
+
+      const filmId = parseInt(req.params.id);
+      await storage.deleteFilm(filmId);
+      res.json({ message: "Film deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting film:", error);
+      res.status(500).json({ message: "Failed to delete film" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

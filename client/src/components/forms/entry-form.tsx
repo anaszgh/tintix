@@ -26,6 +26,9 @@ const formSchema = insertJobEntrySchema.extend({
   installerIds: z.array(z.string()).min(1, "At least one installer must be selected"),
   totalWindows: z.number().min(1, "Must have at least one window").max(20, "Maximum 20 windows"),
   installerTimeVariances: z.record(z.string(), z.number()), // installer ID -> time variance
+  filmId: z.number().optional(),
+  totalSqft: z.number().min(0.1, "Total square footage must be greater than 0").optional(),
+  filmCost: z.number().min(0, "Film cost cannot be negative").optional(),
   redoEntries: z.array(z.object({
     part: z.string(),
     installerId: z.string().optional(),
@@ -55,6 +58,11 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
+  const { data: films = [], isLoading: filmsLoading } = useQuery({
+    queryKey: ["/api/films"],
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: editingEntry ? {
@@ -68,6 +76,9 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       vehicleYear: editingEntry.vehicleYear,
       vehicleMake: editingEntry.vehicleMake,
       vehicleModel: editingEntry.vehicleModel,
+      filmId: editingEntry.filmId || undefined,
+      totalSqft: editingEntry.totalSqft || undefined,
+      filmCost: editingEntry.filmCost ? Number(editingEntry.filmCost) : undefined,
       notes: editingEntry.notes || "",
     } : {
       date: new Date().toISOString().split('T')[0],
@@ -77,6 +88,9 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       vehicleYear: "",
       vehicleMake: "",
       vehicleModel: "",
+      filmId: undefined,
+      totalSqft: undefined,
+      filmCost: undefined,
       notes: "",
     },
   });
