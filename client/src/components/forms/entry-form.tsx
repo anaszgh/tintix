@@ -27,6 +27,8 @@ const formSchema = insertJobEntrySchema.extend({
   totalWindows: z.number().min(1, "Must have at least one window").max(20, "Maximum 20 windows"),
   installerTimeVariances: z.record(z.string(), z.number()), // installer ID -> time variance
   filmId: z.number().optional(),
+  lengthInches: z.number().min(0.1, "Length must be greater than 0"),
+  widthInches: z.number().min(0.1, "Width must be greater than 0"),
   totalSqft: z.number().min(0.1, "Total square footage must be greater than 0").optional(),
   filmCost: z.number().min(0, "Film cost cannot be negative").optional(),
   redoEntries: z.array(z.object({
@@ -77,6 +79,8 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       vehicleMake: editingEntry.vehicleMake,
       vehicleModel: editingEntry.vehicleModel,
       filmId: editingEntry.filmId || undefined,
+      lengthInches: editingEntry.lengthInches ? Number(editingEntry.lengthInches) : 0,
+      widthInches: editingEntry.widthInches ? Number(editingEntry.widthInches) : 0,
       totalSqft: editingEntry.totalSqft || undefined,
       filmCost: editingEntry.filmCost ? Number(editingEntry.filmCost) : undefined,
       notes: editingEntry.notes || "",
@@ -89,6 +93,8 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       vehicleMake: "",
       vehicleModel: "",
       filmId: undefined,
+      lengthInches: 0,
+      widthInches: 0,
       totalSqft: undefined,
       filmCost: undefined,
       notes: "",

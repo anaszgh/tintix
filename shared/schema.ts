@@ -59,7 +59,9 @@ export const jobEntries = pgTable("job_entries", {
   vehicleMake: varchar("vehicle_make").notNull(),
   vehicleModel: varchar("vehicle_model").notNull(),
   filmId: integer("film_id").references(() => films.id), // Reference to film type
-  totalSqft: real("total_sqft"), // Total square footage for cost calculation
+  lengthInches: numeric("length_inches", { precision: 8, scale: 2 }), // Length in inches
+  widthInches: numeric("width_inches", { precision: 8, scale: 2 }), // Width in inches
+  totalSqft: real("total_sqft"), // Total square footage for cost calculation (calculated from L*W/144)
   filmCost: numeric("film_cost", { precision: 10, scale: 2 }), // Total film cost for the job
   windowAssignments: jsonb("window_assignments"), // Store detailed window-installer assignments
   totalWindows: integer("total_windows").notNull().default(7),
