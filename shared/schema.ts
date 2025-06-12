@@ -9,6 +9,7 @@ import {
   integer,
   boolean,
   real,
+  numeric,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -39,6 +40,17 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Film types management
+export const films = pgTable("films", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull().unique(), // Film name/type
+  type: varchar("type").notNull(), // Category: "ceramic", "carbon", "dyed", etc.
+  costPerSqft: numeric("cost_per_sqft", { precision: 10, scale: 2 }).notNull(), // Cost per square foot
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const jobEntries = pgTable("job_entries", {
   id: serial("id").primaryKey(),
   jobNumber: varchar("job_number").notNull().unique(),
@@ -46,6 +58,9 @@ export const jobEntries = pgTable("job_entries", {
   vehicleYear: varchar("vehicle_year").notNull(),
   vehicleMake: varchar("vehicle_make").notNull(),
   vehicleModel: varchar("vehicle_model").notNull(),
+  filmId: integer("film_id").references(() => films.id), // Reference to film type
+  totalSqft: real("total_sqft"), // Total square footage for cost calculation
+  filmCost: numeric("film_cost", { precision: 10, scale: 2 }), // Total film cost for the job
   windowAssignments: jsonb("window_assignments"), // Store detailed window-installer assignments
   totalWindows: integer("total_windows").notNull().default(7),
   startTime: timestamp("start_time"), // Job start time
@@ -90,10 +105,18 @@ export const usersRelations = relations(users, ({ many }) => ({
   timeEntries: many(installerTimeEntries),
 }));
 
-export const jobEntriesRelations = relations(jobEntries, ({ many }) => ({
+export const filmsRelations = relations(films, ({ many }) => ({
+  jobEntries: many(jobEntries),
+}));
+
+export const jobEntriesRelations = relations(jobEntries, ({ many, one }) => ({
   jobInstallers: many(jobInstallers),
   redoEntries: many(redoEntries),
   timeEntries: many(installerTimeEntries),
+  film: one(films, {
+    fields: [jobEntries.filmId],
+    references: [films.id],
+  }),
 }));
 
 export const jobInstallersRelations = relations(jobInstallers, ({ one }) => ({
