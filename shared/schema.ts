@@ -175,6 +175,12 @@ export const insertInstallerTimeEntrySchema = createInsertSchema(installerTimeEn
   createdAt: true,
 });
 
+export const insertFilmSchema = createInsertSchema(films).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -186,6 +192,8 @@ export type RedoEntry = typeof redoEntries.$inferSelect;
 export type InsertRedoEntry = z.infer<typeof insertRedoEntrySchema>;
 export type InstallerTimeEntry = typeof installerTimeEntries.$inferSelect;
 export type InsertInstallerTimeEntry = z.infer<typeof insertInstallerTimeEntrySchema>;
+export type Film = typeof films.$inferSelect;
+export type InsertFilm = z.infer<typeof insertFilmSchema>;
 
 // Combined types for API responses
 export type JobEntryWithDetails = JobEntry & {

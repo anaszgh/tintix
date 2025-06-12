@@ -4,6 +4,7 @@ import {
   jobInstallers,
   redoEntries,
   installerTimeEntries,
+  films,
   type User,
   type UpsertUser,
   type JobEntry,
@@ -14,6 +15,8 @@ import {
   type InsertRedoEntry,
   type InstallerTimeEntry,
   type InsertInstallerTimeEntry,
+  type Film,
+  type InsertFilm,
   type JobEntryWithDetails,
 } from "@shared/schema";
 import { db } from "./db";
@@ -102,6 +105,13 @@ export interface IStorage {
     avgTimePerWindow: number;
     jobCount: number;
   }>>;
+
+  // Film operations
+  getAllFilms(): Promise<Film[]>;
+  getActiveFilms(): Promise<Film[]>;
+  createFilm(film: InsertFilm): Promise<Film>;
+  updateFilm(id: number, film: Partial<InsertFilm>): Promise<Film>;
+  deleteFilm(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -686,6 +696,45 @@ export class DatabaseStorage implements IStorage {
       avgTimePerWindow: row.totalWindows > 0 ? Math.round((Number(row.totalMinutes) / Number(row.totalWindows)) * 10) / 10 : 0,
       jobCount: Number(row.jobCount) || 0,
     }));
+  }
+
+  // Film operations
+  async getAllFilms(): Promise<Film[]> {
+    return await db
+      .select()
+      .from(films)
+      .orderBy(films.type, films.name);
+  }
+
+  async getActiveFilms(): Promise<Film[]> {
+    return await db
+      .select()
+      .from(films)
+      .where(eq(films.isActive, true))
+      .orderBy(films.type, films.name);
+  }
+
+  async createFilm(filmData: InsertFilm): Promise<Film> {
+    const [film] = await db
+      .insert(films)
+      .values(filmData)
+      .returning();
+    return film;
+  }
+
+  async updateFilm(id: number, filmData: Partial<InsertFilm>): Promise<Film> {
+    const [film] = await db
+      .update(films)
+      .set({ ...filmData, updatedAt: new Date() })
+      .where(eq(films.id, id))
+      .returning();
+    return film;
+  }
+
+  async deleteFilm(id: number): Promise<void> {
+    await db
+      .delete(films)
+      .where(eq(films.id, id));
   }
 }
 
