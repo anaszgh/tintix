@@ -617,6 +617,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Film consumption analytics
+  app.get("/api/analytics/film-consumption", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      const { dateFrom, dateTo } = req.query;
+      const filters: any = {};
+      
+      if (dateFrom) {
+        filters.dateFrom = new Date(dateFrom as string);
+      }
+      if (dateTo) {
+        filters.dateTo = new Date(dateTo as string);
+      }
+
+      const filmConsumption = await storage.getFilmConsumption(filters);
+      res.json(filmConsumption);
+    } catch (error) {
+      console.error("Error fetching film consumption:", error);
+      res.status(500).json({ message: "Failed to fetch film consumption data" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

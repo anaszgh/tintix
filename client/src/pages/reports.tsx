@@ -107,6 +107,27 @@ export default function Reports() {
     enabled: isAuthenticated,
   });
 
+  const { data: filmConsumption = [] } = useQuery<Array<{
+    date: string;
+    filmType: string;
+    filmName: string;
+    totalSqft: number;
+    totalCost: number;
+    jobCount: number;
+  }>>({
+    queryKey: ["/api/analytics/film-consumption", queryParams],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (queryParams.dateFrom) params.set('dateFrom', queryParams.dateFrom);
+      if (queryParams.dateTo) params.set('dateTo', queryParams.dateTo);
+      
+      const response = await fetch(`/api/analytics/film-consumption?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch film consumption');
+      return response.json();
+    },
+    enabled: isAuthenticated,
+  });
+
   // Calculate success rate using actual window counts
   const calculateSuccessRate = () => {
     if (!metrics) return 0;

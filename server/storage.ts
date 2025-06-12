@@ -115,6 +115,19 @@ export interface IStorage {
   createFilm(film: InsertFilm): Promise<Film>;
   updateFilm(id: number, film: Partial<InsertFilm>): Promise<Film>;
   deleteFilm(id: number): Promise<void>;
+  
+  // Film consumption analytics
+  getFilmConsumption(filters?: {
+    dateFrom?: Date;
+    dateTo?: Date;
+  }): Promise<Array<{
+    date: string;
+    filmType: string;
+    filmName: string;
+    totalSqft: number;
+    totalCost: number;
+    jobCount: number;
+  }>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -770,6 +783,52 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(films)
       .where(eq(films.id, id));
+  }
+
+  async getFilmConsumption(filters?: {
+    dateFrom?: Date;
+    dateTo?: Date;
+  }): Promise<Array<{
+    date: string;
+    filmType: string;
+    filmName: string;
+    totalSqft: number;
+    totalCost: number;
+    jobCount: number;
+  }>> {
+    const query = db
+      .select({
+        date: sql<string>`DATE(${jobEntries.date})`,
+        filmType: films.type,
+        filmName: films.name,
+        totalSqft: sql<number>`COALESCE(SUM(${jobEntries.totalSqft}), 0)`,
+        totalCost: sql<number>`COALESCE(SUM(CAST(${jobEntries.filmCost} AS DECIMAL)), 0)`,
+        jobCount: count(jobEntries.id),
+      })
+      .from(jobEntries)
+      .leftJoin(films, eq(jobEntries.filmId, films.id))
+      .groupBy(sql`DATE(${jobEntries.date})`, films.type, films.name)
+      .orderBy(sql`DATE(${jobEntries.date}) DESC`, films.type, films.name);
+
+    if (filters?.dateFrom) {
+      query.where(gte(jobEntries.date, filters.dateFrom));
+    }
+    if (filters?.dateTo) {
+      const endDate = new Date(filters.dateTo);
+      endDate.setHours(23, 59, 59, 999); // Include the entire end date
+      query.where(lte(jobEntries.date, endDate));
+    }
+
+    const results = await query;
+    
+    return results.map(result => ({
+      date: result.date || 'Unknown',
+      filmType: result.filmType || 'Unknown',
+      filmName: result.filmName || 'Unknown Film',
+      totalSqft: Number(result.totalSqft) || 0,
+      totalCost: Number(result.totalCost) || 0,
+      jobCount: Number(result.jobCount) || 0,
+    }));
   }
 }
 
