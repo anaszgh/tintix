@@ -62,7 +62,7 @@ export function RedoBreakdown({ dateFilters, showPrintButton = false }: RedoBrea
           </style>
         </head>
         <body>
-          <h1>Redo Breakdown Report</h1>
+          <h1>Work Today Redo Breakdown Report</h1>
           <p>Generated: ${new Date().toLocaleString()}</p>
           ${dateFilters?.dateFrom ? `<p>Date Range: ${dateFilters.dateFrom} to ${dateFilters.dateTo}</p>` : '<p>All Time Data</p>'}
           <div>
@@ -93,7 +93,7 @@ export function RedoBreakdown({ dateFilters, showPrintButton = false }: RedoBrea
     <Card className="bg-card border-border">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-card-foreground">Redo Breakdown</CardTitle>
+          <CardTitle className="text-card-foreground">Work Today Redo Breakdown</CardTitle>
           <div className="flex items-center space-x-2">
             {showPrintButton && (
               <Button
