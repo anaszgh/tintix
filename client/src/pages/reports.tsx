@@ -348,6 +348,14 @@ export default function Reports() {
             <div className="flex items-center space-x-4">
               <Button 
                 variant="outline" 
+                onClick={printReport}
+                className="border-border hover:bg-muted"
+              >
+                <Printer className="h-4 w-4 mr-2" />
+                Print
+              </Button>
+              <Button 
+                variant="outline" 
                 onClick={exportPDF}
                 className="border-border hover:bg-muted"
               >
@@ -366,6 +374,73 @@ export default function Reports() {
         />
         
         <div className="p-8 overflow-y-auto h-full space-y-8">
+          {/* Date Filter Section */}
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Filter className="h-5 w-5" />
+                Filter by Date Range
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap items-end gap-4">
+                <div className="grid grid-cols-2 gap-4 flex-1">
+                  <div>
+                    <Label htmlFor="dateFrom" className="text-sm font-medium text-muted-foreground mb-2 block">
+                      From Date
+                    </Label>
+                    <Input
+                      id="dateFrom"
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                      className="bg-background border-border"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="dateTo" className="text-sm font-medium text-muted-foreground mb-2 block">
+                      To Date
+                    </Label>
+                    <Input
+                      id="dateTo"
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => setDateTo(e.target.value)}
+                      className="bg-background border-border"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button
+                    onClick={applyDateFilter}
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Apply Filter
+                  </Button>
+                  <Button
+                    onClick={clearDateFilter}
+                    variant="outline"
+                    className="border-border hover:bg-muted"
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Clear
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Show Applied Filter */}
+              {appliedDateFilter && (
+                <div className="mt-4 p-3 bg-muted/50 rounded-lg border">
+                  <p className="text-sm text-muted-foreground">
+                    <strong>Active Filter:</strong> {appliedDateFilter.dateFrom} to {appliedDateFilter.dateTo}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card className="bg-card border-border">
