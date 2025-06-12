@@ -59,9 +59,7 @@ export const jobEntries = pgTable("job_entries", {
   vehicleMake: varchar("vehicle_make").notNull(),
   vehicleModel: varchar("vehicle_model").notNull(),
   filmId: integer("film_id").references(() => films.id), // Reference to film type
-  lengthInches: numeric("length_inches", { precision: 8, scale: 2 }), // Length in inches
-  widthInches: numeric("width_inches", { precision: 8, scale: 2 }), // Width in inches
-  totalSqft: real("total_sqft"), // Total square footage for cost calculation (calculated from L*W/144)
+  totalSqft: real("total_sqft"), // Total square footage for cost calculation (sum of all dimensions)
   filmCost: numeric("film_cost", { precision: 10, scale: 2 }), // Total film cost for the job
   windowAssignments: jsonb("window_assignments"), // Store detailed window-installer assignments
   totalWindows: integer("total_windows").notNull().default(7),
@@ -71,6 +69,17 @@ export const jobEntries = pgTable("job_entries", {
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Separate table for multiple dimension entries per job
+export const jobDimensions = pgTable("job_dimensions", {
+  id: serial("id").primaryKey(),
+  jobEntryId: integer("job_entry_id").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
+  lengthInches: numeric("length_inches", { precision: 8, scale: 2 }).notNull(),
+  widthInches: numeric("width_inches", { precision: 8, scale: 2 }).notNull(),
+  sqft: numeric("sqft", { precision: 10, scale: 4 }).notNull(), // Calculated L*W/144
+  description: varchar("description"), // Optional description (e.g., "Front windshield", "Side windows")
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const jobInstallers = pgTable("job_installers", {
@@ -115,9 +124,17 @@ export const jobEntriesRelations = relations(jobEntries, ({ many, one }) => ({
   jobInstallers: many(jobInstallers),
   redoEntries: many(redoEntries),
   timeEntries: many(installerTimeEntries),
+  dimensions: many(jobDimensions),
   film: one(films, {
     fields: [jobEntries.filmId],
     references: [films.id],
+  }),
+}));
+
+export const jobDimensionsRelations = relations(jobDimensions, ({ one }) => ({
+  jobEntry: one(jobEntries, {
+    fields: [jobDimensions.jobEntryId],
+    references: [jobEntries.id],
   }),
 }));
 
@@ -183,6 +200,11 @@ export const insertFilmSchema = createInsertSchema(films).omit({
   updatedAt: true,
 });
 
+export const insertJobDimensionSchema = createInsertSchema(jobDimensions).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -196,9 +218,12 @@ export type InstallerTimeEntry = typeof installerTimeEntries.$inferSelect;
 export type InsertInstallerTimeEntry = z.infer<typeof insertInstallerTimeEntrySchema>;
 export type Film = typeof films.$inferSelect;
 export type InsertFilm = z.infer<typeof insertFilmSchema>;
+export type JobDimension = typeof jobDimensions.$inferSelect;
+export type InsertJobDimension = z.infer<typeof insertJobDimensionSchema>;
 
 // Combined types for API responses
 export type JobEntryWithDetails = JobEntry & {
   installers: (User & { timeVariance: number })[];
   redoEntries: (RedoEntry & { installer: User })[];
+  dimensions: JobDimension[];
 };
