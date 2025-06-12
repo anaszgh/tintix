@@ -14,6 +14,7 @@ import { EntryForm } from "@/components/forms/entry-form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Download, Filter, RotateCcw, Edit, Trash2, FileText } from "lucide-react";
 import jsPDF from "jspdf";
+import 'jspdf-autotable';
 import type { JobEntryWithDetails, User } from "@shared/schema";
 import { isUnauthorizedError } from "@/lib/authUtils";
 
