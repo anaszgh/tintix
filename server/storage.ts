@@ -5,6 +5,7 @@ import {
   redoEntries,
   installerTimeEntries,
   films,
+  jobDimensions,
   type User,
   type UpsertUser,
   type JobEntry,
@@ -17,6 +18,8 @@ import {
   type InsertInstallerTimeEntry,
   type Film,
   type InsertFilm,
+  type JobDimension,
+  type InsertJobDimension,
   type JobEntryWithDetails,
 } from "@shared/schema";
 import { db } from "./db";
@@ -154,28 +157,43 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Job entry operations
-  async createJobEntry(jobEntry: InsertJobEntry & { windowAssignments?: any[] }, installerData: Array<{installerId: string, timeVariance: number}>): Promise<JobEntry> {
+  async createJobEntry(jobEntry: InsertJobEntry & { windowAssignments?: any[], dimensions?: Array<{lengthInches: number, widthInches: number, description?: string}> }, installerData: Array<{installerId: string, timeVariance: number}>): Promise<JobEntry> {
     // Generate sequential job number starting from 1
     const existingEntries = await db.select({ id: jobEntries.id }).from(jobEntries);
     const nextJobNumber = existingEntries.length + 1;
     const jobNumber = `JOB-${nextJobNumber}`;
-
-    // Calculate total square footage if length and width are provided
-    let calculatedSqft = jobEntry.totalSqft;
-    if (jobEntry.lengthInches && jobEntry.widthInches) {
-      calculatedSqft = (Number(jobEntry.lengthInches) * Number(jobEntry.widthInches)) / 144;
-    }
 
     const [entry] = await db
       .insert(jobEntries)
       .values({
         ...jobEntry,
         jobNumber,
-        totalSqft: calculatedSqft,
         windowAssignments: jobEntry.windowAssignments ? JSON.stringify(jobEntry.windowAssignments) : null,
       })
       .returning();
     
+    // Add dimensions if provided and calculate total square footage
+    let totalSqft = 0;
+    if (jobEntry.dimensions && jobEntry.dimensions.length > 0) {
+      for (const dimension of jobEntry.dimensions) {
+        const sqft = (dimension.lengthInches * dimension.widthInches) / 144;
+        totalSqft += sqft;
+        
+        await db.insert(jobDimensions).values({
+          jobEntryId: entry.id,
+          lengthInches: dimension.lengthInches,
+          widthInches: dimension.widthInches,
+          sqft,
+          description: dimension.description || null,
+        });
+      }
+      
+      // Update total square footage
+      await db.update(jobEntries)
+        .set({ totalSqft })
+        .where(eq(jobEntries.id, entry.id));
+    }
+
     // Add installers to the job with their individual time variances
     for (const installer of installerData) {
       await this.createJobInstaller({
@@ -318,23 +336,24 @@ export class DatabaseStorage implements IStorage {
       installer: r.installer!,
     }));
 
+    // Get all dimensions for this job
+    const dimensionResults = await db
+      .select()
+      .from(jobDimensions)
+      .where(eq(jobDimensions.jobEntryId, id));
+
     return {
       ...entry,
       installers: installers as (User & { timeVariance: number })[],
       redoEntries: redoEntriesWithInstallers,
+      dimensions: dimensionResults,
     };
   }
 
   async updateJobEntry(id: number, jobEntry: Partial<InsertJobEntry>): Promise<JobEntry> {
-    // Calculate total square footage if length and width are provided
-    let updateData = { ...jobEntry, updatedAt: new Date() };
-    if (jobEntry.lengthInches && jobEntry.widthInches) {
-      updateData.totalSqft = (Number(jobEntry.lengthInches) * Number(jobEntry.widthInches)) / 144;
-    }
-
     const [entry] = await db
       .update(jobEntries)
-      .set(updateData)
+      .set({ ...jobEntry, updatedAt: new Date() })
       .where(eq(jobEntries.id, id))
       .returning();
     return entry;
