@@ -62,7 +62,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       lengthInches: Number(dim.lengthInches),
       widthInches: Number(dim.widthInches),
       description: dim.description || ""
-    })) : [{ lengthInches: 0, widthInches: 0, description: "" }]
+    })) : [{ lengthInches: 1, widthInches: 1, description: "" }]
   );
 
   const [windowAssignments, setWindowAssignments] = useState<Array<{ windowId: string; installerId: string | null; windowName: string }>>([]);
@@ -119,7 +119,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       vehicleMake: "",
       vehicleModel: "",
       filmId: undefined,
-      dimensions: [{ lengthInches: 0, widthInches: 0, description: "" }],
+      dimensions: [{ lengthInches: 1, widthInches: 1, description: "" }],
       totalSqft: undefined,
       filmCost: undefined,
       notes: "",
@@ -513,7 +513,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      setDimensions([...dimensions, { lengthInches: 0, widthInches: 0, description: "" }]);
+                      setDimensions([...dimensions, { lengthInches: 1, widthInches: 1, description: "" }]);
                     }}
                     className="shrink-0"
                   >
@@ -552,15 +552,16 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                             id={`length-${index}`}
                             type="number"
                             step="0.1"
-                            min="0"
-                            value={dimension.lengthInches || ""}
+                            min="0.1"
+                            value={dimension.lengthInches}
                             onChange={(e) => {
                               const newDimensions = [...dimensions];
-                              newDimensions[index].lengthInches = Number(e.target.value) || 0;
+                              const value = parseFloat(e.target.value) || 1;
+                              newDimensions[index].lengthInches = value;
                               setDimensions(newDimensions);
                               updateTotalSqftFromDimensions(newDimensions);
                             }}
-                            placeholder="0.0"
+                            placeholder="1.0"
                             className="mt-1"
                           />
                         </div>
@@ -573,15 +574,16 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                             id={`width-${index}`}
                             type="number"
                             step="0.1"
-                            min="0"
-                            value={dimension.widthInches || ""}
+                            min="0.1"
+                            value={dimension.widthInches}
                             onChange={(e) => {
                               const newDimensions = [...dimensions];
-                              newDimensions[index].widthInches = Number(e.target.value) || 0;
+                              const value = parseFloat(e.target.value) || 1;
+                              newDimensions[index].widthInches = value;
                               setDimensions(newDimensions);
                               updateTotalSqftFromDimensions(newDimensions);
                             }}
-                            placeholder="0.0"
+                            placeholder="1.0"
                             className="mt-1"
                           />
                         </div>
