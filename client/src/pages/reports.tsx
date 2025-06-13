@@ -310,7 +310,7 @@ export default function Reports() {
         'Active Installers': metrics?.activeInstallers || 0,
         'Total Film Sq Ft': filmConsumption.reduce((sum, item) => sum + item.totalSqft, 0).toFixed(2),
         'Total Film Cost': `$${filmConsumption.reduce((sum, item) => sum + item.totalCost, 0).toFixed(2)}`,
-        'Report Generated': new Date().toLocaleString()
+        'Report Generated': new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }) + ' (Pacific Time)'
       }];
       
       const ws4 = XLSX.utils.json_to_sheet(summaryData);
