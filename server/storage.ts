@@ -807,39 +807,85 @@ export class DatabaseStorage implements IStorage {
     totalCost: number;
     jobCount: number;
   }>> {
-    const query = db
+    // Build filter conditions
+    let whereClause = undefined;
+    if (filters?.dateFrom && filters?.dateTo) {
+      const endDate = new Date(filters.dateTo);
+      endDate.setHours(23, 59, 59, 999);
+      whereClause = and(
+        gte(jobEntries.date, filters.dateFrom),
+        lte(jobEntries.date, endDate)
+      );
+    } else if (filters?.dateFrom) {
+      whereClause = gte(jobEntries.date, filters.dateFrom);
+    } else if (filters?.dateTo) {
+      const endDate = new Date(filters.dateTo);
+      endDate.setHours(23, 59, 59, 999);
+      whereClause = lte(jobEntries.date, endDate);
+    }
+
+    // Get job-level consumption
+    const jobQuery = db
       .select({
         date: sql<string>`DATE(${jobEntries.date})`,
         filmType: films.type,
         filmName: films.name,
+        filmId: films.id,
+        costPerSqft: films.costPerSqft,
         totalSqft: sql<number>`COALESCE(SUM(${jobEntries.totalSqft}), 0)`,
         totalCost: sql<number>`COALESCE(SUM(CAST(${jobEntries.filmCost} AS DECIMAL)), 0)`,
         jobCount: count(jobEntries.id),
       })
       .from(jobEntries)
       .leftJoin(films, eq(jobEntries.filmId, films.id))
-      .groupBy(sql`DATE(${jobEntries.date})`, films.type, films.name)
-      .orderBy(sql`DATE(${jobEntries.date}) DESC`, films.type, films.name);
+      .groupBy(sql`DATE(${jobEntries.date})`, films.type, films.name, films.id, films.costPerSqft);
 
-    if (filters?.dateFrom) {
-      query.where(gte(jobEntries.date, filters.dateFrom));
-    }
-    if (filters?.dateTo) {
-      const endDate = new Date(filters.dateTo);
-      endDate.setHours(23, 59, 59, 999); // Include the entire end date
-      query.where(lte(jobEntries.date, endDate));
+    if (whereClause) {
+      jobQuery.where(whereClause);
     }
 
-    const results = await query;
-    
-    return results.map(result => ({
-      date: result.date || 'Unknown',
-      filmType: result.filmType || 'Unknown',
-      filmName: result.filmName || 'Unknown Film',
-      totalSqft: Number(result.totalSqft) || 0,
-      totalCost: Number(result.totalCost) || 0,
-      jobCount: Number(result.jobCount) || 0,
-    }));
+    const jobResults = await jobQuery.orderBy(sql`DATE(${jobEntries.date}) DESC`, films.type, films.name);
+
+    // Get redo consumption grouped by date and film
+    const redoQuery = db
+      .select({
+        date: sql<string>`DATE(${jobEntries.date})`,
+        filmId: jobEntries.filmId,
+        redoSqft: sql<number>`COALESCE(SUM(${redoEntries.sqft}), 0)`,
+      })
+      .from(redoEntries)
+      .innerJoin(jobEntries, eq(redoEntries.jobEntryId, jobEntries.id))
+      .groupBy(sql`DATE(${jobEntries.date})`, jobEntries.filmId);
+
+    if (whereClause) {
+      redoQuery.where(whereClause);
+    }
+
+    const redoResults = await redoQuery;
+
+    // Combine job and redo consumption
+    const combinedResults = jobResults.map(jobResult => {
+      // Find matching redo consumption for this date and film
+      const matchingRedo = redoResults.find(
+        redo => redo.date === jobResult.date && redo.filmId === jobResult.filmId
+      );
+      
+      const redoSqft = Number(matchingRedo?.redoSqft || 0);
+      const totalSqft = Number(jobResult.totalSqft) + redoSqft;
+      const redoCost = redoSqft * Number(jobResult.costPerSqft || 0);
+      const totalCost = Number(jobResult.totalCost) + redoCost;
+
+      return {
+        date: jobResult.date || 'Unknown',
+        filmType: jobResult.filmType || 'Unknown',
+        filmName: jobResult.filmName || 'Unknown Film',
+        totalSqft: totalSqft,
+        totalCost: totalCost,
+        jobCount: Number(jobResult.jobCount) || 0,
+      };
+    });
+
+    return combinedResults;
   }
 }
 

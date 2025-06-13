@@ -148,51 +148,114 @@ export default function Entries() {
       }
     }
     
-    // Consumption Breakdown and Cost Details
+    // Material Consumption Breakdown
     doc.text('Material Consumption Breakdown:', 20, yPos + 10);
     yPos += 20;
     
-    // Dimensions table
+    // Prepare combined consumption data (job dimensions + redo entries)
+    const consumptionData: any[] = [];
+    let totalJobSqft = 0;
+    let totalRedoSqft = 0;
+    
+    // Add regular job dimensions
     if (entry.dimensions && entry.dimensions.length > 0) {
-      const dimensionHeaders = ['Description', 'Length (in)', 'Width (in)', 'Sq Ft'];
-      const dimensionData = entry.dimensions.map((dim, index) => [
-        dim.description || `Dimension ${index + 1}`,
-        Number(dim.lengthInches).toFixed(1),
-        Number(dim.widthInches).toFixed(1),
-        ((Number(dim.lengthInches) * Number(dim.widthInches)) / 144).toFixed(2)
-      ]);
+      entry.dimensions.forEach((dim, index) => {
+        const sqft = (Number(dim.lengthInches) * Number(dim.widthInches)) / 144;
+        totalJobSqft += sqft;
+        consumptionData.push([
+          dim.description || `Dimension ${index + 1}`,
+          Number(dim.lengthInches).toFixed(1),
+          Number(dim.widthInches).toFixed(1),
+          sqft.toFixed(2),
+          'Job'
+        ]);
+      });
+    }
+    
+    // Add redo entries with material consumption
+    if (entry.redoEntries && entry.redoEntries.length > 0) {
+      entry.redoEntries.forEach((redo, index) => {
+        if (redo.lengthInches && redo.widthInches) {
+          const sqft = (Number(redo.lengthInches) * Number(redo.widthInches)) / 144;
+          totalRedoSqft += sqft;
+          consumptionData.push([
+            `${redo.part} (REDO)`,
+            Number(redo.lengthInches).toFixed(1),
+            Number(redo.widthInches).toFixed(1),
+            sqft.toFixed(2),
+            'REDO'
+          ]);
+        }
+      });
+    }
+    
+    if (consumptionData.length > 0) {
+      const consumptionHeaders = ['Description', 'Length (in)', 'Width (in)', 'Sq Ft', 'Type'];
       
-      // Add table using autoTable
+      // Add consumption table using autoTable
       autoTable(doc, {
-        head: [dimensionHeaders],
-        body: dimensionData,
+        head: [consumptionHeaders],
+        body: consumptionData,
         startY: yPos,
         theme: 'grid',
         styles: { fontSize: 10 },
-        headStyles: { fillColor: [41, 128, 185] }
+        headStyles: { fillColor: [41, 128, 185] },
+        columnStyles: {
+          4: { fontStyle: 'bold' }
+        },
+        didParseCell: function(data: any) {
+          if (data.column.index === 4 && data.cell.raw === 'REDO') {
+            data.cell.styles.textColor = [220, 53, 69]; // Red color for REDO
+          }
+        }
       });
       
-      yPos = (doc as any).lastAutoTable.finalY + 10;
+      yPos = (doc as any).lastAutoTable.finalY + 15;
       
-      // Total calculations
-      const totalSqft = entry.dimensions.reduce((total, dim) => 
-        total + ((Number(dim.lengthInches) * Number(dim.widthInches)) / 144), 0
-      );
+      // Summary totals
+      const totalSqft = totalJobSqft + totalRedoSqft;
       
       doc.setFontSize(12);
-      doc.text(`Total Square Footage: ${totalSqft.toFixed(2)} sq ft`, 20, yPos);
+      doc.text(`Job Material: ${totalJobSqft.toFixed(2)} sq ft`, 20, yPos);
+      yPos += 8;
+      
+      if (totalRedoSqft > 0) {
+        doc.setTextColor(220, 53, 69); // Red color
+        doc.text(`REDO Material: ${totalRedoSqft.toFixed(2)} sq ft`, 20, yPos);
+        doc.setTextColor(0, 0, 0); // Reset to black
+        yPos += 8;
+      }
+      
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Total Material: ${totalSqft.toFixed(2)} sq ft`, 20, yPos);
+      doc.setFont('helvetica', 'normal');
       yPos += 10;
       
-      // Film cost details
+      // Cost breakdown
       if (entry.filmCost && entry.totalSqft) {
         const costPerSqft = Number(entry.filmCost) / Number(entry.totalSqft);
-        doc.text(`Film Cost per Sq Ft: $${costPerSqft.toFixed(2)}`, 20, yPos);
-        yPos += 10;
-        doc.text(`Total Film Cost: $${Number(entry.filmCost).toFixed(2)}`, 20, yPos);
+        const jobCost = totalJobSqft * costPerSqft;
+        const redoCost = totalRedoSqft * costPerSqft;
+        
+        doc.text(`Rate: $${costPerSqft.toFixed(2)} per sq ft`, 20, yPos);
+        yPos += 8;
+        doc.text(`Job Cost: $${jobCost.toFixed(2)}`, 20, yPos);
+        yPos += 8;
+        
+        if (totalRedoSqft > 0) {
+          doc.setTextColor(220, 53, 69);
+          doc.text(`REDO Cost: $${redoCost.toFixed(2)}`, 20, yPos);
+          doc.setTextColor(0, 0, 0);
+          yPos += 8;
+        }
+        
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Total Cost: $${Number(entry.filmCost).toFixed(2)}`, 20, yPos);
+        doc.setFont('helvetica', 'normal');
         yPos += 15;
       }
     } else {
-      doc.text('No dimension data available', 30, yPos);
+      doc.text('No consumption data available', 30, yPos);
       yPos += 15;
     }
     

@@ -654,80 +654,104 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                 </div>
               </div>
 
-              <FormField
-                control={form.control}
-                name="totalSqft"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-muted-foreground">Total Square Footage (calculated)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="Auto-calculated from L×W÷144"
-                        {...field}
-                        value={field.value?.toFixed(4) || ''}
-                        readOnly
-                        className="bg-muted border-border text-muted-foreground"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
-              <FormField
-                control={form.control}
-                name="filmCost"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-muted-foreground">Film Cost</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="Auto-calculated"
-                        {...field}
-                        onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                        className="bg-background border-border"
-                      />
-                    </FormControl>
-                    <div className="text-xs text-muted-foreground">
-                      Automatically calculated when film type and sqft are selected
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
 
-            {/* Cost Summary */}
-            {form.watch("filmId") && form.watch("totalSqft") && (
+            {/* Material Consumption Summary */}
+            {form.watch("filmId") && (dimensions.length > 0 || redoEntries.length > 0) && (
               <div className="bg-background border border-border rounded-lg p-4">
-                <h4 className="font-medium text-card-foreground mb-2">Cost Summary</h4>
-                <div className="space-y-1 text-sm">
-                  <div className="flex justify-between">
+                <h4 className="font-medium text-card-foreground mb-3">Material Consumption</h4>
+                
+                <div className="space-y-3">
+                  {/* Film Information */}
+                  <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Film Type:</span>
                     <span className="text-card-foreground">
                       {films.find(f => f.id === form.watch("filmId"))?.name}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Rate per sqft:</span>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Rate per sq ft:</span>
                     <span className="text-card-foreground">
                       ${Number(films.find(f => f.id === form.watch("filmId"))?.costPerSqft || 0).toFixed(2)}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Total sqft:</span>
-                    <span className="text-card-foreground">{form.watch("totalSqft")} sqft</span>
-                  </div>
-                  <div className="flex justify-between font-medium border-t border-border pt-1">
-                    <span className="text-card-foreground">Total Cost:</span>
-                    <span className="text-success">${Number(form.watch("filmCost") || 0).toFixed(2)}</span>
-                  </div>
+
+                  {/* Regular Job Consumption */}
+                  {dimensions.length > 0 && (
+                    <div className="border-t border-border pt-2">
+                      <div className="text-xs font-medium text-muted-foreground mb-2">Job Consumption</div>
+                      {dimensions.map((dim, index) => {
+                        const sqft = (dim.lengthInches * dim.widthInches) / 144;
+                        return (
+                          <div key={index} className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">
+                              {dim.description || `Dimension ${index + 1}`}: {dim.lengthInches}" × {dim.widthInches}"
+                            </span>
+                            <span className="text-card-foreground">{sqft.toFixed(2)} sq ft</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Redo Consumption */}
+                  {redoEntries.filter(redo => redo.lengthInches && redo.widthInches).length > 0 && (
+                    <div className="border-t border-border pt-2">
+                      <div className="text-xs font-medium text-destructive mb-2">REDO Consumption</div>
+                      {redoEntries.filter(redo => redo.lengthInches && redo.widthInches).map((redo, index) => {
+                        const sqft = (redo.lengthInches! * redo.widthInches!) / 144;
+                        return (
+                          <div key={index} className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">
+                              {redo.part}: {redo.lengthInches}" × {redo.widthInches}" (REDO)
+                            </span>
+                            <span className="text-destructive">{sqft.toFixed(2)} sq ft</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Total Calculation */}
+                  {(() => {
+                    const jobSqft = dimensions.reduce((total, dim) => total + ((dim.lengthInches * dim.widthInches) / 144), 0);
+                    const redoSqft = redoEntries.reduce((total, redo) => {
+                      if (redo.lengthInches && redo.widthInches) {
+                        return total + ((redo.lengthInches * redo.widthInches) / 144);
+                      }
+                      return total;
+                    }, 0);
+                    const totalSqft = jobSqft + redoSqft;
+                    const costPerSqft = Number(films.find(f => f.id === form.watch("filmId"))?.costPerSqft || 0);
+                    const totalCost = totalSqft * costPerSqft;
+
+                    // Update form values with calculated totals
+                    if (form.watch("totalSqft") !== totalSqft) {
+                      form.setValue("totalSqft", totalSqft);
+                    }
+                    if (form.watch("filmCost") !== totalCost) {
+                      form.setValue("filmCost", totalCost);
+                    }
+
+                    return (
+                      <div className="border-t border-border pt-2 space-y-1">
+                        <div className="flex justify-between text-sm font-medium">
+                          <span className="text-card-foreground">Total Material:</span>
+                          <span className="text-card-foreground">{totalSqft.toFixed(2)} sq ft</span>
+                        </div>
+                        <div className="flex justify-between text-sm font-bold">
+                          <span className="text-card-foreground">Total Cost:</span>
+                          <span className="text-success">${totalCost.toFixed(2)}</span>
+                        </div>
+                        {redoSqft > 0 && (
+                          <div className="text-xs text-destructive">
+                            Includes {redoSqft.toFixed(2)} sq ft redo material (${(redoSqft * costPerSqft).toFixed(2)})
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}
