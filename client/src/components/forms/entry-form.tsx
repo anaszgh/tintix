@@ -887,8 +887,18 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                                     <span class="print-value print-green">$${totalCost.toFixed(2)}</span>
                                   </div>
                                   <div class="print-row">
+                                    <span class="print-label">Job Time:</span>
+                                    <span class="print-value">${Math.floor(baseDuration / 60)}h ${baseDuration % 60}m</span>
+                                  </div>
+                                  ${redoTime > 0 ? `
+                                    <div class="print-row">
+                                      <span class="print-label">Redo Time:</span>
+                                      <span class="print-value print-red">${Math.floor(redoTime / 60)}h ${redoTime % 60}m</span>
+                                    </div>
+                                  ` : ''}
+                                  <div class="print-row print-total-row">
                                     <span class="print-label">Total Time:</span>
-                                    <span class="print-value">${totalHours} hours</span>
+                                    <span class="print-value">${Math.floor(totalDuration / 60)}h ${totalDuration % 60}m</span>
                                   </div>
                                   ${redoSqft > 0 ? `<div class="print-small">Includes ${redoSqft.toFixed(2)} sq ft redo material</div>` : ''}
                                   ${redoTime > 0 ? `<div class="print-small">Includes ${(redoTime / 60).toFixed(1)} hours redo time</div>` : ''}
@@ -1025,8 +1035,18 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                           <span className="text-success font-bold">${totalCost.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-sm font-medium">
+                          <span className="text-card-foreground">Job Time:</span>
+                          <span className="text-card-foreground">{Math.floor(baseDuration / 60)}h {baseDuration % 60}m</span>
+                        </div>
+                        {redoTime > 0 && (
+                          <div className="flex justify-between text-sm font-medium">
+                            <span className="text-card-foreground">Redo Time:</span>
+                            <span className="text-red-600">{Math.floor(redoTime / 60)}h {redoTime % 60}m</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-sm font-bold border-t pt-1">
                           <span className="text-card-foreground">Total Time:</span>
-                          <span className="text-card-foreground">{totalHours} hours</span>
+                          <span className="text-card-foreground">{Math.floor(totalDuration / 60)}h {totalDuration % 60}m</span>
                         </div>
                         {redoSqft > 0 && (
                           <div className="text-xs text-destructive">
