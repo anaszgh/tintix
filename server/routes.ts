@@ -154,10 +154,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create redo entries if provided
       if (req.body.redoEntries && Array.isArray(req.body.redoEntries)) {
         for (const redoData of req.body.redoEntries) {
+          // Calculate square footage if dimensions are provided
+          const sqft = redoData.lengthInches && redoData.widthInches 
+            ? (redoData.lengthInches * redoData.widthInches) / 144 
+            : null;
+
           const validatedRedo = insertRedoEntrySchema.parse({
             jobEntryId: jobEntry.id,
             installerId: redoData.installerId || installerIds[0], // Default to first installer if not specified
             part: redoData.part,
+            lengthInches: redoData.lengthInches || null,
+            widthInches: redoData.widthInches || null,
+            sqft: sqft,
+            materialCost: redoData.materialCost || null,
+            timeMinutes: redoData.timeMinutes || 0,
             timestamp: new Date(), // Use current timestamp
           });
           await storage.createRedoEntry(validatedRedo);

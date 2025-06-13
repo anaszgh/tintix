@@ -595,6 +595,9 @@ export class DatabaseStorage implements IStorage {
   }): Promise<Array<{
     part: string;
     count: number;
+    totalSqft: number;
+    totalCost: number;
+    avgTimeMinutes: number;
   }>> {
     // For now, return all redo breakdown data regardless of filters
     // TODO: Implement date filtering once Drizzle query builder issues are resolved
@@ -602,12 +605,20 @@ export class DatabaseStorage implements IStorage {
       .select({
         part: redoEntries.part,
         count: count(redoEntries.id),
+        totalSqft: sql<number>`COALESCE(SUM(${redoEntries.sqft}::numeric), 0)`,
+        totalCost: sql<number>`COALESCE(SUM(${redoEntries.materialCost}::numeric), 0)`,
+        avgTimeMinutes: sql<number>`COALESCE(AVG(${redoEntries.timeMinutes}::numeric), 0)`,
       })
       .from(redoEntries)
       .groupBy(redoEntries.part)
       .orderBy(desc(count(redoEntries.id)));
 
-    return results;
+    return results.map(result => ({
+      ...result,
+      totalSqft: Number(result.totalSqft) || 0,
+      totalCost: Number(result.totalCost) || 0,
+      avgTimeMinutes: Math.round(Number(result.avgTimeMinutes) || 0),
+    }));
   }
 
   async getWindowPerformanceAnalytics(): Promise<{
