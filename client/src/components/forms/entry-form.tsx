@@ -713,7 +713,87 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
             {/* Material Consumption Summary */}
             {form.watch("filmId") && (dimensions.length > 0 || redoEntries.length > 0) && (
               <div className="bg-background border border-border rounded-lg p-4">
-                <h4 className="font-medium text-card-foreground mb-3">Material Consumption</h4>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium text-card-foreground">Material Consumption</h4>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // Create a specific print view for Material Consumption
+                      const printContent = document.createElement('div');
+                      printContent.innerHTML = `
+                        <style>
+                          @media print {
+                            body * { visibility: hidden; }
+                            .print-section, .print-section * { visibility: visible; }
+                            .print-section { position: absolute; left: 0; top: 0; width: 100%; }
+                          }
+                        </style>
+                        <div class="print-section">
+                          <h2>Material Consumption Report</h2>
+                          <div style="margin: 20px 0;">
+                            <strong>Film Type:</strong> ${films.find(f => f.id === form.watch("filmId"))?.name || 'N/A'}
+                          </div>
+                          <div style="margin: 20px 0;">
+                            <strong>Rate per sq ft:</strong> $${Number(films.find(f => f.id === form.watch("filmId"))?.costPerSqft || 0).toFixed(2)}
+                          </div>
+                          ${(() => {
+                            const jobSqft = dimensions.reduce((total, dim) => total + ((dim.lengthInches * dim.widthInches) / 144), 0);
+                            const redoSqft = redoEntries.reduce((total, redo) => {
+                              if (redo.lengthInches && redo.widthInches) {
+                                return total + ((redo.lengthInches * redo.widthInches) / 144);
+                              }
+                              return total;
+                            }, 0);
+                            const totalSqft = jobSqft + redoSqft;
+                            const costPerSqft = Number(films.find(f => f.id === form.watch("filmId"))?.costPerSqft || 0);
+                            const jobCost = (totalSqft - redoSqft) * costPerSqft;
+                            const redoCost = redoSqft * costPerSqft;
+                            const totalCost = totalSqft * costPerSqft;
+                            const baseDuration = form.watch("durationMinutes") || 0;
+                            const redoTime = redoEntries.reduce((total, redo) => total + (redo.timeMinutes || 0), 0);
+                            const totalDuration = baseDuration + redoTime;
+                            const totalHours = (totalDuration / 60).toFixed(1);
+                            
+                            return `
+                              <div style="margin: 20px 0; border-top: 1px solid #ccc; padding-top: 10px;">
+                                <div><strong>Total Material SQFT:</strong> ${totalSqft.toFixed(2)} sq ft</div>
+                                <div><strong>Total Cost:</strong> $${jobCost.toFixed(2)}</div>
+                                ${redoSqft > 0 ? `<div><strong>Total Cost Redo:</strong> $${redoCost.toFixed(2)}</div>` : ''}
+                                <div style="border-top: 1px solid #ccc; padding-top: 5px; margin-top: 5px;"><strong>Overall Cost:</strong> $${totalCost.toFixed(2)}</div>
+                                <div><strong>Total Time:</strong> ${totalHours} hours</div>
+                                ${redoSqft > 0 ? `<div style="color: red; font-size: 0.9em;">Includes ${redoSqft.toFixed(2)} sq ft redo material</div>` : ''}
+                                ${redoTime > 0 ? `<div style="color: red; font-size: 0.9em;">Includes ${(redoTime / 60).toFixed(1)} hours redo time</div>` : ''}
+                              </div>
+                            `;
+                          })()}
+                        </div>
+                      `;
+                      document.body.appendChild(printContent);
+                      window.print();
+                      document.body.removeChild(printContent);
+                    }}
+                    className="flex items-center gap-1"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="6,9 6,2 18,2 18,9"></polyline>
+                      <path d="M6,18H4a2,2 0 0,1-2-2v-5a2,2 0 0,1,2-2H20a2,2 0 0,1,2,2v5a2,2 0 0,1-2,2H18"></path>
+                      <polyline points="6,14 18,14 18,22 6,22 6,14"></polyline>
+                    </svg>
+                    Print
+                  </Button>
+                </div>
                 
                 <div className="space-y-3">
                   {/* Film Information */}
