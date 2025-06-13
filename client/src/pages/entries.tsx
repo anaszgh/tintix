@@ -226,7 +226,14 @@ export default function Entries() {
     {
       accessorKey: "date",
       header: "Date",
-      cell: ({ row }: any) => new Date(row.original.date + 'T00:00:00').toLocaleDateString(),
+      cell: ({ row }: any) => {
+        try {
+          const date = new Date(row.original.date);
+          return date.toLocaleDateString();
+        } catch {
+          return row.original.date || 'Unknown Date';
+        }
+      },
     },
     {
       accessorKey: "installers",
