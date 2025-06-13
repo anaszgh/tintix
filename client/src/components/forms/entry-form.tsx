@@ -120,7 +120,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       date: new Date(editingEntry.date).toISOString().split('T')[0],
       installerIds: editingEntry.installers.map(i => i.id),
       totalWindows: editingEntry.totalWindows || 7,
-      durationMinutes: editingEntry.durationMinutes || 60,
+      durationMinutes: editingEntry.durationMinutes || undefined,
       installerTimeVariances: editingEntry.installers.reduce((acc, installer) => {
         acc[installer.id] = installer.timeVariance || 0;
         return acc;
@@ -137,7 +137,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       date: getCurrentPacificDate(),
       installerIds: [],
       totalWindows: 7,
-      durationMinutes: 60,
+      durationMinutes: undefined,
       installerTimeVariances: {},
       vehicleYear: "",
       vehicleMake: "",
