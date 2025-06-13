@@ -153,13 +153,24 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
   const [createdJobNumber, setCreatedJobNumber] = useState<string | null>(null);
   const [baseDurationMinutes, setBaseDurationMinutes] = useState<number>(0);
 
+  // Initialize base duration when editing an existing entry
+  useEffect(() => {
+    if (editingEntry && editingEntry.durationMinutes) {
+      // Calculate the redo time from existing redo entries
+      const existingRedoTime = editingEntry.redoEntries?.reduce((total, redo) => total + (redo.timeMinutes || 0), 0) || 0;
+      // Base duration is total duration minus redo time
+      const calculatedBaseDuration = editingEntry.durationMinutes - existingRedoTime;
+      setBaseDurationMinutes(calculatedBaseDuration);
+    }
+  }, [editingEntry]);
+
   // Track redo time changes and update total duration
   useEffect(() => {
     const redoTime = redoEntries.reduce((total, redo) => total + (redo.timeMinutes || 0), 0);
     const currentDuration = form.watch("durationMinutes") || 0;
     
     // Only update if we have a base duration set and redo time has changed
-    if (baseDurationMinutes > 0 && redoTime > 0) {
+    if (baseDurationMinutes > 0) {
       const newTotalDuration = baseDurationMinutes + redoTime;
       if (currentDuration !== newTotalDuration) {
         form.setValue("durationMinutes", newTotalDuration, { shouldValidate: false });
