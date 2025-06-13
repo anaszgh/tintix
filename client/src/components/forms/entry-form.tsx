@@ -738,6 +738,10 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                     if (form.watch("filmCost") !== totalCost) {
                       form.setValue("filmCost", totalCost);
                     }
+                    // Update duration field to include redo time
+                    if (redoTime > 0 && form.watch("durationMinutes") !== totalDuration) {
+                      form.setValue("durationMinutes", totalDuration);
+                    }
 
                     return (
                       <div className="border-t border-border pt-2 space-y-1">
