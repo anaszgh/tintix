@@ -95,6 +95,11 @@ export const redoEntries = pgTable("redo_entries", {
   jobEntryId: integer("job_entry_id").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
   installerId: varchar("installer_id").notNull().references(() => users.id),
   part: varchar("part").notNull(), // "windshield", "rollups", "back_windshield", "quarter"
+  lengthInches: real("length_inches"), // Material consumption length
+  widthInches: real("width_inches"), // Material consumption width
+  sqft: real("sqft"), // Calculated square footage (length * width / 144)
+  materialCost: numeric("material_cost", { precision: 10, scale: 2 }), // Cost of material used for redo
+  timeMinutes: integer("time_minutes").default(0), // Time spent on redo in minutes
   timestamp: timestamp("timestamp").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });

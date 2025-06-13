@@ -51,10 +51,19 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [redoEntries, setRedoEntries] = useState<Array<{ part: string; installerId?: string }>>(
+  const [redoEntries, setRedoEntries] = useState<Array<{ 
+    part: string; 
+    installerId?: string; 
+    lengthInches?: number;
+    widthInches?: number;
+    timeMinutes?: number;
+  }>>(
     editingEntry ? editingEntry.redoEntries.map(redo => ({
       part: redo.part,
-      installerId: redo.installerId
+      installerId: redo.installerId,
+      lengthInches: redo.lengthInches ? Number(redo.lengthInches) : undefined,
+      widthInches: redo.widthInches ? Number(redo.widthInches) : undefined,
+      timeMinutes: redo.timeMinutes || undefined,
     })) : []
   );
 
@@ -194,14 +203,20 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
   });
 
   const addRedoEntry = () => {
-    setRedoEntries([...redoEntries, { part: "windshield", installerId: "" }]);
+    setRedoEntries([...redoEntries, { 
+      part: "windshield", 
+      installerId: "",
+      lengthInches: undefined,
+      widthInches: undefined,
+      timeMinutes: undefined
+    }]);
   };
 
   const removeRedoEntry = (index: number) => {
     setRedoEntries(redoEntries.filter((_, i) => i !== index));
   };
 
-  const updateRedoEntry = (index: number, field: string, value: string) => {
+  const updateRedoEntry = (index: number, field: string, value: string | number) => {
     const updated = [...redoEntries];
     updated[index] = { ...updated[index], [field]: value };
     setRedoEntries(updated);
@@ -777,9 +792,15 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                 key={index}
                 part={redo.part}
                 installerId={redo.installerId}
+                lengthInches={redo.lengthInches}
+                widthInches={redo.widthInches}
+                timeMinutes={redo.timeMinutes}
                 installers={installers}
                 onPartChange={(value) => updateRedoEntry(index, "part", value)}
                 onInstallerChange={(value) => updateRedoEntry(index, "installerId", value)}
+                onLengthChange={(value) => updateRedoEntry(index, "lengthInches", value)}
+                onWidthChange={(value) => updateRedoEntry(index, "widthInches", value)}
+                onTimeChange={(value) => updateRedoEntry(index, "timeMinutes", value)}
                 onRemove={() => removeRedoEntry(index)}
               />
             ))}
