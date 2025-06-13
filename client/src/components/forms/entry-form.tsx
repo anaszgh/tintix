@@ -726,6 +726,11 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                     const costPerSqft = Number(films.find(f => f.id === form.watch("filmId"))?.costPerSqft || 0);
                     const totalCost = totalSqft * costPerSqft;
 
+                    // Calculate total time including redo time
+                    const baseDuration = form.watch("durationMinutes") || 0;
+                    const redoTime = redoEntries.reduce((total, redo) => total + (redo.timeMinutes || 0), 0);
+                    const totalDuration = baseDuration + redoTime;
+
                     // Update form values with calculated totals
                     if (form.watch("totalSqft") !== totalSqft) {
                       form.setValue("totalSqft", totalSqft);
@@ -744,9 +749,18 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                           <span className="text-card-foreground">Total Cost:</span>
                           <span className="text-success">${totalCost.toFixed(2)}</span>
                         </div>
+                        <div className="flex justify-between text-sm font-medium">
+                          <span className="text-card-foreground">Total Time:</span>
+                          <span className="text-card-foreground">{totalDuration} minutes</span>
+                        </div>
                         {redoSqft > 0 && (
                           <div className="text-xs text-destructive">
                             Includes {redoSqft.toFixed(2)} sq ft redo material (${(redoSqft * costPerSqft).toFixed(2)})
+                          </div>
+                        )}
+                        {redoTime > 0 && (
+                          <div className="text-xs text-destructive">
+                            Includes {redoTime} minutes redo time
                           </div>
                         )}
                       </div>
