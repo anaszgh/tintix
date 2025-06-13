@@ -861,8 +861,9 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                               const jobCost = (totalSqft - redoSqft) * costPerSqft;
                               const redoCost = redoSqft * costPerSqft;
                               const totalCost = totalSqft * costPerSqft;
-                              const baseDuration = form.watch("durationMinutes") || 0;
+                              const totalFormDuration = form.watch("durationMinutes") || 0;
                               const redoTime = redoEntries.reduce((total, redo) => total + (redo.timeMinutes || 0), 0);
+                              const baseDuration = baseDurationMinutes > 0 ? baseDurationMinutes : Math.max(0, totalFormDuration - redoTime);
                               const totalDuration = baseDuration + redoTime;
                               const totalHours = (totalDuration / 60).toFixed(1);
                               
@@ -997,9 +998,11 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                     const costPerSqft = Number(films.find(f => f.id === form.watch("filmId"))?.costPerSqft || 0);
                     const totalCost = totalSqft * costPerSqft;
 
-                    // Calculate total time including redo time (for display only)
-                    const baseDuration = form.watch("durationMinutes") || 0;
+                    // Calculate time breakdown properly
+                    const totalFormDuration = form.watch("durationMinutes") || 0;
                     const redoTime = redoEntries.reduce((total, redo) => total + (redo.timeMinutes || 0), 0);
+                    // Base duration is the original job time (total minus redo time)
+                    const baseDuration = baseDurationMinutes > 0 ? baseDurationMinutes : Math.max(0, totalFormDuration - redoTime);
                     const totalDuration = baseDuration + redoTime;
 
                     // Update form values with calculated totals
