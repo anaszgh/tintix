@@ -51,33 +51,77 @@ export function RedoBreakdown({ dateFilters, showPrintButton = false }: RedoBrea
     const htmlContent = `
       <html>
         <head>
-          <title>Redo Breakdown Report</title>
+          <title>Redo Breakdown Report - Material Consumption & Time Analysis</title>
           <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
+            body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.4; }
             h1 { color: #333; margin-bottom: 20px; }
-            .breakdown-item { display: flex; justify-content: space-between; margin: 10px 0; padding: 8px; border-bottom: 1px solid #eee; }
-            .part-name { font-weight: bold; }
+            .breakdown-item { margin: 15px 0; padding: 12px; border-bottom: 1px solid #eee; background: #f9f9f9; }
+            .part-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 8px; }
+            .part-name { color: #333; }
             .count { color: #666; }
-            .total { font-weight: bold; margin-top: 20px; padding-top: 10px; border-top: 2px solid #333; }
+            .details { margin-left: 20px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; font-size: 14px; color: #555; }
+            .detail-item { }
+            .detail-label { font-weight: bold; }
+            .totals { margin-top: 25px; padding: 15px; background: #e8e8e8; border-radius: 5px; }
+            .totals-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; }
+            .total-item { text-align: center; }
+            .total-value { font-size: 18px; font-weight: bold; color: #333; }
+            .total-label { font-size: 12px; color: #666; }
           </style>
         </head>
         <body>
-          <h1>Work Today Redo Breakdown Report</h1>
+          <h1>Redo Breakdown Report - Material Consumption & Time Analysis</h1>
           <p>Generated: ${new Date().toLocaleString()}</p>
           ${dateFilters?.dateFrom ? `<p>Date Range: ${dateFilters.dateFrom} to ${dateFilters.dateTo}</p>` : '<p>All Time Data</p>'}
+          
           <div>
             ${breakdown.map(item => {
               const label = partLabels[item.part as keyof typeof partLabels] || item.part;
               const percentage = totalRedos > 0 ? Math.round((item.count / totalRedos) * 100) : 0;
               return `
                 <div class="breakdown-item">
-                  <span class="part-name">${label}</span>
-                  <span class="count">${item.count} (${percentage}%)</span>
+                  <div class="part-header">
+                    <span class="part-name">${label}</span>
+                    <span class="count">${item.count} redos (${percentage}%)</span>
+                  </div>
+                  <div class="details">
+                    <div class="detail-item">
+                      <span class="detail-label">Material Used:</span><br>
+                      ${item.totalSqft?.toFixed(1) || '0.0'} sq ft
+                    </div>
+                    <div class="detail-item">
+                      <span class="detail-label">Material Cost:</span><br>
+                      $${item.totalCost?.toFixed(2) || '0.00'}
+                    </div>
+                    <div class="detail-item">
+                      <span class="detail-label">Avg Time per Redo:</span><br>
+                      ${item.avgTimeMinutes || 0} minutes
+                    </div>
+                  </div>
                 </div>
               `;
             }).join('')}
-            <div class="total">
-              <span>Total Redos: ${totalRedos}</span>
+            
+            <div class="totals">
+              <h3 style="margin-top: 0; margin-bottom: 15px;">Summary Totals</h3>
+              <div class="totals-grid">
+                <div class="total-item">
+                  <div class="total-value">${totalRedos}</div>
+                  <div class="total-label">Total Redos</div>
+                </div>
+                <div class="total-item">
+                  <div class="total-value">${breakdown.reduce((sum, item) => sum + (item.totalSqft || 0), 0).toFixed(1)}</div>
+                  <div class="total-label">Total Sq Ft</div>
+                </div>
+                <div class="total-item">
+                  <div class="total-value">$${breakdown.reduce((sum, item) => sum + (item.totalCost || 0), 0).toFixed(2)}</div>
+                  <div class="total-label">Total Cost</div>
+                </div>
+                <div class="total-item">
+                  <div class="total-value">${breakdown.reduce((sum, item) => sum + (item.avgTimeMinutes || 0) * item.count, 0)}</div>
+                  <div class="total-label">Total Time (min)</div>
+                </div>
+              </div>
             </div>
           </div>
         </body>
@@ -122,21 +166,36 @@ export function RedoBreakdown({ dateFilters, showPrintButton = false }: RedoBrea
             const label = partLabels[item.part as keyof typeof partLabels] || item.part;
             
             return (
-              <div key={item.part} className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className={`w-3 h-3 ${colorClass} rounded-full`}></div>
-                  <span className="text-card-foreground">{label}</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-20 bg-muted rounded-full h-2">
-                    <div 
-                      className={`${colorClass} h-2 rounded-full`}
-                      style={{ width: `${percentage}%` }}
-                    ></div>
+              <div key={item.part} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-3 h-3 ${colorClass} rounded-full`}></div>
+                    <span className="text-card-foreground font-medium">{label}</span>
                   </div>
-                  <span className="text-sm text-muted-foreground w-8 text-right">
-                    {item.count}
-                  </span>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-20 bg-muted rounded-full h-2">
+                      <div 
+                        className={`${colorClass} h-2 rounded-full`}
+                        style={{ width: `${percentage}%` }}
+                      ></div>
+                    </div>
+                    <span className="text-sm font-semibold text-card-foreground w-8 text-right">
+                      {item.count}
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Material consumption and time tracking details */}
+                <div className="ml-6 grid grid-cols-3 gap-4 text-xs text-muted-foreground">
+                  <div>
+                    <span className="font-medium">Material:</span> {item.totalSqft?.toFixed(1) || '0.0'} sq ft
+                  </div>
+                  <div>
+                    <span className="font-medium">Cost:</span> ${item.totalCost?.toFixed(2) || '0.00'}
+                  </div>
+                  <div>
+                    <span className="font-medium">Avg Time:</span> {item.avgTimeMinutes || 0} min
+                  </div>
                 </div>
               </div>
             );

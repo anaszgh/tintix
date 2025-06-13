@@ -20,6 +20,9 @@ export interface TopPerformer {
 export interface RedoBreakdownItem {
   part: string;
   count: number;
+  totalSqft: number;
+  totalCost: number;
+  avgTimeMinutes: number;
 }
 
 export interface FilterState {
