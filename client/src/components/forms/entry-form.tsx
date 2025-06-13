@@ -66,7 +66,19 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     })) : [{ lengthInches: 1, widthInches: 1, description: "" }]
   );
 
-  const [windowAssignments, setWindowAssignments] = useState<Array<{ windowId: string; installerId: string | null; windowName: string }>>([]);
+  const [windowAssignments, setWindowAssignments] = useState<Array<{ windowId: string; installerId: string | null; windowName: string }>>(() => {
+    if (editingEntry && editingEntry.windowAssignments) {
+      try {
+        const assignments = typeof editingEntry.windowAssignments === 'string' 
+          ? JSON.parse(editingEntry.windowAssignments) 
+          : editingEntry.windowAssignments;
+        return Array.isArray(assignments) ? assignments : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
 
   const updateTotalSqftFromDimensions = (dims: Array<{ lengthInches: number; widthInches: number; description?: string }>) => {
     const totalSqft = dims.reduce((total, dim) => 
@@ -99,6 +111,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       date: new Date(editingEntry.date).toISOString().split('T')[0],
       installerIds: editingEntry.installers.map(i => i.id),
       totalWindows: editingEntry.totalWindows || 7,
+      durationMinutes: editingEntry.durationMinutes || 60,
       installerTimeVariances: editingEntry.installers.reduce((acc, installer) => {
         acc[installer.id] = installer.timeVariance || 0;
         return acc;
@@ -115,6 +128,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       date: getCurrentPacificDate(),
       installerIds: [],
       totalWindows: 7,
+      durationMinutes: 60,
       installerTimeVariances: {},
       vehicleYear: "",
       vehicleMake: "",
