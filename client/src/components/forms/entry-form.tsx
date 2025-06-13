@@ -161,8 +161,13 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       // Base duration is total duration minus redo time
       const calculatedBaseDuration = editingEntry.durationMinutes - existingRedoTime;
       setBaseDurationMinutes(calculatedBaseDuration);
+      
+      // Make sure the form field shows the correct total duration
+      if (editingEntry.durationMinutes !== form.getValues("durationMinutes")) {
+        form.setValue("durationMinutes", editingEntry.durationMinutes, { shouldValidate: false });
+      }
     }
-  }, [editingEntry]);
+  }, [editingEntry, form]);
 
   // Track redo time changes and update total duration
   useEffect(() => {
