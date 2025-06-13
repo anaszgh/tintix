@@ -114,13 +114,19 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
+  // Calculate proper duration including redo time for editing
+  const calculateTotalDuration = () => {
+    if (!editingEntry) return undefined;
+    return editingEntry.durationMinutes || undefined;
+  };
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: editingEntry ? {
       date: new Date(editingEntry.date).toISOString().split('T')[0],
       installerIds: editingEntry.installers.map(i => i.id),
       totalWindows: editingEntry.totalWindows || 7,
-      durationMinutes: editingEntry.durationMinutes || undefined,
+      durationMinutes: calculateTotalDuration(),
       installerTimeVariances: editingEntry.installers.reduce((acc, installer) => {
         acc[installer.id] = installer.timeVariance || 0;
         return acc;
@@ -162,12 +168,21 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       const calculatedBaseDuration = editingEntry.durationMinutes - existingRedoTime;
       setBaseDurationMinutes(calculatedBaseDuration);
       
-      // Make sure the form field shows the correct total duration
-      if (editingEntry.durationMinutes !== form.getValues("durationMinutes")) {
-        form.setValue("durationMinutes", editingEntry.durationMinutes, { shouldValidate: false });
-      }
+      // Always set the form to show the full duration including redo time
+      form.setValue("durationMinutes", editingEntry.durationMinutes, { shouldValidate: false });
     }
   }, [editingEntry, form]);
+
+  // Ensure duration field updates when redo entries change during editing
+  useEffect(() => {
+    if (editingEntry && baseDurationMinutes > 0) {
+      const currentRedoTime = redoEntries.reduce((total, redo) => total + (redo.timeMinutes || 0), 0);
+      const totalDuration = baseDurationMinutes + currentRedoTime;
+      if (form.getValues("durationMinutes") !== totalDuration) {
+        form.setValue("durationMinutes", totalDuration, { shouldValidate: false });
+      }
+    }
+  }, [redoEntries, baseDurationMinutes, editingEntry, form]);
 
   // Track redo time changes and update total duration
   useEffect(() => {
