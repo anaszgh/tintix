@@ -720,7 +720,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      // Create a specific print view for Material Consumption
+                      // Create print-specific styles that match the actual design
                       const printContent = document.createElement('div');
                       printContent.innerHTML = `
                         <style>
@@ -728,46 +728,174 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                             body * { visibility: hidden; }
                             .print-section, .print-section * { visibility: visible; }
                             .print-section { position: absolute; left: 0; top: 0; width: 100%; }
-                          }
-                        </style>
+                            .print-container {
+                              background: #f8fafc;
+                              border: 1px solid #e2e8f0;
+                              border-radius: 8px;
+                              padding: 16px;
+                              max-width: 600px;
+                              margin: 20px auto;
+                              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                            }
+                            .print-header {
+                              display: flex;
+                              justify-content: space-between;
+                              align-items: center;
+                              margin-bottom: 16px;
+                              font-weight: 600;
+                              font-size: 16px;
+                              color: #1e293b;
+                            }
+                            .print-row {
+                              display: flex;
+                              justify-content: space-between;
+                              padding: 8px 0;
+                              font-size: 14px;
+                            }
+                            .print-label {
+                              color: #64748b;
+                            }
+                            .print-value {
+                              color: #1e293b;
+                              font-weight: 500;
+                            }
+                            .print-separator {
+                              border-top: 1px solid #e2e8f0;
+                              margin: 12px 0;
+                              padding-top: 8px;
+                            }
+                            .print-total-row {
+                              font-weight: 600;
+                              border-top: 1px solid #e2e8f0;
+                              padding-top: 8px;
+                              margin-top: 8px;
+                            }
+                            .print-blue { color: #2563eb; }
+                            .print-red { color: #dc2626; }
+                            .print-green { color: #16a34a; }
+                            .print-small {
+                              font-size: 12px;
+                              color: #dc2626;
+                              margin-top: 8px;
+                            }
+                            .job-consumption {
+                              border-top: 1px solid #e2e8f0;
+                              padding-top: 8px;
+                              margin-top: 8px;
+                            }
+                            .consumption-header {
+                              font-size: 12px;
+                              font-weight: 600;
+                              color: #64748b;
+                              margin-bottom: 8px;
+                            }
+                            .redo-consumption {
+                              border-top: 1px solid #e2e8f0;
+                              padding-top: 8px;
+                              margin-top: 8px;
+                            }
+                            .redo-header {
+                              font-size: 12px;
+                              font-weight: 600;
+                              color: #dc2626;
+                              margin-bottom: 8px;
+                            }
+                          </style>
+                        </div>
                         <div class="print-section">
-                          <h2>Material Consumption Report</h2>
-                          <div style="margin: 20px 0;">
-                            <strong>Film Type:</strong> ${films.find(f => f.id === form.watch("filmId"))?.name || 'N/A'}
-                          </div>
-                          <div style="margin: 20px 0;">
-                            <strong>Rate per sq ft:</strong> $${Number(films.find(f => f.id === form.watch("filmId"))?.costPerSqft || 0).toFixed(2)}
-                          </div>
-                          ${(() => {
-                            const jobSqft = dimensions.reduce((total, dim) => total + ((dim.lengthInches * dim.widthInches) / 144), 0);
-                            const redoSqft = redoEntries.reduce((total, redo) => {
-                              if (redo.lengthInches && redo.widthInches) {
-                                return total + ((redo.lengthInches * redo.widthInches) / 144);
-                              }
-                              return total;
-                            }, 0);
-                            const totalSqft = jobSqft + redoSqft;
-                            const costPerSqft = Number(films.find(f => f.id === form.watch("filmId"))?.costPerSqft || 0);
-                            const jobCost = (totalSqft - redoSqft) * costPerSqft;
-                            const redoCost = redoSqft * costPerSqft;
-                            const totalCost = totalSqft * costPerSqft;
-                            const baseDuration = form.watch("durationMinutes") || 0;
-                            const redoTime = redoEntries.reduce((total, redo) => total + (redo.timeMinutes || 0), 0);
-                            const totalDuration = baseDuration + redoTime;
-                            const totalHours = (totalDuration / 60).toFixed(1);
+                          <div class="print-container">
+                            <div class="print-header">
+                              <span>Material Consumption</span>
+                            </div>
                             
-                            return `
-                              <div style="margin: 20px 0; border-top: 1px solid #ccc; padding-top: 10px;">
-                                <div><strong>Total Material SQFT:</strong> ${totalSqft.toFixed(2)} sq ft</div>
-                                <div><strong>Total Cost:</strong> $${jobCost.toFixed(2)}</div>
-                                ${redoSqft > 0 ? `<div><strong>Total Cost Redo:</strong> $${redoCost.toFixed(2)}</div>` : ''}
-                                <div style="border-top: 1px solid #ccc; padding-top: 5px; margin-top: 5px;"><strong>Overall Cost:</strong> $${totalCost.toFixed(2)}</div>
-                                <div><strong>Total Time:</strong> ${totalHours} hours</div>
-                                ${redoSqft > 0 ? `<div style="color: red; font-size: 0.9em;">Includes ${redoSqft.toFixed(2)} sq ft redo material</div>` : ''}
-                                ${redoTime > 0 ? `<div style="color: red; font-size: 0.9em;">Includes ${(redoTime / 60).toFixed(1)} hours redo time</div>` : ''}
+                            <div class="print-row">
+                              <span class="print-label">Film Type:</span>
+                              <span class="print-value">${films.find(f => f.id === form.watch("filmId"))?.name || 'N/A'}</span>
+                            </div>
+                            
+                            <div class="print-row">
+                              <span class="print-label">Rate per sq ft:</span>
+                              <span class="print-value">$${Number(films.find(f => f.id === form.watch("filmId"))?.costPerSqft || 0).toFixed(2)}</span>
+                            </div>
+
+                            ${dimensions.length > 0 ? `
+                              <div class="job-consumption">
+                                <div class="consumption-header">Job Consumption</div>
+                                ${dimensions.map((dim, index) => {
+                                  const sqft = (dim.lengthInches * dim.widthInches) / 144;
+                                  return `
+                                    <div class="print-row" style="font-size: 12px;">
+                                      <span class="print-label">${dim.description || `Dimension ${index + 1}`}: ${dim.lengthInches}" × ${dim.widthInches}"</span>
+                                      <span class="print-value">${sqft.toFixed(2)} sq ft</span>
+                                    </div>
+                                  `;
+                                }).join('')}
                               </div>
-                            `;
-                          })()}
+                            ` : ''}
+
+                            ${redoEntries.filter(redo => redo.lengthInches && redo.widthInches).length > 0 ? `
+                              <div class="redo-consumption">
+                                <div class="redo-header">REDO Consumption</div>
+                                ${redoEntries.filter(redo => redo.lengthInches && redo.widthInches).map((redo, index) => {
+                                  const sqft = (redo.lengthInches! * redo.widthInches!) / 144;
+                                  return `
+                                    <div class="print-row" style="font-size: 12px;">
+                                      <span class="print-label">${redo.part}: ${redo.lengthInches}" × ${redo.widthInches}" (REDO)</span>
+                                      <span class="print-value print-red">${sqft.toFixed(2)} sq ft</span>
+                                    </div>
+                                  `;
+                                }).join('')}
+                              </div>
+                            ` : ''}
+                            
+                            ${(() => {
+                              const jobSqft = dimensions.reduce((total, dim) => total + ((dim.lengthInches * dim.widthInches) / 144), 0);
+                              const redoSqft = redoEntries.reduce((total, redo) => {
+                                if (redo.lengthInches && redo.widthInches) {
+                                  return total + ((redo.lengthInches * redo.widthInches) / 144);
+                                }
+                                return total;
+                              }, 0);
+                              const totalSqft = jobSqft + redoSqft;
+                              const costPerSqft = Number(films.find(f => f.id === form.watch("filmId"))?.costPerSqft || 0);
+                              const jobCost = (totalSqft - redoSqft) * costPerSqft;
+                              const redoCost = redoSqft * costPerSqft;
+                              const totalCost = totalSqft * costPerSqft;
+                              const baseDuration = form.watch("durationMinutes") || 0;
+                              const redoTime = redoEntries.reduce((total, redo) => total + (redo.timeMinutes || 0), 0);
+                              const totalDuration = baseDuration + redoTime;
+                              const totalHours = (totalDuration / 60).toFixed(1);
+                              
+                              return `
+                                <div class="print-separator">
+                                  <div class="print-row">
+                                    <span class="print-label">Total Material SQFT:</span>
+                                    <span class="print-value">${totalSqft.toFixed(2)} sq ft</span>
+                                  </div>
+                                  <div class="print-row">
+                                    <span class="print-label">Total Cost:</span>
+                                    <span class="print-value print-blue">$${jobCost.toFixed(2)}</span>
+                                  </div>
+                                  ${redoSqft > 0 ? `
+                                    <div class="print-row">
+                                      <span class="print-label">Total Cost Redo:</span>
+                                      <span class="print-value print-red">$${redoCost.toFixed(2)}</span>
+                                    </div>
+                                  ` : ''}
+                                  <div class="print-row print-total-row">
+                                    <span class="print-label">Overall Cost:</span>
+                                    <span class="print-value print-green">$${totalCost.toFixed(2)}</span>
+                                  </div>
+                                  <div class="print-row">
+                                    <span class="print-label">Total Time:</span>
+                                    <span class="print-value">${totalHours} hours</span>
+                                  </div>
+                                  ${redoSqft > 0 ? `<div class="print-small">Includes ${redoSqft.toFixed(2)} sq ft redo material</div>` : ''}
+                                  ${redoTime > 0 ? `<div class="print-small">Includes ${(redoTime / 60).toFixed(1)} hours redo time</div>` : ''}
+                                </div>
+                              `;
+                            })()}
+                          </div>
                         </div>
                       `;
                       document.body.appendChild(printContent);
