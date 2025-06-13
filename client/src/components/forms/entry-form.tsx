@@ -761,28 +761,42 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                       form.setValue("filmCost", totalCost);
                     }
 
+                    const jobCost = (totalSqft - redoSqft) * costPerSqft;
+                    const redoCost = redoSqft * costPerSqft;
+                    const totalHours = (totalDuration / 60).toFixed(1);
+
                     return (
                       <div className="border-t border-border pt-2 space-y-1">
                         <div className="flex justify-between text-sm font-medium">
-                          <span className="text-card-foreground">Total Material:</span>
+                          <span className="text-card-foreground">Total Material SQFT:</span>
                           <span className="text-card-foreground">{totalSqft.toFixed(2)} sq ft</span>
                         </div>
-                        <div className="flex justify-between text-sm font-bold">
+                        <div className="flex justify-between text-sm font-medium">
                           <span className="text-card-foreground">Total Cost:</span>
-                          <span className="text-success">${totalCost.toFixed(2)}</span>
+                          <span className="text-blue-600 font-semibold">${jobCost.toFixed(2)}</span>
+                        </div>
+                        {redoSqft > 0 && (
+                          <div className="flex justify-between text-sm font-medium">
+                            <span className="text-card-foreground">Total Cost Redo:</span>
+                            <span className="text-red-600 font-semibold">${redoCost.toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-sm font-bold border-t pt-1">
+                          <span className="text-card-foreground">Overall Cost:</span>
+                          <span className="text-success font-bold">${totalCost.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-sm font-medium">
                           <span className="text-card-foreground">Total Time:</span>
-                          <span className="text-card-foreground">{totalDuration} minutes</span>
+                          <span className="text-card-foreground">{totalHours} hours</span>
                         </div>
                         {redoSqft > 0 && (
                           <div className="text-xs text-destructive">
-                            Includes {redoSqft.toFixed(2)} sq ft redo material (${(redoSqft * costPerSqft).toFixed(2)})
+                            Includes {redoSqft.toFixed(2)} sq ft redo material
                           </div>
                         )}
                         {redoTime > 0 && (
                           <div className="text-xs text-destructive">
-                            Includes {redoTime} minutes redo time
+                            Includes {(redoTime / 60).toFixed(1)} hours redo time
                           </div>
                         )}
                       </div>
