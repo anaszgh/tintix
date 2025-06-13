@@ -204,7 +204,7 @@ export default function Reports() {
     if (filmConsumption.length > 0) {
       const tableHeaders = ['Date', 'Film Type', 'Film Name', 'Sq Ft Used', 'Total Cost', 'Jobs'];
       const tableData = filmConsumption.map(item => [
-        new Date(item.date).toLocaleDateString(),
+        new Date(item.date).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' }),
         item.filmType,
         item.filmName,
         item.totalSqft.toFixed(2),
@@ -264,7 +264,7 @@ export default function Reports() {
       
       // Job Entries sheet
       const jobEntriesData = jobEntries.map(entry => ({
-        Date: new Date(entry.date).toLocaleDateString(),
+        Date: new Date(entry.date).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' }),
         Installers: entry.installers?.map(i => `${i.firstName || ''} ${i.lastName || ''}`).join(", ") || "No installers",
         Vehicle: `${entry.vehicleYear || ''} ${entry.vehicleMake || ''} ${entry.vehicleModel || ''}`.trim(),
         'Time Variance': entry.installers?.map(i => `${i.firstName || 'Unknown'}: ${i.timeVariance > 0 ? '+' : ''}${i.timeVariance || 0} min`).join(", ") || "No data",
@@ -290,7 +290,7 @@ export default function Reports() {
       
       // Film Consumption sheet
       const filmConsumptionData = filmConsumption.map(item => ({
-        Date: new Date(item.date).toLocaleDateString(),
+        Date: new Date(item.date).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' }),
         'Film Type': item.filmType,
         'Film Name': item.filmName,
         'Sq Ft Used': item.totalSqft.toFixed(2),
@@ -638,7 +638,7 @@ export default function Reports() {
                       filmConsumption.map((item, index) => (
                         <tr key={index} className="border-b border-border hover:bg-muted/50">
                           <td className="p-3 text-card-foreground">
-                            {new Date(item.date).toLocaleDateString()}
+                            {new Date(item.date).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' })}
                           </td>
                           <td className="p-3 text-card-foreground">{item.filmType}</td>
                           <td className="p-3 text-card-foreground">{item.filmName}</td>

@@ -229,7 +229,12 @@ export default function Entries() {
       cell: ({ row }: any) => {
         try {
           const date = new Date(row.original.date);
-          return date.toLocaleDateString();
+          return date.toLocaleDateString('en-US', {
+            timeZone: 'America/Los_Angeles',
+            year: 'numeric',
+            month: 'numeric',
+            day: 'numeric'
+          });
         } catch {
           return row.original.date || 'Unknown Date';
         }

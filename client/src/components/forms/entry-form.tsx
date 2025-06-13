@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { insertJobEntrySchema } from "@shared/schema";
 import { z } from "zod";
 import type { User, JobEntryWithDetails, Film } from "@shared/schema";
+import { getCurrentPacificDate } from "@/lib/utils";
 
 const formSchema = insertJobEntrySchema.extend({
   date: z.string(),
@@ -111,7 +112,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       filmCost: editingEntry.filmCost ? Number(editingEntry.filmCost) : undefined,
       notes: editingEntry.notes || "",
     } : {
-      date: new Date().toISOString().split('T')[0],
+      date: getCurrentPacificDate(),
       installerIds: [],
       totalWindows: 7,
       installerTimeVariances: {},

@@ -11,18 +11,38 @@ export function formatTimeVariance(minutes: number): string {
 }
 
 export function formatDate(date: string | Date): string {
-  // Handle date strings without timezone conversion
-  if (typeof date === 'string' && date.includes('T')) {
-    // For ISO date strings, parse the date part only to avoid timezone shifts
-    const dateOnly = date.split('T')[0];
-    const [year, month, day] = dateOnly.split('-');
-    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day)).toLocaleDateString();
-  }
-  return new Date(date).toLocaleDateString();
+  return new Date(date).toLocaleDateString('en-US', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric'
+  });
 }
 
 export function formatDateTime(date: string | Date): string {
-  return new Date(date).toLocaleString();
+  return new Date(date).toLocaleString('en-US', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+}
+
+export function getCurrentPacificDate(): string {
+  const now = new Date();
+  return now.toLocaleDateString('sv-SE', {
+    timeZone: 'America/Los_Angeles'
+  });
+}
+
+export function getCurrentPacificDateTime(): Date {
+  const now = new Date();
+  // Get Pacific time as ISO string
+  const pacificTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+  return pacificTime;
 }
 
 export function calculateSuccessRate(totalJobs: number, redoCount: number): number {
