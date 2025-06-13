@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -151,6 +151,21 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
   });
 
   const [createdJobNumber, setCreatedJobNumber] = useState<string | null>(null);
+  const [baseDurationMinutes, setBaseDurationMinutes] = useState<number>(0);
+
+  // Track redo time changes and update total duration
+  useEffect(() => {
+    const redoTime = redoEntries.reduce((total, redo) => total + (redo.timeMinutes || 0), 0);
+    const currentDuration = form.watch("durationMinutes") || 0;
+    
+    // Only update if we have a base duration set and redo time has changed
+    if (baseDurationMinutes > 0 && redoTime > 0) {
+      const newTotalDuration = baseDurationMinutes + redoTime;
+      if (currentDuration !== newTotalDuration) {
+        form.setValue("durationMinutes", newTotalDuration, { shouldValidate: false });
+      }
+    }
+  }, [redoEntries, baseDurationMinutes, form]);
 
   const createEntryMutation = useMutation({
     mutationFn: async (data: z.infer<typeof formSchema>) => {
@@ -306,7 +321,14 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                       min="1"
                       placeholder="Enter total job duration"
                       {...field}
-                      onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                      onChange={(e) => {
+                        const value = e.target.value ? parseInt(e.target.value) : undefined;
+                        field.onChange(value);
+                        // Track base duration when manually entered
+                        if (value && value > 0) {
+                          setBaseDurationMinutes(value);
+                        }
+                      }}
                       className="bg-background border-border"
                     />
                   </FormControl>
@@ -726,7 +748,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                     const costPerSqft = Number(films.find(f => f.id === form.watch("filmId"))?.costPerSqft || 0);
                     const totalCost = totalSqft * costPerSqft;
 
-                    // Calculate total time including redo time
+                    // Calculate total time including redo time (for display only)
                     const baseDuration = form.watch("durationMinutes") || 0;
                     const redoTime = redoEntries.reduce((total, redo) => total + (redo.timeMinutes || 0), 0);
                     const totalDuration = baseDuration + redoTime;
@@ -737,10 +759,6 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                     }
                     if (form.watch("filmCost") !== totalCost) {
                       form.setValue("filmCost", totalCost);
-                    }
-                    // Update duration field to include redo time
-                    if (redoTime > 0 && form.watch("durationMinutes") !== totalDuration) {
-                      form.setValue("durationMinutes", totalDuration);
                     }
 
                     return (
