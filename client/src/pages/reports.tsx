@@ -162,12 +162,17 @@ export default function Reports() {
     setAppliedDateFilter({ dateFrom, dateTo });
     
     // Show helpful feedback about available dates
-    const fromFormatted = new Date(dateFrom).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' });
-    const toFormatted = new Date(dateTo).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' });
+    // Fix timezone issue by parsing as local date
+    const fromDate = new Date(dateFrom + 'T00:00:00');
+    const toDate = new Date(dateTo + 'T00:00:00');
+    
+    const fromFormatted = fromDate.toLocaleDateString('en-US');
+    const toFormatted = toDate.toLocaleDateString('en-US');
     
     toast({
       title: "Filter Applied",
       description: `Showing data from ${fromFormatted} to ${toFormatted}`,
+      duration: 2000, // Auto-dismiss after 2 seconds
     });
   };
 
