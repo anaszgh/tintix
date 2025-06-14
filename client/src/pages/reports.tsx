@@ -128,6 +128,35 @@ export default function Reports() {
     enabled: isAuthenticated,
   });
 
+  // Process COGS data by film type
+  const cogsData = filmConsumption.reduce((acc, item) => {
+    const key = `${item.filmType} - ${item.filmName}`;
+    if (!acc[key]) {
+      acc[key] = {
+        filmType: item.filmType,
+        filmName: item.filmName,
+        totalSqft: 0,
+        totalCost: 0,
+        jobCount: 0,
+        avgCostPerSqft: 0,
+      };
+    }
+    acc[key].totalSqft += item.totalSqft;
+    acc[key].totalCost += item.totalCost;
+    acc[key].jobCount += item.jobCount;
+    acc[key].avgCostPerSqft = acc[key].totalSqft > 0 ? acc[key].totalCost / acc[key].totalSqft : 0;
+    return acc;
+  }, {} as Record<string, {
+    filmType: string;
+    filmName: string;
+    totalSqft: number;
+    totalCost: number;
+    jobCount: number;
+    avgCostPerSqft: number;
+  }>);
+
+  const cogsArray = Object.values(cogsData).sort((a, b) => b.totalCost - a.totalCost);
+
   // Calculate success rate using actual window counts
   const calculateSuccessRate = () => {
     if (!metrics) return 0;
@@ -194,13 +223,194 @@ export default function Reports() {
     window.print();
   };
 
-  const printFilmCostReport = () => {
+  // Export COGS as Excel
+  const exportCogsAsExcel = () => {
+    if (cogsArray.length === 0) {
+      toast({
+        title: "No Data",
+        description: "No COGS data available to export.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const workbook = XLSX.utils.book_new();
+    
+    // Prepare COGS data for Excel
+    const cogsExcelData = [
+      ['Film Type', 'Film Name', 'Total Sq Ft', 'Total Cost', 'Job Count', 'Avg Cost/Sq Ft'],
+      ...cogsArray.map(item => [
+        item.filmType,
+        item.filmName,
+        item.totalSqft.toFixed(1),
+        `$${item.totalCost.toFixed(2)}`,
+        item.jobCount,
+        `$${item.avgCostPerSqft.toFixed(2)}`
+      ])
+    ];
+
+    // Add totals row
+    const totalCost = cogsArray.reduce((sum, item) => sum + item.totalCost, 0);
+    const totalSqft = cogsArray.reduce((sum, item) => sum + item.totalSqft, 0);
+    const totalJobs = cogsArray.reduce((sum, item) => sum + item.jobCount, 0);
+    
+    cogsExcelData.push([
+      'TOTAL',
+      '',
+      totalSqft.toFixed(1),
+      `$${totalCost.toFixed(2)}`,
+      totalJobs,
+      `$${totalSqft > 0 ? (totalCost / totalSqft).toFixed(2) : '0.00'}`
+    ]);
+
+    const worksheet = XLSX.utils.aoa_to_sheet(cogsExcelData);
+    
+    // Set column widths
+    worksheet['!cols'] = [
+      { width: 15 }, // Film Type
+      { width: 25 }, // Film Name
+      { width: 12 }, // Total Sq Ft
+      { width: 12 }, // Total Cost
+      { width: 10 }, // Job Count
+      { width: 15 }  // Avg Cost/Sq Ft
+    ];
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'COGS Report');
+    
+    const dateRange = appliedDateFilter 
+      ? `_${appliedDateFilter.dateFrom}_to_${appliedDateFilter.dateTo}`
+      : '_all_dates';
+    
+    XLSX.writeFile(workbook, `COGS_Report${dateRange}.xlsx`);
+    
+    toast({
+      title: "Export Successful",
+      description: "COGS report has been downloaded as Excel file.",
+    });
+  };
+
+  // Export COGS as PDF
+  const exportCogsAsPdf = () => {
+    if (cogsArray.length === 0) {
+      toast({
+        title: "No Data",
+        description: "No COGS data available to export.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
     
     // Header
     doc.setFontSize(20);
-    doc.text('Tintix - Film Cost Estimation Report', pageWidth / 2, 20, { align: 'center' });
+    doc.text('Tintix - Cost of Goods Sold (COGS) Report', pageWidth / 2, 20, { align: 'center' });
+    
+    doc.setFontSize(12);
+    const dateRange = appliedDateFilter 
+      ? `Date Range: ${appliedDateFilter.dateFrom} to ${appliedDateFilter.dateTo}`
+      : 'Date Range: All Time';
+    doc.text(dateRange, pageWidth / 2, 30, { align: 'center' });
+    
+    doc.text(`Generated on: ${new Date().toLocaleDateString('en-US', { 
+      timeZone: 'America/Los_Angeles',
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })} PST`, pageWidth / 2, 40, { align: 'center' });
+
+    // Prepare table data
+    const tableData = cogsArray.map(item => [
+      item.filmType,
+      item.filmName,
+      item.totalSqft.toFixed(1),
+      `$${item.totalCost.toFixed(2)}`,
+      item.jobCount.toString(),
+      `$${item.avgCostPerSqft.toFixed(2)}`
+    ]);
+
+    // Add totals row
+    const totalCost = cogsArray.reduce((sum, item) => sum + item.totalCost, 0);
+    const totalSqft = cogsArray.reduce((sum, item) => sum + item.totalSqft, 0);
+    const totalJobs = cogsArray.reduce((sum, item) => sum + item.jobCount, 0);
+    
+    tableData.push([
+      'TOTAL',
+      '',
+      totalSqft.toFixed(1),
+      `$${totalCost.toFixed(2)}`,
+      totalJobs.toString(),
+      `$${totalSqft > 0 ? (totalCost / totalSqft).toFixed(2) : '0.00'}`
+    ]);
+
+    // Create table
+    autoTable(doc, {
+      head: [['Film Type', 'Film Name', 'Total Sq Ft', 'Total Cost', 'Job Count', 'Avg Cost/Sq Ft']],
+      body: tableData,
+      startY: 50,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [59, 130, 246], // Blue
+        textColor: 255,
+        fontStyle: 'bold',
+        fontSize: 10
+      },
+      bodyStyles: {
+        fontSize: 9
+      },
+      footStyles: {
+        fillColor: [243, 244, 246], // Light gray
+        textColor: 0,
+        fontStyle: 'bold'
+      },
+      columnStyles: {
+        0: { cellWidth: 25 }, // Film Type
+        1: { cellWidth: 40 }, // Film Name
+        2: { cellWidth: 20, halign: 'right' }, // Total Sq Ft
+        3: { cellWidth: 25, halign: 'right' }, // Total Cost
+        4: { cellWidth: 20, halign: 'center' }, // Job Count
+        5: { cellWidth: 25, halign: 'right' }  // Avg Cost/Sq Ft
+      },
+      didParseCell: function(data) {
+        // Style the totals row
+        if (data.row.index === tableData.length - 1) {
+          data.cell.styles.fillColor = [243, 244, 246];
+          data.cell.styles.fontStyle = 'bold';
+        }
+      }
+    });
+
+    // Add summary section
+    const finalY = (doc as any).lastAutoTable.finalY + 20;
+    doc.setFontSize(14);
+    doc.text('Summary', 20, finalY);
+    
+    doc.setFontSize(10);
+    const summaryY = finalY + 10;
+    doc.text(`Total Material Cost: $${totalCost.toFixed(2)}`, 20, summaryY);
+    doc.text(`Total Square Footage: ${totalSqft.toFixed(1)} sq ft`, 20, summaryY + 8);
+    doc.text(`Total Jobs: ${totalJobs}`, 20, summaryY + 16);
+    doc.text(`Average Cost per Sq Ft: $${totalSqft > 0 ? (totalCost / totalSqft).toFixed(2) : '0.00'}`, 20, summaryY + 24);
+
+    // Save the PDF
+    const dateRangeStr = appliedDateFilter 
+      ? `_${appliedDateFilter.dateFrom}_to_${appliedDateFilter.dateTo}`
+      : '_all_dates';
+    
+    doc.save(`COGS_Report${dateRangeStr}.pdf`);
+    
+    toast({
+      title: "Export Successful",
+      description: "COGS report has been downloaded as PDF file.",
+    });
+  };
+
+  const printFilmCostReport = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
     
     // Date range info
     doc.setFontSize(12);
@@ -820,6 +1030,116 @@ export default function Reports() {
               showPrintButton={true}
             />
           </div>
+
+          {/* Cost of Goods Sold (COGS) Report */}
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="text-card-foreground flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <FileText className="h-5 w-5" />
+                  <span>Cost of Goods Sold (COGS) - Material Cost Breakdown</span>
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={exportCogsAsExcel}
+                    className="border-border hover:bg-muted"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Excel
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={exportCogsAsPdf}
+                    className="border-border hover:bg-muted"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    PDF
+                  </Button>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left p-3 font-medium text-muted-foreground">Film Type</th>
+                      <th className="text-left p-3 font-medium text-muted-foreground">Film Name</th>
+                      <th className="text-right p-3 font-medium text-muted-foreground">Total Sq Ft</th>
+                      <th className="text-right p-3 font-medium text-muted-foreground">Total Cost</th>
+                      <th className="text-right p-3 font-medium text-muted-foreground">Job Count</th>
+                      <th className="text-right p-3 font-medium text-muted-foreground">Avg Cost/Sq Ft</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cogsArray.length > 0 ? (
+                      cogsArray.map((item, index) => (
+                        <tr key={index} className="border-b border-border hover:bg-muted/50">
+                          <td className="p-3 text-card-foreground">{item.filmType}</td>
+                          <td className="p-3 text-card-foreground">{item.filmName}</td>
+                          <td className="p-3 text-right text-card-foreground font-mono">
+                            {item.totalSqft.toFixed(1)}
+                          </td>
+                          <td className="p-3 text-right text-card-foreground font-mono font-semibold">
+                            ${item.totalCost.toFixed(2)}
+                          </td>
+                          <td className="p-3 text-right text-card-foreground">
+                            {item.jobCount}
+                          </td>
+                          <td className="p-3 text-right text-card-foreground font-mono">
+                            ${item.avgCostPerSqft.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                          No material cost data available for the selected date range.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* COGS Summary totals */}
+              {cogsArray.length > 0 && (
+                <div className="mt-6 pt-4 border-t border-border">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="text-center">
+                      <div className="text-sm text-muted-foreground">Total Material Cost</div>
+                      <div className="text-2xl font-bold text-card-foreground font-mono">
+                        ${cogsArray.reduce((sum, item) => sum + item.totalCost, 0).toFixed(2)}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm text-muted-foreground">Total Square Footage</div>
+                      <div className="text-2xl font-bold text-card-foreground font-mono">
+                        {cogsArray.reduce((sum, item) => sum + item.totalSqft, 0).toFixed(1)} sq ft
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm text-muted-foreground">Total Jobs</div>
+                      <div className="text-2xl font-bold text-card-foreground">
+                        {cogsArray.reduce((sum, item) => sum + item.jobCount, 0)}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-sm text-muted-foreground">Avg Cost per Sq Ft</div>
+                      <div className="text-2xl font-bold text-card-foreground font-mono">
+                        ${(() => {
+                          const totalCost = cogsArray.reduce((sum, item) => sum + item.totalCost, 0);
+                          const totalSqft = cogsArray.reduce((sum, item) => sum + item.totalSqft, 0);
+                          return totalSqft > 0 ? (totalCost / totalSqft).toFixed(2) : '0.00';
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Film Consumption Report */}
           <Card className="bg-card border-border">
