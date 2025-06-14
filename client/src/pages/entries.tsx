@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { EntryForm } from "@/components/forms/entry-form";
+import { LaborCosts } from "@/components/forms/labor-costs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Download, Filter, RotateCcw, Edit, Trash2, FileText, Eye, Search } from "lucide-react";
 import jsPDF from "jspdf";
@@ -693,6 +694,9 @@ export default function Entries() {
                   </div>
                 </div>
               )}
+
+              {/* Labor Costs */}
+              <LaborCosts jobEntryId={viewingEntry.id} />
 
               {/* Notes */}
               {viewingEntry.notes && (

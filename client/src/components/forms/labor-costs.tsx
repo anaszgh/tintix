@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Clock, DollarSign, User } from "lucide-react";
+import { Clock, DollarSign, User as UserIcon } from "lucide-react";
 import type { User } from "@shared/schema";
 
 interface LaborCost {
@@ -79,7 +79,7 @@ export function LaborCosts({ jobEntryId }: LaborCostsProps) {
           <div key={cost.installer.id} className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-muted-foreground" />
+                <UserIcon className="h-4 w-4 text-muted-foreground" />
                 <span className="font-medium">
                   {cost.installer.firstName} {cost.installer.lastName}
                 </span>
