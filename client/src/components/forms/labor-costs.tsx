@@ -136,15 +136,15 @@ export function JobCostSummary({ jobEntry }: JobCostSummaryProps) {
 
       <div id="job-cost-summary" className="space-y-6">
         {/* Labor Costs Section */}
-        <Card className="border-border/50 shadow-lg overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 border-b border-border/50">
+        <Card className="border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 border-b border-gray-200 dark:border-gray-700">
             <CardTitle className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-100 dark:bg-emerald-900/50 rounded-lg">
-                <UserIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <div className="p-2 bg-green-100 dark:bg-green-800 rounded-lg">
+                <UserIcon className="h-5 w-5 text-green-700 dark:text-green-300" />
               </div>
-              <span className="text-xl font-semibold">Labor Costs</span>
+              <span className="text-xl font-semibold text-gray-800 dark:text-gray-100">Labor Costs</span>
               {laborCosts.length > 0 && (
-                <Badge variant="secondary" className="ml-auto font-mono">
+                <Badge variant="secondary" className="ml-auto font-mono bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100">
                   {laborCosts.length} installer{laborCosts.length !== 1 ? 's' : ''}
                 </Badge>
               )}
@@ -160,16 +160,16 @@ export function JobCostSummary({ jobEntry }: JobCostSummaryProps) {
               <div className="space-y-4">
                 {laborCosts.map((cost, index) => (
                   <div key={cost.installer.id} className="group">
-                    <div className="flex items-center justify-between p-4 rounded-lg border border-border/50 hover:border-emerald-200 dark:hover:border-emerald-800 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/10 transition-all duration-200">
+                    <div className="flex items-center justify-between p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200">
                       <div className="flex items-center gap-4">
-                        <div className="p-2 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/50 dark:to-teal-900/50 rounded-lg">
-                          <UserIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                        <div className="p-2 bg-gradient-to-br from-green-100 to-emerald-100 dark:from-green-800 dark:to-emerald-800 rounded-lg">
+                          <UserIcon className="h-4 w-4 text-green-700 dark:text-green-300" />
                         </div>
                         <div>
-                          <div className="font-semibold text-foreground">
+                          <div className="font-semibold text-gray-900 dark:text-gray-100">
                             {cost.installer.firstName} {cost.installer.lastName}
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                          <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mt-1">
                             <div className="flex items-center gap-1">
                               <Clock className="h-3 w-3" />
                               <span>{formatTime(cost.timeMinutes)}</span>
@@ -181,25 +181,25 @@ export function JobCostSummary({ jobEntry }: JobCostSummaryProps) {
                           </div>
                         </div>
                       </div>
-                      <Badge variant="outline" className="font-mono text-base px-3 py-1 bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800">
+                      <Badge variant="outline" className="font-mono text-base px-3 py-1 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                         ${cost.laborCost.toFixed(2)}
                       </Badge>
                     </div>
                   </div>
                 ))}
                 
-                <div className="mt-6 pt-4 border-t border-border/50">
-                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 rounded-lg border border-green-200 dark:border-green-700">
                     <div className="flex items-center gap-3">
-                      <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                      <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400" />
                       <div>
-                        <div className="font-semibold text-emerald-700 dark:text-emerald-300">Total Labor Cost</div>
-                        <div className="text-sm text-emerald-600 dark:text-emerald-400">
+                        <div className="font-semibold text-green-700 dark:text-green-300">Total Labor Cost</div>
+                        <div className="text-sm text-green-600 dark:text-green-400">
                           {formatTime(totalTimeMinutes)} total time
                         </div>
                       </div>
                     </div>
-                    <Badge className="font-mono text-lg px-4 py-2 bg-emerald-600 dark:bg-emerald-700">
+                    <Badge className="font-mono text-lg px-4 py-2 bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white">
                       ${totalLaborCost.toFixed(2)}
                     </Badge>
                   </div>
@@ -210,59 +210,59 @@ export function JobCostSummary({ jobEntry }: JobCostSummaryProps) {
         </Card>
 
         {/* Material Costs Section */}
-        <Card className="border-border/50 shadow-lg overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border-b border-border/50">
+        <Card className="border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/30 dark:to-amber-900/30 border-b border-gray-200 dark:border-gray-700">
             <CardTitle className="flex items-center gap-3">
-              <div className="p-2 bg-orange-100 dark:bg-orange-900/50 rounded-lg">
-                <Package className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+              <div className="p-2 bg-orange-100 dark:bg-orange-800 rounded-lg">
+                <Package className="h-5 w-5 text-orange-700 dark:text-orange-300" />
               </div>
-              <span className="text-xl font-semibold">Material Costs</span>
+              <span className="text-xl font-semibold text-gray-800 dark:text-gray-100">Material Costs</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6 space-y-4">
-            <div className="flex items-center justify-between p-4 rounded-lg border border-border/50 hover:border-orange-200 dark:hover:border-orange-800 hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-all duration-200">
+            <div className="flex items-center justify-between p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-orange-300 dark:hover:border-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all duration-200">
               <div className="flex items-center gap-4">
-                <div className="p-2 bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/50 dark:to-amber-900/50 rounded-lg">
-                  <Package className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                <div className="p-2 bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-800 dark:to-amber-800 rounded-lg">
+                  <Package className="h-4 w-4 text-orange-700 dark:text-orange-300" />
                 </div>
                 <div>
-                  <div className="font-semibold text-foreground">Film Cost</div>
-                  <div className="text-sm text-muted-foreground">
+                  <div className="font-semibold text-gray-900 dark:text-gray-100">Film Cost</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
                     {jobEntry.totalSqft?.toFixed(1)} sq ft coverage
                   </div>
                 </div>
               </div>
-              <Badge variant="outline" className="font-mono text-base px-3 py-1 bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800">
+              <Badge variant="outline" className="font-mono text-base px-3 py-1 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">
                 ${filmCost.toFixed(2)}
               </Badge>
             </div>
             
             {redoMaterialCost > 0 && (
-              <div className="flex items-center justify-between p-4 rounded-lg border border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/10">
+              <div className="flex items-center justify-between p-4 rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20">
                 <div className="flex items-center gap-4">
-                  <div className="p-2 bg-red-100 dark:bg-red-900/50 rounded-lg">
-                    <Package className="h-4 w-4 text-red-600 dark:text-red-400" />
+                  <div className="p-2 bg-red-100 dark:bg-red-800 rounded-lg">
+                    <Package className="h-4 w-4 text-red-700 dark:text-red-300" />
                   </div>
                   <div>
-                    <div className="font-semibold text-red-700 dark:text-red-300">Redo Material Cost</div>
-                    <div className="text-sm text-red-600 dark:text-red-400">
+                    <div className="font-semibold text-red-800 dark:text-red-200">Redo Material Cost</div>
+                    <div className="text-sm text-red-700 dark:text-red-300">
                       {jobEntry.redoEntries.reduce((sum, redo) => sum + Number(redo.sqft || 0), 0).toFixed(1)} sq ft additional
                     </div>
                   </div>
                 </div>
-                <Badge variant="destructive" className="font-mono text-base px-3 py-1">
+                <Badge className="font-mono text-base px-3 py-1 bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 text-white">
                   ${redoMaterialCost.toFixed(2)}
                 </Badge>
               </div>
             )}
             
-            <div className="mt-6 pt-4 border-t border-border/50">
-              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
+            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/30 dark:to-amber-900/30 rounded-lg border border-orange-200 dark:border-orange-700">
                 <div className="flex items-center gap-3">
                   <Package className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                   <div className="font-semibold text-orange-700 dark:text-orange-300">Total Materials</div>
                 </div>
-                <Badge className="font-mono text-lg px-4 py-2 bg-orange-600 dark:bg-orange-700">
+                <Badge className="font-mono text-lg px-4 py-2 bg-orange-600 hover:bg-orange-700 dark:bg-orange-700 dark:hover:bg-orange-600 text-white">
                   ${totalMaterialCost.toFixed(2)}
                 </Badge>
               </div>
@@ -271,7 +271,7 @@ export function JobCostSummary({ jobEntry }: JobCostSummaryProps) {
         </Card>
 
         {/* Total Job Cost Section */}
-        <Card className="border-2 border-blue-200 dark:border-blue-800 shadow-xl overflow-hidden bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-950/20 dark:to-indigo-950/20">
+        <Card className="border-2 border-blue-300 dark:border-blue-600 shadow-xl overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
           <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
             <CardTitle className="flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-lg">
@@ -283,32 +283,32 @@ export function JobCostSummary({ jobEntry }: JobCostSummaryProps) {
           <CardContent className="p-8">
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center justify-between p-4 bg-white/50 dark:bg-gray-800/50 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
                   <div className="flex items-center gap-2">
-                    <UserIcon className="h-4 w-4 text-emerald-600" />
-                    <span className="font-medium">Labor Cost</span>
+                    <UserIcon className="h-4 w-4 text-green-600" />
+                    <span className="font-medium text-gray-800 dark:text-gray-100">Labor Cost</span>
                   </div>
-                  <span className="font-mono text-lg font-semibold">${totalLaborCost.toFixed(2)}</span>
+                  <span className="font-mono text-lg font-semibold text-gray-900 dark:text-gray-100">${totalLaborCost.toFixed(2)}</span>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-white/50 dark:bg-gray-800/50 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
                   <div className="flex items-center gap-2">
                     <Package className="h-4 w-4 text-orange-600" />
-                    <span className="font-medium">Material Cost</span>
+                    <span className="font-medium text-gray-800 dark:text-gray-100">Material Cost</span>
                   </div>
-                  <span className="font-mono text-lg font-semibold">${totalMaterialCost.toFixed(2)}</span>
+                  <span className="font-mono text-lg font-semibold text-gray-900 dark:text-gray-100">${totalMaterialCost.toFixed(2)}</span>
                 </div>
               </div>
               
-              <div className="text-center pt-4 border-t-2 border-blue-200 dark:border-blue-800">
-                <div className="inline-flex items-center gap-4 p-6 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl text-white shadow-lg">
+              <div className="text-center pt-4 border-t-2 border-blue-200 dark:border-blue-700">
+                <div className="inline-flex items-center gap-6 p-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl text-white shadow-xl">
                   <div className="text-left">
-                    <div className="text-sm opacity-90">Net Total</div>
-                    <div className="font-mono text-4xl font-bold">
+                    <div className="text-base opacity-90 mb-1">Net Total</div>
+                    <div className="font-mono text-5xl font-bold">
                       ${totalJobCost.toFixed(2)}
                     </div>
                   </div>
-                  <div className="p-3 bg-white/20 rounded-lg">
-                    <TrendingUp className="h-8 w-8" />
+                  <div className="p-4 bg-white/20 rounded-xl">
+                    <TrendingUp className="h-10 w-10" />
                   </div>
                 </div>
               </div>
