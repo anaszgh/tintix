@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DataTable } from "@/components/ui/data-table";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -28,6 +29,7 @@ export default function InstallerManagement() {
     firstName: "",
     lastName: "",
     hourlyRate: "",
+    role: "installer",
   });
 
   const { data: installers = [], isLoading } = useQuery<User[]>({
@@ -163,7 +165,7 @@ export default function InstallerManagement() {
   });
 
   const resetForm = () => {
-    setFormData({ email: "", firstName: "", lastName: "", hourlyRate: "" });
+    setFormData({ email: "", firstName: "", lastName: "", hourlyRate: "", role: "installer" });
     setEditingInstaller(null);
   };
 
@@ -183,6 +185,7 @@ export default function InstallerManagement() {
       firstName: installer.firstName || "",
       lastName: installer.lastName || "",
       hourlyRate: installer.hourlyRate || "0.00",
+      role: installer.role || "installer",
     });
     setIsDialogOpen(true);
   };
@@ -375,6 +378,22 @@ export default function InstallerManagement() {
                       onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                       required
                     />
+                  </div>
+                  <div>
+                    <Label htmlFor="role">Role</Label>
+                    <Select
+                      value={formData.role || "installer"}
+                      onValueChange={(value) => setFormData({ ...formData, role: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="installer">Installer</SelectItem>
+                        <SelectItem value="data_entry">Data Entry</SelectItem>
+                        <SelectItem value="manager">Manager</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="flex justify-end space-x-2">
                     <Button
