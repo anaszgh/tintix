@@ -380,24 +380,31 @@ export default function Entries() {
         const entry = row.original;
         return (
           <div className="flex items-center space-x-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setViewingEntry(entry)}
-              title="View Entry"
-              className="h-8 w-8 p-0"
-            >
-              <Eye className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => generateJobPDF(entry)}
-              title="Export PDF"
-              className="h-8 w-8 p-0"
-            >
-              <FileText className="h-4 w-4" />
-            </Button>
+            {/* Hide view button for data entry users since it shows cost information */}
+            {user?.role !== "data_entry" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewingEntry(entry)}
+                title="View Entry"
+                className="h-8 w-8 p-0"
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+            )}
+            {/* Hide PDF export for data entry users since it contains financial information */}
+            {user?.role !== "data_entry" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => generateJobPDF(entry)}
+                title="Export PDF"
+                className="h-8 w-8 p-0"
+              >
+                <FileText className="h-4 w-4" />
+              </Button>
+            )}
+            {/* Allow data entry users to edit jobs */}
             <Button
               variant="ghost"
               size="sm"
@@ -405,20 +412,23 @@ export default function Entries() {
                 setEditingEntry(entry);
                 setIsFormOpen(true);
               }}
-              disabled={user?.role !== "manager"}
+              disabled={user?.role !== "manager" && user?.role !== "data_entry"}
               className="h-8 w-8 p-0"
             >
               <Edit className="h-4 w-4" />
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleDelete(entry.id)}
-              disabled={user?.role !== "manager" || deleteEntryMutation.isPending}
-              className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            {/* Only managers can delete */}
+            {user?.role === "manager" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleDelete(entry.id)}
+                disabled={deleteEntryMutation.isPending}
+                className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         );
       },
@@ -695,8 +705,10 @@ export default function Entries() {
                 </div>
               )}
 
-              {/* Job Cost Summary */}
-              <JobCostSummary jobEntry={viewingEntry} />
+              {/* Job Cost Summary - Hide for data entry users */}
+              {user?.role !== "data_entry" && (
+                <JobCostSummary jobEntry={viewingEntry} />
+              )}
 
               {/* Notes */}
               {viewingEntry.notes && (
