@@ -215,6 +215,10 @@ export default function FilmManagement() {
       name: film.name,
       type: film.type,
       costPerSqft: Number(film.costPerSqft),
+      totalSqft: film.totalSqft ? Number(film.totalSqft) : undefined,
+      grossWeight: film.grossWeight ? Number(film.grossWeight) : undefined,
+      coreWeight: film.coreWeight ? Number(film.coreWeight) : undefined,
+      netWeight: film.netWeight ? Number(film.netWeight) : undefined,
       isActive: film.isActive,
     });
     setIsDialogOpen(true);
@@ -232,6 +236,10 @@ export default function FilmManagement() {
       name: "",
       type: "",
       costPerSqft: 0,
+      totalSqft: undefined,
+      grossWeight: undefined,
+      coreWeight: undefined,
+      netWeight: undefined,
       isActive: true,
     });
     setIsDialogOpen(true);
@@ -344,6 +352,99 @@ export default function FilmManagement() {
                         </FormItem>
                       )}
                     />
+
+                    <div className="border-t pt-4 mt-4">
+                      <h4 className="text-sm font-medium text-muted-foreground mb-3">Weight Specifications (Optional)</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="totalSqft"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-muted-foreground">Total SQFT in Roll</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  placeholder="e.g. 150.00"
+                                  {...field}
+                                  onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                                  className="bg-background border-border"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="grossWeight"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-muted-foreground">Gross Weight (grams)</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  placeholder="e.g. 2500.00"
+                                  {...field}
+                                  onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                                  className="bg-background border-border"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="coreWeight"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-muted-foreground">Core Weight (grams)</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  placeholder="e.g. 500.00"
+                                  {...field}
+                                  onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                                  className="bg-background border-border"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="netWeight"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-muted-foreground">Net Weight (grams)</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  placeholder="e.g. 2000.00"
+                                  {...field}
+                                  onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                                  className="bg-background border-border"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
 
                     <div className="flex justify-end space-x-2 pt-4">
                       <Button

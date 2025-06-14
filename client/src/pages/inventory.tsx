@@ -171,6 +171,32 @@ export default function Inventory() {
     return getStockLevel(film) <= getMinimumStock(film) && getMinimumStock(film) > 0;
   };
 
+  // Calculate weight per SQFT based on film specifications
+  const getWeightPerSqft = (film: FilmWithInventory): number => {
+    const totalSqft = (film as any).totalSqft;
+    const netWeight = (film as any).netWeight;
+    if (!totalSqft || !netWeight || Number(totalSqft) === 0) return 0;
+    return Number(netWeight) / Number(totalSqft);
+  };
+
+  // Calculate current stock in grams
+  const getStockInGrams = (film: FilmWithInventory): number => {
+    const weightPerSqft = getWeightPerSqft(film);
+    const stockSqft = getStockLevel(film);
+    return weightPerSqft * stockSqft;
+  };
+
+  // Format stock display showing both SQFT and grams
+  const formatStockDisplay = (film: FilmWithInventory): string => {
+    const sqft = getStockLevel(film);
+    const grams = getStockInGrams(film);
+    
+    if (grams > 0) {
+      return `${sqft.toFixed(1)} sq ft (${grams.toFixed(0)}g)`;
+    }
+    return `${sqft.toFixed(1)} sq ft`;
+  };
+
   const getStockStatus = (film: FilmWithInventory) => {
     const stock = getStockLevel(film);
     const minimum = getMinimumStock(film);
@@ -284,7 +310,7 @@ export default function Inventory() {
                       <CardTitle className="text-lg">{film.name}</CardTitle>
                     </div>
                     <Badge variant={getStockBadgeVariant(film)}>
-                      {getStockLevel(film)} sq ft
+                      {formatStockDisplay(film)}
                     </Badge>
                   </div>
                   <CardDescription>
@@ -295,7 +321,7 @@ export default function Inventory() {
                   <div className="space-y-4">
                     <div className="flex justify-between text-sm">
                       <span>Current Stock:</span>
-                      <span className="font-medium">{getStockLevel(film)} sq ft</span>
+                      <span className="font-medium">{formatStockDisplay(film)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Minimum Stock:</span>
