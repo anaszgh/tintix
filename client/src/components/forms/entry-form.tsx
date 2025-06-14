@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import { Tooltip, ContextualTooltips } from "@/components/guide/tooltip";
 import { RedoEntry } from "./redo-entry";
 import { VisualCarSelector } from "./visual-car-selector";
 import { Plus, Save, X } from "lucide-react";

@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/useAuth";
+import { useGlobalKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useState, useEffect } from "react";
 import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
@@ -52,6 +53,9 @@ function LoadingScreen() {
 
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
+  
+  // Enable global keyboard shortcuts
+  useGlobalKeyboardShortcuts();
 
   if (isLoading) {
     return <LoadingScreen />;

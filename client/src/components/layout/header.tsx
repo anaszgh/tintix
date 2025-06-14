@@ -15,7 +15,9 @@ export function Header({ title, description, actions }: HeaderProps) {
           <p className="text-muted-foreground mt-1">{description}</p>
         </div>
         <div className="flex items-center space-x-4">
-          <UserGuide />
+          <div data-help-trigger>
+            <UserGuide />
+          </div>
           {actions && (
             <>
               {actions}
