@@ -33,43 +33,407 @@ export function JobCostSummary({ jobEntry }: JobCostSummaryProps) {
   };
 
   const handlePrint = () => {
-    const printContent = document.getElementById('job-cost-summary');
-    if (printContent) {
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>Job Cost Summary - ${jobEntry.jobNumber || `JOB-${jobEntry.id}`}</title>
-              <style>
-                body { font-family: Arial, sans-serif; margin: 20px; color: #000; background: #fff; }
-                .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
-                .section { margin-bottom: 25px; }
-                .section-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #333; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
-                .cost-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
-                .cost-item:last-child { border-bottom: none; }
-                .installer-name { font-weight: 600; }
-                .cost-details { font-size: 12px; color: #666; margin-left: 20px; }
-                .total-section { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 20px; }
-                .grand-total { font-size: 24px; font-weight: bold; text-align: center; padding: 20px; background: #e3f2fd; border-radius: 8px; }
-                @media print { body { margin: 0; } }
-              </style>
-            </head>
-            <body>
-              <div class="header">
-                <h1>Tintix Performance Tracker</h1>
-                <h2>Job Cost Summary</h2>
-                <p><strong>Job:</strong> ${jobEntry.jobNumber || `JOB-${jobEntry.id}`} | <strong>Date:</strong> ${new Date(jobEntry.date).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' })} | <strong>Vehicle:</strong> ${jobEntry.vehicleYear} ${jobEntry.vehicleMake} ${jobEntry.vehicleModel}</p>
-              </div>
-              ${printContent.innerHTML}
-            </body>
-          </html>
-        `);
-        printWindow.document.close();
-        printWindow.print();
-        printWindow.close();
+    const formatTime = (minutes: number) => {
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      if (hours > 0) {
+        return `${hours}h ${mins}m`;
       }
+      return `${mins}m`;
+    };
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Job Cost Summary - ${jobEntry.jobNumber || `JOB-${jobEntry.id}`}</title>
+            <meta charset="UTF-8">
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              
+              body { 
+                font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; 
+                line-height: 1.6; 
+                color: #1f2937; 
+                background: #fff;
+                padding: 40px;
+              }
+              
+              .document-header {
+                text-align: center;
+                margin-bottom: 40px;
+                padding-bottom: 30px;
+                border-bottom: 3px solid #2563eb;
+                position: relative;
+              }
+              
+              .company-name {
+                font-size: 32px;
+                font-weight: 700;
+                color: #1e40af;
+                margin-bottom: 8px;
+                letter-spacing: -0.5px;
+              }
+              
+              .document-title {
+                font-size: 24px;
+                font-weight: 600;
+                color: #374151;
+                margin-bottom: 20px;
+              }
+              
+              .job-info {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 15px;
+                background: #f8fafc;
+                padding: 20px;
+                border-radius: 12px;
+                border: 1px solid #e5e7eb;
+              }
+              
+              .job-info-item {
+                text-align: center;
+              }
+              
+              .job-info-label {
+                font-size: 12px;
+                font-weight: 600;
+                color: #6b7280;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                margin-bottom: 4px;
+              }
+              
+              .job-info-value {
+                font-size: 16px;
+                font-weight: 700;
+                color: #111827;
+              }
+              
+              .section {
+                margin-bottom: 35px;
+                break-inside: avoid;
+              }
+              
+              .section-header {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 20px;
+                padding: 15px 20px;
+                background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+                border-radius: 12px;
+                border-left: 4px solid #0ea5e9;
+              }
+              
+              .section-title {
+                font-size: 20px;
+                font-weight: 700;
+                color: #0c4a6e;
+              }
+              
+              .section-badge {
+                background: #0ea5e9;
+                color: white;
+                padding: 4px 12px;
+                border-radius: 20px;
+                font-size: 12px;
+                font-weight: 600;
+              }
+              
+              .labor-section .section-header {
+                background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+                border-left-color: #16a34a;
+              }
+              
+              .labor-section .section-title { color: #14532d; }
+              .labor-section .section-badge { background: #16a34a; }
+              
+              .material-section .section-header {
+                background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%);
+                border-left-color: #ea580c;
+              }
+              
+              .material-section .section-title { color: #9a3412; }
+              .material-section .section-badge { background: #ea580c; }
+              
+              .cost-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 16px 20px;
+                margin-bottom: 12px;
+                background: #fafafa;
+                border-radius: 10px;
+                border: 1px solid #e5e7eb;
+                position: relative;
+              }
+              
+              .cost-item:hover { background: #f5f5f5; }
+              
+              .cost-item-left {
+                display: flex;
+                align-items: center;
+                gap: 15px;
+              }
+              
+              .cost-icon {
+                width: 40px;
+                height: 40px;
+                border-radius: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: bold;
+                font-size: 16px;
+              }
+              
+              .labor-icon { background: #dcfce7; color: #16a34a; }
+              .material-icon { background: #fed7aa; color: #ea580c; }
+              .redo-icon { background: #fecaca; color: #dc2626; }
+              
+              .cost-details h4 {
+                font-size: 16px;
+                font-weight: 700;
+                color: #111827;
+                margin-bottom: 4px;
+              }
+              
+              .cost-details p {
+                font-size: 13px;
+                color: #6b7280;
+                margin: 0;
+              }
+              
+              .cost-amount {
+                font-size: 18px;
+                font-weight: 700;
+                color: #111827;
+                font-family: 'SF Mono', Monaco, monospace;
+              }
+              
+              .redo-item {
+                background: #fef2f2;
+                border-color: #fecaca;
+              }
+              
+              .total-section {
+                background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+                border: 2px solid #3b82f6;
+                border-radius: 16px;
+                padding: 30px;
+                margin-top: 30px;
+                text-align: center;
+              }
+              
+              .total-breakdown {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+                margin-bottom: 25px;
+              }
+              
+              .breakdown-item {
+                background: white;
+                padding: 20px;
+                border-radius: 12px;
+                border: 1px solid #e5e7eb;
+                text-align: center;
+              }
+              
+              .breakdown-label {
+                font-size: 14px;
+                color: #6b7280;
+                font-weight: 600;
+                margin-bottom: 8px;
+              }
+              
+              .breakdown-amount {
+                font-size: 20px;
+                font-weight: 700;
+                color: #111827;
+                font-family: 'SF Mono', Monaco, monospace;
+              }
+              
+              .grand-total {
+                background: linear-gradient(135deg, #1e40af 0%, #3730a3 100%);
+                color: white;
+                padding: 25px 40px;
+                border-radius: 16px;
+                display: inline-block;
+                box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+              }
+              
+              .grand-total-label {
+                font-size: 16px;
+                opacity: 0.9;
+                margin-bottom: 8px;
+              }
+              
+              .grand-total-amount {
+                font-size: 36px;
+                font-weight: 800;
+                font-family: 'SF Mono', Monaco, monospace;
+                letter-spacing: -1px;
+              }
+              
+              .footer {
+                margin-top: 50px;
+                padding-top: 20px;
+                border-top: 2px solid #e5e7eb;
+                text-align: center;
+                color: #6b7280;
+                font-size: 12px;
+              }
+              
+              @media print {
+                body { padding: 20px; }
+                .section { page-break-inside: avoid; }
+                .cost-item { page-break-inside: avoid; }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="document-header">
+              <div class="company-name">Tintix Performance Tracker</div>
+              <div class="document-title">Professional Job Cost Summary</div>
+              <div class="job-info">
+                <div class="job-info-item">
+                  <div class="job-info-label">Job Number</div>
+                  <div class="job-info-value">${jobEntry.jobNumber || `JOB-${jobEntry.id}`}</div>
+                </div>
+                <div class="job-info-item">
+                  <div class="job-info-label">Date</div>
+                  <div class="job-info-value">${new Date(jobEntry.date).toLocaleDateString('en-US', { 
+                    timeZone: 'America/Los_Angeles',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}</div>
+                </div>
+                <div class="job-info-item">
+                  <div class="job-info-label">Vehicle</div>
+                  <div class="job-info-value">${jobEntry.vehicleYear} ${jobEntry.vehicleMake} ${jobEntry.vehicleModel}</div>
+                </div>
+                <div class="job-info-item">
+                  <div class="job-info-label">Total Windows</div>
+                  <div class="job-info-value">${jobEntry.totalWindows || 7}</div>
+                </div>
+              </div>
+            </div>
+
+            ${laborCosts.length > 0 ? `
+            <div class="section labor-section">
+              <div class="section-header">
+                <div class="section-title">Labor Costs</div>
+                <div class="section-badge">${laborCosts.length} installer${laborCosts.length !== 1 ? 's' : ''}</div>
+              </div>
+              
+              ${laborCosts.map(cost => `
+                <div class="cost-item">
+                  <div class="cost-item-left">
+                    <div class="cost-icon labor-icon">👤</div>
+                    <div class="cost-details">
+                      <h4>${cost.installer.firstName} ${cost.installer.lastName}</h4>
+                      <p>${formatTime(cost.timeMinutes)} at $${cost.hourlyRate.toFixed(2)}/hr</p>
+                    </div>
+                  </div>
+                  <div class="cost-amount">$${cost.laborCost.toFixed(2)}</div>
+                </div>
+              `).join('')}
+              
+              <div class="cost-item" style="background: #dcfce7; border-color: #16a34a; margin-top: 20px;">
+                <div class="cost-item-left">
+                  <div class="cost-icon labor-icon">📊</div>
+                  <div class="cost-details">
+                    <h4>Total Labor Cost</h4>
+                    <p>${formatTime(totalTimeMinutes)} total time</p>
+                  </div>
+                </div>
+                <div class="cost-amount" style="color: #16a34a; font-size: 20px;">$${totalLaborCost.toFixed(2)}</div>
+              </div>
+            </div>
+            ` : ''}
+
+            <div class="section material-section">
+              <div class="section-header">
+                <div class="section-title">Material Costs</div>
+              </div>
+              
+              <div class="cost-item">
+                <div class="cost-item-left">
+                  <div class="cost-icon material-icon">📦</div>
+                  <div class="cost-details">
+                    <h4>Film Cost</h4>
+                    <p>${jobEntry.totalSqft?.toFixed(1) || '0.0'} sq ft coverage</p>
+                  </div>
+                </div>
+                <div class="cost-amount">$${filmCost.toFixed(2)}</div>
+              </div>
+
+              ${redoMaterialCost > 0 ? `
+              <div class="cost-item redo-item">
+                <div class="cost-item-left">
+                  <div class="cost-icon redo-icon">🔄</div>
+                  <div class="cost-details">
+                    <h4>Redo Material Cost</h4>
+                    <p>${jobEntry.redoEntries.reduce((sum, redo) => sum + Number(redo.sqft || 0), 0).toFixed(1)} sq ft additional</p>
+                  </div>
+                </div>
+                <div class="cost-amount" style="color: #dc2626;">$${redoMaterialCost.toFixed(2)}</div>
+              </div>
+              ` : ''}
+              
+              <div class="cost-item" style="background: #fed7aa; border-color: #ea580c; margin-top: 20px;">
+                <div class="cost-item-left">
+                  <div class="cost-icon material-icon">📊</div>
+                  <div class="cost-details">
+                    <h4>Total Material Cost</h4>
+                    <p>All materials included</p>
+                  </div>
+                </div>
+                <div class="cost-amount" style="color: #ea580c; font-size: 20px;">$${totalMaterialCost.toFixed(2)}</div>
+              </div>
+            </div>
+
+            <div class="total-section">
+              <div class="total-breakdown">
+                <div class="breakdown-item">
+                  <div class="breakdown-label">Labor Cost</div>
+                  <div class="breakdown-amount">$${totalLaborCost.toFixed(2)}</div>
+                </div>
+                <div class="breakdown-item">
+                  <div class="breakdown-label">Material Cost</div>
+                  <div class="breakdown-amount">$${totalMaterialCost.toFixed(2)}</div>
+                </div>
+              </div>
+              
+              <div class="grand-total">
+                <div class="grand-total-label">Net Total</div>
+                <div class="grand-total-amount">$${totalJobCost.toFixed(2)}</div>
+              </div>
+            </div>
+
+            <div class="footer">
+              <p>Generated on ${new Date().toLocaleDateString('en-US', { 
+                timeZone: 'America/Los_Angeles',
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })} PST</p>
+              <p>Tintix Performance Tracker - Professional Window Tinting Services</p>
+            </div>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.print();
+      printWindow.close();
     }
   };
 
