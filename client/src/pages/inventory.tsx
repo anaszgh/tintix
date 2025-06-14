@@ -217,8 +217,8 @@ export default function Inventory() {
               {lowStockFilms.map((film) => (
                 <div key={film.id} className="flex items-center justify-between p-3 bg-orange-100 dark:bg-orange-900 rounded">
                   <div>
-                    <div className="font-medium">{film.name}</div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="font-semibold text-orange-900 dark:text-orange-100">{film.name}</div>
+                    <div className="text-sm font-medium text-orange-800 dark:text-orange-200">
                       {getStockLevel(film)} sq ft remaining
                     </div>
                   </div>
