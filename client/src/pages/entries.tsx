@@ -582,12 +582,12 @@ export default function Entries() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Job Number</label>
-                    <p className="text-card-foreground">{viewingEntry.jobNumber || `JOB-${viewingEntry.id}`}</p>
+                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Job Number</label>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium">{viewingEntry.jobNumber || `JOB-${viewingEntry.id}`}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Date</label>
-                    <p className="text-card-foreground">
+                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Date</label>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium">
                       {new Date(viewingEntry.date).toLocaleDateString('en-US', {
                         timeZone: 'America/Los_Angeles',
                         year: 'numeric',
@@ -597,24 +597,24 @@ export default function Entries() {
                     </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Vehicle</label>
-                    <p className="text-card-foreground">
+                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Vehicle</label>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium">
                       {viewingEntry.vehicleYear} {viewingEntry.vehicleMake} {viewingEntry.vehicleModel}
                     </p>
                   </div>
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Installers</label>
+                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Installers</label>
                     <div className="space-y-1">
                       {viewingEntry.installers.map((installer, index) => (
-                        <p key={index} className="text-card-foreground">
+                        <p key={index} className="text-gray-900 dark:text-gray-100 font-medium">
                           {installer.firstName} {installer.lastName}
                           {installer.timeVariance !== 0 && (
                             <span className={`ml-2 text-xs px-2 py-1 rounded ${
                               installer.timeVariance > 0 
-                                ? 'bg-red-100 text-red-700' 
-                                : 'bg-green-100 text-green-700'
+                                ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200' 
+                                : 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200'
                             }`}>
                               {installer.timeVariance > 0 ? '+' : ''}{installer.timeVariance} min
                             </span>
@@ -624,14 +624,14 @@ export default function Entries() {
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Duration</label>
-                    <p className="text-card-foreground">
+                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Duration</label>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium">
                       {viewingEntry.durationMinutes ? `${Math.floor(viewingEntry.durationMinutes / 60)}h ${viewingEntry.durationMinutes % 60}m` : 'Not specified'}
                     </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Total Windows</label>
-                    <p className="text-card-foreground">{viewingEntry.totalWindows}</p>
+                    <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Windows</label>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium">{viewingEntry.totalWindows}</p>
                   </div>
                 </div>
               </div>
@@ -639,15 +639,15 @@ export default function Entries() {
               {/* Dimensions */}
               {viewingEntry.dimensions && viewingEntry.dimensions.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-semibold text-card-foreground mb-3">Dimensions</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Dimensions</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {viewingEntry.dimensions.map((dimension, index) => (
-                      <div key={index} className="bg-muted/50 p-4 rounded-lg">
-                        <p className="font-medium text-card-foreground">{dimension.description || `Dimension ${index + 1}`}</p>
-                        <p className="text-sm text-muted-foreground">
+                      <div key={index} className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg">
+                        <p className="font-medium text-gray-900 dark:text-gray-100">{dimension.description || `Dimension ${index + 1}`}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
                           {Number(dimension.lengthInches).toFixed(1)}" × {Number(dimension.widthInches).toFixed(1)}"
                         </p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
                           {Number(dimension.sqft).toFixed(2)} sq ft
                         </p>
                       </div>
@@ -659,30 +659,30 @@ export default function Entries() {
               {/* Redo Entries */}
               {viewingEntry.redoEntries && viewingEntry.redoEntries.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-semibold text-card-foreground mb-3">Redo Entries</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Redo Entries</h3>
                   <div className="space-y-3">
                     {viewingEntry.redoEntries.map((redo, index) => (
                       <div key={index} className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border border-red-200 dark:border-red-800">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div>
-                            <label className="text-sm font-medium text-muted-foreground">Part</label>
-                            <p className="text-card-foreground capitalize">{redo.part}</p>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Part</label>
+                            <p className="text-gray-900 dark:text-gray-100 font-medium capitalize">{redo.part}</p>
                           </div>
                           <div>
-                            <label className="text-sm font-medium text-muted-foreground">Installer</label>
-                            <p className="text-card-foreground">
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Installer</label>
+                            <p className="text-gray-900 dark:text-gray-100 font-medium">
                               {redo.installer ? `${redo.installer.firstName} ${redo.installer.lastName}` : 'Unknown'}
                             </p>
                           </div>
                           <div>
-                            <label className="text-sm font-medium text-muted-foreground">Time</label>
-                            <p className="text-card-foreground">{redo.timeMinutes || 0} minutes</p>
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Time</label>
+                            <p className="text-gray-900 dark:text-gray-100 font-medium">{redo.timeMinutes || 0} minutes</p>
                           </div>
                         </div>
                         {redo.lengthInches && redo.widthInches && (
                           <div className="mt-2">
-                            <label className="text-sm font-medium text-muted-foreground">Dimensions</label>
-                            <p className="text-card-foreground">
+                            <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Dimensions</label>
+                            <p className="text-gray-900 dark:text-gray-100 font-medium">
                               {Number(redo.lengthInches).toFixed(1)}" × {Number(redo.widthInches).toFixed(1)}" 
                               ({((Number(redo.lengthInches) * Number(redo.widthInches)) / 144).toFixed(2)} sq ft)
                             </p>
@@ -697,8 +697,8 @@ export default function Entries() {
               {/* Notes */}
               {viewingEntry.notes && (
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Notes</label>
-                  <p className="text-card-foreground mt-1 p-3 bg-muted/50 rounded-lg">
+                  <label className="text-sm font-medium text-gray-600 dark:text-gray-400">Notes</label>
+                  <p className="text-gray-900 dark:text-gray-100 font-medium mt-1 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
                     {viewingEntry.notes}
                   </p>
                 </div>
