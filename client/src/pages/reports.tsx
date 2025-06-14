@@ -967,37 +967,53 @@ export default function Reports() {
                 </table>
               </div>
               
-              {/* Summary totals */}
-              {jobEntries.length > 0 && (
-                <div className="mt-6 pt-4 border-t border-border">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-card-foreground">
-                        {jobEntries.length}
+              {/* Summary totals with date filtering */}
+              {(() => {
+                // Filter entries for summary calculations
+                let summaryEntries = jobEntries;
+                if (appliedDateFilter?.dateFrom || appliedDateFilter?.dateTo) {
+                  summaryEntries = jobEntries.filter(entry => {
+                    const entryDate = new Date(entry.date);
+                    const fromDate = appliedDateFilter?.dateFrom ? new Date(appliedDateFilter.dateFrom) : null;
+                    const toDate = appliedDateFilter?.dateTo ? new Date(appliedDateFilter.dateTo) : null;
+                    
+                    if (fromDate && entryDate < fromDate) return false;
+                    if (toDate && entryDate > toDate) return false;
+                    return true;
+                  });
+                }
+                
+                return summaryEntries.length > 0 ? (
+                  <div className="mt-6 pt-4 border-t border-border">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-card-foreground">
+                          {summaryEntries.length}
+                        </div>
+                        <div className="text-sm text-muted-foreground">Total Jobs</div>
                       </div>
-                      <div className="text-sm text-muted-foreground">Total Jobs</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-card-foreground">
-                        {jobEntries.reduce((sum, entry) => sum + (Number(entry.totalSqft) || 0), 0).toFixed(2)}
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-card-foreground">
+                          {summaryEntries.reduce((sum, entry) => sum + (Number(entry.totalSqft) || 0), 0).toFixed(2)}
+                        </div>
+                        <div className="text-sm text-muted-foreground">Total Sq Ft</div>
                       </div>
-                      <div className="text-sm text-muted-foreground">Total Sq Ft</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-card-foreground">
-                        ${jobEntries.reduce((sum, entry) => sum + (Number(entry.filmCost) || 0), 0).toFixed(2)}
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-card-foreground">
+                          ${summaryEntries.reduce((sum, entry) => sum + (Number(entry.filmCost) || 0), 0).toFixed(2)}
+                        </div>
+                        <div className="text-sm text-muted-foreground">Total Film Cost</div>
                       </div>
-                      <div className="text-sm text-muted-foreground">Total Film Cost</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-card-foreground">
-                        {Math.floor(jobEntries.reduce((sum, entry) => sum + (entry.durationMinutes || 0), 0) / 60)}h {jobEntries.reduce((sum, entry) => sum + (entry.durationMinutes || 0), 0) % 60}m
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-card-foreground">
+                          {Math.floor(summaryEntries.reduce((sum, entry) => sum + (entry.durationMinutes || 0), 0) / 60)}h {summaryEntries.reduce((sum, entry) => sum + (entry.durationMinutes || 0), 0) % 60}m
+                        </div>
+                        <div className="text-sm text-muted-foreground">Total Time</div>
                       </div>
-                      <div className="text-sm text-muted-foreground">Total Time</div>
                     </div>
                   </div>
-                </div>
-              )}
+                ) : null;
+              })()}
             </CardContent>
           </Card>
 
@@ -1036,7 +1052,21 @@ export default function Reports() {
                   </thead>
                   <tbody>
                     {(() => {
-                      const redoJobs = jobEntries.filter(entry => entry.redoEntries && entry.redoEntries.length > 0);
+                      // Filter job entries by date range first, then filter for redos
+                      let filteredEntries = jobEntries;
+                      if (appliedDateFilter?.dateFrom || appliedDateFilter?.dateTo) {
+                        filteredEntries = jobEntries.filter(entry => {
+                          const entryDate = new Date(entry.date);
+                          const fromDate = appliedDateFilter?.dateFrom ? new Date(appliedDateFilter.dateFrom) : null;
+                          const toDate = appliedDateFilter?.dateTo ? new Date(appliedDateFilter.dateTo) : null;
+                          
+                          if (fromDate && entryDate < fromDate) return false;
+                          if (toDate && entryDate > toDate) return false;
+                          return true;
+                        });
+                      }
+                      
+                      const redoJobs = filteredEntries.filter(entry => entry.redoEntries && entry.redoEntries.length > 0);
                       return redoJobs.length > 0 ? (
                         redoJobs.flatMap(entry => 
                           entry.redoEntries?.map((redo, redoIndex) => {
@@ -1084,9 +1114,23 @@ export default function Reports() {
                 </table>
               </div>
               
-              {/* Redo Summary totals */}
+              {/* Redo Summary totals with date filtering */}
               {(() => {
-                const redoJobs = jobEntries.filter(entry => entry.redoEntries && entry.redoEntries.length > 0);
+                // Filter job entries by date range first, then filter for redos
+                let filteredEntries = jobEntries;
+                if (appliedDateFilter?.dateFrom || appliedDateFilter?.dateTo) {
+                  filteredEntries = jobEntries.filter(entry => {
+                    const entryDate = new Date(entry.date);
+                    const fromDate = appliedDateFilter?.dateFrom ? new Date(appliedDateFilter.dateFrom) : null;
+                    const toDate = appliedDateFilter?.dateTo ? new Date(appliedDateFilter.dateTo) : null;
+                    
+                    if (fromDate && entryDate < fromDate) return false;
+                    if (toDate && entryDate > toDate) return false;
+                    return true;
+                  });
+                }
+                
+                const redoJobs = filteredEntries.filter(entry => entry.redoEntries && entry.redoEntries.length > 0);
                 const totalRedos = redoJobs.reduce((sum, entry) => sum + (entry.redoEntries?.length || 0), 0);
                 const totalRedoSqft = redoJobs.reduce((sum, entry) => {
                   return sum + (entry.redoEntries?.reduce((redoSum, redo) => {
@@ -1175,7 +1219,21 @@ export default function Reports() {
                   </thead>
                   <tbody>
                     {(() => {
-                      const filmTypeSummary = filmConsumption.reduce((acc, item) => {
+                      // Filter film consumption data by date range
+                      let filteredFilmConsumption = filmConsumption;
+                      if (appliedDateFilter?.dateFrom || appliedDateFilter?.dateTo) {
+                        filteredFilmConsumption = filmConsumption.filter(item => {
+                          const itemDate = new Date(item.date);
+                          const fromDate = appliedDateFilter?.dateFrom ? new Date(appliedDateFilter.dateFrom) : null;
+                          const toDate = appliedDateFilter?.dateTo ? new Date(appliedDateFilter.dateTo) : null;
+                          
+                          if (fromDate && itemDate < fromDate) return false;
+                          if (toDate && itemDate > toDate) return false;
+                          return true;
+                        });
+                      }
+                      
+                      const filmTypeSummary = filteredFilmConsumption.reduce((acc, item) => {
                         const key = `${item.filmType}-${item.filmName}`;
                         if (!acc[key]) {
                           acc[key] = {
@@ -1223,31 +1281,47 @@ export default function Reports() {
                 </table>
               </div>
               
-              {/* Film Type Summary totals */}
-              {filmConsumption.length > 0 && (
-                <div className="mt-6 pt-4 border-t border-border">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-card-foreground">
-                        {filmConsumption.reduce((sum, item) => sum + item.jobCount, 0)}
+              {/* Film Type Summary totals with date filtering */}
+              {(() => {
+                // Filter film consumption data by date range
+                let filteredFilmConsumption = filmConsumption;
+                if (appliedDateFilter?.dateFrom || appliedDateFilter?.dateTo) {
+                  filteredFilmConsumption = filmConsumption.filter(item => {
+                    const itemDate = new Date(item.date);
+                    const fromDate = appliedDateFilter?.dateFrom ? new Date(appliedDateFilter.dateFrom) : null;
+                    const toDate = appliedDateFilter?.dateTo ? new Date(appliedDateFilter.dateTo) : null;
+                    
+                    if (fromDate && itemDate < fromDate) return false;
+                    if (toDate && itemDate > toDate) return false;
+                    return true;
+                  });
+                }
+                
+                return filteredFilmConsumption.length > 0 ? (
+                  <div className="mt-6 pt-4 border-t border-border">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-card-foreground">
+                          {filteredFilmConsumption.reduce((sum, item) => sum + item.jobCount, 0)}
+                        </div>
+                        <div className="text-sm text-muted-foreground">Total Jobs</div>
                       </div>
-                      <div className="text-sm text-muted-foreground">Total Jobs</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-card-foreground">
-                        {filmConsumption.reduce((sum, item) => sum + item.totalSqft, 0).toFixed(2)}
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-card-foreground">
+                          {filteredFilmConsumption.reduce((sum, item) => sum + item.totalSqft, 0).toFixed(2)}
+                        </div>
+                        <div className="text-sm text-muted-foreground">Total Sq Ft</div>
                       </div>
-                      <div className="text-sm text-muted-foreground">Total Sq Ft</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-card-foreground">
-                        ${filmConsumption.reduce((sum, item) => sum + item.totalCost, 0).toFixed(2)}
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-card-foreground">
+                          ${filteredFilmConsumption.reduce((sum, item) => sum + item.totalCost, 0).toFixed(2)}
+                        </div>
+                        <div className="text-sm text-muted-foreground">Total Cost</div>
                       </div>
-                      <div className="text-sm text-muted-foreground">Total Cost</div>
                     </div>
                   </div>
-                </div>
-              )}
+                ) : null;
+              })()}
             </CardContent>
           </Card>
 
