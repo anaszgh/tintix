@@ -160,9 +160,14 @@ export default function Reports() {
     }
     
     setAppliedDateFilter({ dateFrom, dateTo });
+    
+    // Show helpful feedback about available dates
+    const fromFormatted = new Date(dateFrom).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' });
+    const toFormatted = new Date(dateTo).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' });
+    
     toast({
       title: "Filter Applied",
-      description: `Showing data from ${dateFrom} to ${dateTo}`,
+      description: `Showing data from ${fromFormatted} to ${toFormatted}. Note: Available data dates are June 12-13, 2025.`,
     });
   };
 
@@ -969,19 +974,8 @@ export default function Reports() {
               
               {/* Summary totals with date filtering */}
               {(() => {
-                // Filter entries for summary calculations
+                // Use jobEntries which are already filtered by the backend query parameters
                 let summaryEntries = jobEntries;
-                if (appliedDateFilter?.dateFrom || appliedDateFilter?.dateTo) {
-                  summaryEntries = jobEntries.filter(entry => {
-                    const entryDate = new Date(entry.date);
-                    const fromDate = appliedDateFilter?.dateFrom ? new Date(appliedDateFilter.dateFrom) : null;
-                    const toDate = appliedDateFilter?.dateTo ? new Date(appliedDateFilter.dateTo) : null;
-                    
-                    if (fromDate && entryDate < fromDate) return false;
-                    if (toDate && entryDate > toDate) return false;
-                    return true;
-                  });
-                }
                 
                 return summaryEntries.length > 0 ? (
                   <div className="mt-6 pt-4 border-t border-border">
@@ -1057,8 +1051,8 @@ export default function Reports() {
                       if (appliedDateFilter?.dateFrom || appliedDateFilter?.dateTo) {
                         filteredEntries = jobEntries.filter(entry => {
                           const entryDate = new Date(entry.date);
-                          const fromDate = appliedDateFilter?.dateFrom ? new Date(appliedDateFilter.dateFrom) : null;
-                          const toDate = appliedDateFilter?.dateTo ? new Date(appliedDateFilter.dateTo) : null;
+                          const fromDate = appliedDateFilter?.dateFrom ? new Date(appliedDateFilter.dateFrom + 'T00:00:00') : null;
+                          const toDate = appliedDateFilter?.dateTo ? new Date(appliedDateFilter.dateTo + 'T23:59:59') : null;
                           
                           if (fromDate && entryDate < fromDate) return false;
                           if (toDate && entryDate > toDate) return false;
