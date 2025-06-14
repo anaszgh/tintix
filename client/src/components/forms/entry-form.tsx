@@ -575,7 +575,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                       <SelectContent>
                         {films.map((film) => (
                           <SelectItem key={film.id} value={film.id.toString()}>
-                            {film.name} - ${Number(film.costPerSqft).toFixed(2)}/sqft
+                            {film.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
