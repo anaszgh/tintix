@@ -6,6 +6,8 @@ import {
   installerTimeEntries,
   films,
   jobDimensions,
+  filmInventory,
+  inventoryTransactions,
   type User,
   type UpsertUser,
   type JobEntry,
@@ -21,6 +23,11 @@ import {
   type JobDimension,
   type InsertJobDimension,
   type JobEntryWithDetails,
+  type FilmInventory,
+  type InsertFilmInventory,
+  type InventoryTransaction,
+  type InsertInventoryTransaction,
+  type FilmWithInventory,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, sql, count, isNull } from "drizzle-orm";

@@ -53,6 +53,30 @@ export const films = pgTable("films", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Film inventory tracking
+export const filmInventory = pgTable("film_inventory", {
+  id: serial("id").primaryKey(),
+  filmId: integer("film_id").notNull().references(() => films.id, { onDelete: "cascade" }),
+  currentStock: numeric("current_stock", { precision: 10, scale: 2 }).notNull().default("0.00"), // Current stock in sqft
+  minimumStock: numeric("minimum_stock", { precision: 10, scale: 2 }).notNull().default("0.00"), // Alert threshold
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Inventory transactions log
+export const inventoryTransactions = pgTable("inventory_transactions", {
+  id: serial("id").primaryKey(),
+  filmId: integer("film_id").notNull().references(() => films.id, { onDelete: "cascade" }),
+  type: varchar("type").notNull(), // "addition", "deduction", "adjustment"
+  quantity: numeric("quantity", { precision: 10, scale: 2 }).notNull(), // Positive for additions, negative for deductions
+  previousStock: numeric("previous_stock", { precision: 10, scale: 2 }).notNull(),
+  newStock: numeric("new_stock", { precision: 10, scale: 2 }).notNull(),
+  jobEntryId: integer("job_entry_id").references(() => jobEntries.id), // Reference if related to a job
+  notes: text("notes"),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const jobEntries = pgTable("job_entries", {
   id: serial("id").primaryKey(),
   jobNumber: varchar("job_number").notNull().unique(),
@@ -123,8 +147,32 @@ export const usersRelations = relations(users, ({ many }) => ({
   timeEntries: many(installerTimeEntries),
 }));
 
-export const filmsRelations = relations(films, ({ many }) => ({
+export const filmsRelations = relations(films, ({ many, one }) => ({
   jobEntries: many(jobEntries),
+  inventory: one(filmInventory),
+  inventoryTransactions: many(inventoryTransactions),
+}));
+
+export const filmInventoryRelations = relations(filmInventory, ({ one }) => ({
+  film: one(films, {
+    fields: [filmInventory.filmId],
+    references: [films.id],
+  }),
+}));
+
+export const inventoryTransactionsRelations = relations(inventoryTransactions, ({ one }) => ({
+  film: one(films, {
+    fields: [inventoryTransactions.filmId],
+    references: [films.id],
+  }),
+  jobEntry: one(jobEntries, {
+    fields: [inventoryTransactions.jobEntryId],
+    references: [jobEntries.id],
+  }),
+  createdByUser: one(users, {
+    fields: [inventoryTransactions.createdBy],
+    references: [users.id],
+  }),
 }));
 
 export const jobEntriesRelations = relations(jobEntries, ({ many, one }) => ({
@@ -212,6 +260,17 @@ export const insertJobDimensionSchema = createInsertSchema(jobDimensions).omit({
   createdAt: true,
 });
 
+export const insertFilmInventorySchema = createInsertSchema(filmInventory).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertInventoryTransactionSchema = createInsertSchema(inventoryTransactions).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -227,8 +286,15 @@ export type Film = typeof films.$inferSelect;
 export type InsertFilm = z.infer<typeof insertFilmSchema>;
 export type JobDimension = typeof jobDimensions.$inferSelect;
 export type InsertJobDimension = z.infer<typeof insertJobDimensionSchema>;
+export type FilmInventory = typeof filmInventory.$inferSelect;
+export type InsertFilmInventory = z.infer<typeof insertFilmInventorySchema>;
+export type InventoryTransaction = typeof inventoryTransactions.$inferSelect;
+export type InsertInventoryTransaction = z.infer<typeof insertInventoryTransactionSchema>;
 
 // Combined types for API responses
+export type FilmWithInventory = Film & {
+  inventory?: FilmInventory;
+};
 export type JobEntryWithDetails = JobEntry & {
   installers: (User & { timeVariance: number })[];
   redoEntries: (RedoEntry & { installer: User })[];
