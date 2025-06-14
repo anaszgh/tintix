@@ -84,11 +84,13 @@ export default function Inventory() {
 
   const addStockMutation = useMutation({
     mutationFn: async ({ filmId, quantity, notes }: { filmId: number; quantity: number; notes?: string }) => {
-      return apiRequest(`/api/inventory/${filmId}/add`, {
+      const response = await fetch(`/api/inventory/${filmId}/add`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ quantity, notes }),
       });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
@@ -108,11 +110,13 @@ export default function Inventory() {
 
   const adjustStockMutation = useMutation({
     mutationFn: async ({ filmId, newStock, notes }: { filmId: number; newStock: number; notes?: string }) => {
-      return apiRequest(`/api/inventory/${filmId}/adjust`, {
+      const response = await fetch(`/api/inventory/${filmId}/adjust`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ newStock, notes }),
       });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
@@ -132,11 +136,13 @@ export default function Inventory() {
 
   const setMinimumMutation = useMutation({
     mutationFn: async ({ filmId, minimumStock }: { filmId: number; minimumStock: number }) => {
-      return apiRequest(`/api/inventory/${filmId}/minimum`, {
+      const response = await fetch(`/api/inventory/${filmId}/minimum`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ minimumStock }),
       });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });

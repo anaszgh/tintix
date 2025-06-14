@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Car, BarChart3, Plus, List, LogOut, User, Users, Clock, FileText } from "lucide-react";
+import { Car, BarChart3, Plus, List, LogOut, User, Users, Clock, FileText, Package } from "lucide-react";
 
 export function Sidebar() {
   const [location] = useLocation();
@@ -26,7 +26,8 @@ export function Sidebar() {
       ...(userRole === "manager" ? [
         { name: "Installer Management", href: "/installers", icon: User, current: location === "/installers", tourId: "installer-management" },
         { name: "User Management", href: "/users", icon: Users, current: location === "/users", tourId: "user-management" },
-        { name: "Film Management", href: "/film-management", icon: FileText, current: location === "/film-management", tourId: "film-management" }
+        { name: "Film Management", href: "/film-management", icon: FileText, current: location === "/film-management", tourId: "film-management" },
+        { name: "Inventory", href: "/inventory", icon: Package, current: location === "/inventory", tourId: "inventory" }
       ] : []),
     ];
   };

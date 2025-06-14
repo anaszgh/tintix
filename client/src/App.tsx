@@ -15,6 +15,7 @@ import TimeReports from "@/pages/time-reports";
 import UsersPage from "@/pages/users";
 import InstallerManagement from "@/pages/installer-management";
 import FilmManagement from "@/pages/film-management";
+import Inventory from "@/pages/inventory";
 import NotFound from "@/pages/not-found";
 
 function LoadingScreen() {
@@ -85,6 +86,7 @@ function Router() {
               <Route path="/installers" component={InstallerManagement} />
               <Route path="/users" component={UsersPage} />
               <Route path="/film-management" component={FilmManagement} />
+              <Route path="/inventory" component={Inventory} />
             </>
           )}
         </>
