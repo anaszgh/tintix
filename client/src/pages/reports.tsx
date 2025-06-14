@@ -162,12 +162,14 @@ export default function Reports() {
     setAppliedDateFilter({ dateFrom, dateTo });
     
     // Show helpful feedback about available dates
-    // Fix timezone issue by parsing as local date
-    const fromDate = new Date(dateFrom + 'T00:00:00');
-    const toDate = new Date(dateTo + 'T00:00:00');
+    // Format directly from the date strings without any Date object conversion
+    const formatDate = (dateStr: string) => {
+      const [year, month, day] = dateStr.split('-');
+      return `${parseInt(month)}/${parseInt(day)}/${year}`;
+    };
     
-    const fromFormatted = fromDate.toLocaleDateString('en-US');
-    const toFormatted = toDate.toLocaleDateString('en-US');
+    const fromFormatted = formatDate(dateFrom);
+    const toFormatted = formatDate(dateTo);
     
     toast({
       title: "Filter Applied",
