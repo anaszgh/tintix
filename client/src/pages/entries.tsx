@@ -12,7 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { EntryForm } from "@/components/forms/entry-form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Download, Filter, RotateCcw, Edit, Trash2, FileText } from "lucide-react";
+import { Plus, Download, Filter, RotateCcw, Edit, Trash2, FileText, Eye, Search } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from 'jspdf-autotable';
 import type { JobEntryWithDetails, User } from "@shared/schema";
@@ -29,6 +29,8 @@ export default function Entries() {
     dateFrom: "",
     dateTo: "",
   });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [viewingEntry, setViewingEntry] = useState<JobEntryWithDetails | null>(null);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -54,6 +56,29 @@ export default function Entries() {
     queryKey: ["/api/job-entries", filters],
     enabled: isAuthenticated,
   });
+
+  // Filter and sort entries by creation date (newest first) and search term
+  const filteredAndSortedEntries = useMemo(() => {
+    let filtered = entries;
+    
+    // Filter by search term (job number or vehicle make/model)
+    if (searchTerm.trim()) {
+      const search = searchTerm.toLowerCase().trim();
+      filtered = entries.filter(entry => 
+        entry.jobNumber.toLowerCase().includes(search) ||
+        entry.vehicleMake.toLowerCase().includes(search) ||
+        entry.vehicleModel.toLowerCase().includes(search) ||
+        `${entry.vehicleMake} ${entry.vehicleModel}`.toLowerCase().includes(search)
+      );
+    }
+    
+    // Sort by creation date (newest first)
+    return filtered.sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.date);
+      const dateB = new Date(b.createdAt || b.date);
+      return dateB.getTime() - dateA.getTime();
+    });
+  }, [entries, searchTerm]);
 
   const deleteEntryMutation = useMutation({
     mutationFn: async (entryId: number) => {
@@ -357,8 +382,18 @@ export default function Entries() {
             <Button
               variant="ghost"
               size="sm"
+              onClick={() => setViewingEntry(entry)}
+              title="View Entry"
+              className="h-8 w-8 p-0"
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => generateJobPDF(entry)}
               title="Export PDF"
+              className="h-8 w-8 p-0"
             >
               <FileText className="h-4 w-4" />
             </Button>
@@ -453,7 +488,21 @@ export default function Entries() {
           {/* Filter Bar */}
           <Card className="bg-card border-border">
             <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-muted-foreground mb-2">
+                    Search
+                  </label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Job # or Vehicle..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="bg-background border-border pl-10"
+                    />
+                  </div>
+                </div>
                 {user?.role === "manager" && (
                   <div>
                     <label className="block text-sm font-medium text-muted-foreground mb-2">
@@ -513,11 +562,151 @@ export default function Entries() {
           {/* Entries Table */}
           <Card className="bg-card border-border">
             <CardContent className="p-6">
-              <DataTable columns={columns} data={entries} />
+              <DataTable columns={columns} data={filteredAndSortedEntries} />
             </CardContent>
           </Card>
         </div>
       </main>
+
+      {/* View Entry Dialog */}
+      <Dialog open={!!viewingEntry} onOpenChange={() => setViewingEntry(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-card-foreground">
+              View Job Entry - {viewingEntry?.jobNumber || `JOB-${viewingEntry?.id}`}
+            </DialogTitle>
+          </DialogHeader>
+          {viewingEntry && (
+            <div className="space-y-6 p-2">
+              {/* Basic Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Job Number</label>
+                    <p className="text-card-foreground">{viewingEntry.jobNumber || `JOB-${viewingEntry.id}`}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Date</label>
+                    <p className="text-card-foreground">
+                      {new Date(viewingEntry.date).toLocaleDateString('en-US', {
+                        timeZone: 'America/Los_Angeles',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Vehicle</label>
+                    <p className="text-card-foreground">
+                      {viewingEntry.vehicleYear} {viewingEntry.vehicleMake} {viewingEntry.vehicleModel}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Installers</label>
+                    <div className="space-y-1">
+                      {viewingEntry.installers.map((installer, index) => (
+                        <p key={index} className="text-card-foreground">
+                          {installer.firstName} {installer.lastName}
+                          {installer.timeVariance !== 0 && (
+                            <span className={`ml-2 text-xs px-2 py-1 rounded ${
+                              installer.timeVariance > 0 
+                                ? 'bg-red-100 text-red-700' 
+                                : 'bg-green-100 text-green-700'
+                            }`}>
+                              {installer.timeVariance > 0 ? '+' : ''}{installer.timeVariance} min
+                            </span>
+                          )}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Duration</label>
+                    <p className="text-card-foreground">
+                      {viewingEntry.durationMinutes ? `${Math.floor(viewingEntry.durationMinutes / 60)}h ${viewingEntry.durationMinutes % 60}m` : 'Not specified'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Total Windows</label>
+                    <p className="text-card-foreground">{viewingEntry.totalWindows}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dimensions */}
+              {viewingEntry.dimensions && viewingEntry.dimensions.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-card-foreground mb-3">Dimensions</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {viewingEntry.dimensions.map((dimension, index) => (
+                      <div key={index} className="bg-muted/50 p-4 rounded-lg">
+                        <p className="font-medium text-card-foreground">{dimension.description || `Dimension ${index + 1}`}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {Number(dimension.lengthInches).toFixed(1)}" × {Number(dimension.widthInches).toFixed(1)}"
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {Number(dimension.sqft).toFixed(2)} sq ft
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Redo Entries */}
+              {viewingEntry.redoEntries && viewingEntry.redoEntries.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-card-foreground mb-3">Redo Entries</h3>
+                  <div className="space-y-3">
+                    {viewingEntry.redoEntries.map((redo, index) => (
+                      <div key={index} className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border border-red-200 dark:border-red-800">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">Part</label>
+                            <p className="text-card-foreground capitalize">{redo.part}</p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">Installer</label>
+                            <p className="text-card-foreground">
+                              {redo.installer ? `${redo.installer.firstName} ${redo.installer.lastName}` : 'Unknown'}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">Time</label>
+                            <p className="text-card-foreground">{redo.timeMinutes || 0} minutes</p>
+                          </div>
+                        </div>
+                        {redo.lengthInches && redo.widthInches && (
+                          <div className="mt-2">
+                            <label className="text-sm font-medium text-muted-foreground">Dimensions</label>
+                            <p className="text-card-foreground">
+                              {Number(redo.lengthInches).toFixed(1)}" × {Number(redo.widthInches).toFixed(1)}" 
+                              ({((Number(redo.lengthInches) * Number(redo.widthInches)) / 144).toFixed(2)} sq ft)
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              {viewingEntry.notes && (
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Notes</label>
+                  <p className="text-card-foreground mt-1 p-3 bg-muted/50 rounded-lg">
+                    {viewingEntry.notes}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
