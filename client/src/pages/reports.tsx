@@ -1152,7 +1152,7 @@ export default function Reports() {
                 </div>
                 <Button 
                   variant="outline" 
-                  onClick={() => printFilmTypeCostReport()}
+                  onClick={printFilmTypeCostReport}
                   className="border-border hover:bg-muted"
                 >
                   <Printer className="h-4 w-4 mr-2" />
