@@ -13,6 +13,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { EntryForm } from "@/components/forms/entry-form";
 import { JobCostSummary } from "@/components/forms/labor-costs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tooltip } from "@/components/guide/tooltip";
 import { Plus, Download, Filter, RotateCcw, Edit, Trash2, FileText, Eye, Search } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from 'jspdf-autotable';
@@ -467,13 +468,15 @@ export default function Entries() {
                 }
               }}>
                 <DialogTrigger asChild>
-                  <Button 
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                    onClick={() => setEditingEntry(null)}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Entry
-                  </Button>
+                  <div data-tour="add-job">
+                    <Button 
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                      onClick={() => setEditingEntry(null)}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      New Entry
+                    </Button>
+                  </div>
                 </DialogTrigger>
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-border">
                   <DialogHeader>
@@ -497,7 +500,7 @@ export default function Entries() {
         
         <div className="p-8 overflow-y-auto h-full space-y-8">
           {/* Filter Bar */}
-          <Card className="bg-card border-border">
+          <Card className="bg-card border-border" data-tour="job-filters">
             <CardContent className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div>

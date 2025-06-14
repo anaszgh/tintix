@@ -13,20 +13,20 @@ export function Sidebar() {
     // Data Entry role - Only job entries access
     if (userRole === 'data_entry') {
       return [
-        { name: "Job Entries", href: "/entries", icon: Plus, current: location === "/entries" || location === "/" },
+        { name: "Job Entries", href: "/entries", icon: Plus, current: location === "/entries" || location === "/", tourId: "job-entries" },
       ];
     }
     
     // Manager and Installer roles - Full access
     return [
-      { name: "Dashboard", href: "/", icon: BarChart3, current: location === "/" },
-      { name: "Job Entries", href: "/entries", icon: Plus, current: location === "/entries" },
-      { name: "Reports", href: "/reports", icon: BarChart3, current: location === "/reports" },
-      { name: "Time Reports", href: "/time-reports", icon: Clock, current: location === "/time-reports" },
+      { name: "Dashboard", href: "/", icon: BarChart3, current: location === "/", tourId: "dashboard" },
+      { name: "Job Entries", href: "/entries", icon: Plus, current: location === "/entries", tourId: "job-entries" },
+      { name: "Reports", href: "/reports", icon: BarChart3, current: location === "/reports", tourId: "reports" },
+      { name: "Time Reports", href: "/time-reports", icon: Clock, current: location === "/time-reports", tourId: "time-reports" },
       ...(userRole === "manager" ? [
-        { name: "Installer Management", href: "/installers", icon: User, current: location === "/installers" },
-        { name: "User Management", href: "/users", icon: Users, current: location === "/users" },
-        { name: "Film Management", href: "/film-management", icon: FileText, current: location === "/film-management" }
+        { name: "Installer Management", href: "/installers", icon: User, current: location === "/installers", tourId: "installer-management" },
+        { name: "User Management", href: "/users", icon: Users, current: location === "/users", tourId: "user-management" },
+        { name: "Film Management", href: "/film-management", icon: FileText, current: location === "/film-management", tourId: "film-management" }
       ] : []),
     ];
   };
@@ -49,11 +49,14 @@ export function Sidebar() {
         <nav className="space-y-2">
           {navigation.map((item) => (
             <Link key={item.name} href={item.href}>
-              <div className={`flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition-colors cursor-pointer ${
-                item.current
-                  ? "bg-primary/20 text-primary border border-primary/30"
-                  : "text-muted-foreground hover:bg-muted hover:text-card-foreground"
-              }`}>
+              <div 
+                className={`flex items-center space-x-3 px-4 py-3 rounded-lg font-medium transition-colors cursor-pointer ${
+                  item.current
+                    ? "bg-primary/20 text-primary border border-primary/30"
+                    : "text-muted-foreground hover:bg-muted hover:text-card-foreground"
+                }`}
+                data-tour={item.tourId}
+              >
                 <item.icon className="h-5 w-5" />
                 <span>{item.name}</span>
               </div>

@@ -1,3 +1,5 @@
+import { UserGuide } from "@/components/guide/user-guide";
+
 interface HeaderProps {
   title: string;
   description: string;
@@ -12,11 +14,14 @@ export function Header({ title, description, actions }: HeaderProps) {
           <h2 className="text-2xl font-bold text-card-foreground">{title}</h2>
           <p className="text-muted-foreground mt-1">{description}</p>
         </div>
-        {actions && (
-          <div className="flex items-center space-x-4">
-            {actions}
-          </div>
-        )}
+        <div className="flex items-center space-x-4">
+          <UserGuide />
+          {actions && (
+            <>
+              {actions}
+            </>
+          )}
+        </div>
       </div>
     </header>
   );
