@@ -167,7 +167,7 @@ export default function Reports() {
     
     toast({
       title: "Filter Applied",
-      description: `Showing data from ${fromFormatted} to ${toFormatted}. Note: Available data dates are June 12-13, 2025.`,
+      description: `Showing data from ${fromFormatted} to ${toFormatted}`,
     });
   };
 
@@ -1046,21 +1046,8 @@ export default function Reports() {
                   </thead>
                   <tbody>
                     {(() => {
-                      // Filter job entries by date range first, then filter for redos
-                      let filteredEntries = jobEntries;
-                      if (appliedDateFilter?.dateFrom || appliedDateFilter?.dateTo) {
-                        filteredEntries = jobEntries.filter(entry => {
-                          const entryDate = new Date(entry.date);
-                          const fromDate = appliedDateFilter?.dateFrom ? new Date(appliedDateFilter.dateFrom + 'T00:00:00') : null;
-                          const toDate = appliedDateFilter?.dateTo ? new Date(appliedDateFilter.dateTo + 'T23:59:59') : null;
-                          
-                          if (fromDate && entryDate < fromDate) return false;
-                          if (toDate && entryDate > toDate) return false;
-                          return true;
-                        });
-                      }
-                      
-                      const redoJobs = filteredEntries.filter(entry => entry.redoEntries && entry.redoEntries.length > 0);
+                      // Use jobEntries which are already filtered by backend query parameters
+                      const redoJobs = jobEntries.filter(entry => entry.redoEntries && entry.redoEntries.length > 0);
                       return redoJobs.length > 0 ? (
                         redoJobs.flatMap(entry => 
                           entry.redoEntries?.map((redo, redoIndex) => {
@@ -1110,21 +1097,8 @@ export default function Reports() {
               
               {/* Redo Summary totals with date filtering */}
               {(() => {
-                // Filter job entries by date range first, then filter for redos
-                let filteredEntries = jobEntries;
-                if (appliedDateFilter?.dateFrom || appliedDateFilter?.dateTo) {
-                  filteredEntries = jobEntries.filter(entry => {
-                    const entryDate = new Date(entry.date);
-                    const fromDate = appliedDateFilter?.dateFrom ? new Date(appliedDateFilter.dateFrom) : null;
-                    const toDate = appliedDateFilter?.dateTo ? new Date(appliedDateFilter.dateTo) : null;
-                    
-                    if (fromDate && entryDate < fromDate) return false;
-                    if (toDate && entryDate > toDate) return false;
-                    return true;
-                  });
-                }
-                
-                const redoJobs = filteredEntries.filter(entry => entry.redoEntries && entry.redoEntries.length > 0);
+                // Use jobEntries which are already filtered by backend query parameters
+                const redoJobs = jobEntries.filter(entry => entry.redoEntries && entry.redoEntries.length > 0);
                 const totalRedos = redoJobs.reduce((sum, entry) => sum + (entry.redoEntries?.length || 0), 0);
                 const totalRedoSqft = redoJobs.reduce((sum, entry) => {
                   return sum + (entry.redoEntries?.reduce((redoSum, redo) => {
@@ -1213,21 +1187,8 @@ export default function Reports() {
                   </thead>
                   <tbody>
                     {(() => {
-                      // Filter film consumption data by date range
-                      let filteredFilmConsumption = filmConsumption;
-                      if (appliedDateFilter?.dateFrom || appliedDateFilter?.dateTo) {
-                        filteredFilmConsumption = filmConsumption.filter(item => {
-                          const itemDate = new Date(item.date);
-                          const fromDate = appliedDateFilter?.dateFrom ? new Date(appliedDateFilter.dateFrom) : null;
-                          const toDate = appliedDateFilter?.dateTo ? new Date(appliedDateFilter.dateTo) : null;
-                          
-                          if (fromDate && itemDate < fromDate) return false;
-                          if (toDate && itemDate > toDate) return false;
-                          return true;
-                        });
-                      }
-                      
-                      const filmTypeSummary = filteredFilmConsumption.reduce((acc, item) => {
+                      // Use filmConsumption which is already filtered by backend query parameters
+                      const filmTypeSummary = filmConsumption.reduce((acc, item) => {
                         const key = `${item.filmType}-${item.filmName}`;
                         if (!acc[key]) {
                           acc[key] = {
@@ -1277,38 +1238,25 @@ export default function Reports() {
               
               {/* Film Type Summary totals with date filtering */}
               {(() => {
-                // Filter film consumption data by date range
-                let filteredFilmConsumption = filmConsumption;
-                if (appliedDateFilter?.dateFrom || appliedDateFilter?.dateTo) {
-                  filteredFilmConsumption = filmConsumption.filter(item => {
-                    const itemDate = new Date(item.date);
-                    const fromDate = appliedDateFilter?.dateFrom ? new Date(appliedDateFilter.dateFrom) : null;
-                    const toDate = appliedDateFilter?.dateTo ? new Date(appliedDateFilter.dateTo) : null;
-                    
-                    if (fromDate && itemDate < fromDate) return false;
-                    if (toDate && itemDate > toDate) return false;
-                    return true;
-                  });
-                }
-                
-                return filteredFilmConsumption.length > 0 ? (
+                // Use filmConsumption which is already filtered by backend query parameters
+                return filmConsumption.length > 0 ? (
                   <div className="mt-6 pt-4 border-t border-border">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="text-center">
                         <div className="text-2xl font-bold text-card-foreground">
-                          {filteredFilmConsumption.reduce((sum, item) => sum + item.jobCount, 0)}
+                          {filmConsumption.reduce((sum, item) => sum + item.jobCount, 0)}
                         </div>
                         <div className="text-sm text-muted-foreground">Total Jobs</div>
                       </div>
                       <div className="text-center">
                         <div className="text-2xl font-bold text-card-foreground">
-                          {filteredFilmConsumption.reduce((sum, item) => sum + item.totalSqft, 0).toFixed(2)}
+                          {filmConsumption.reduce((sum, item) => sum + item.totalSqft, 0).toFixed(2)}
                         </div>
                         <div className="text-sm text-muted-foreground">Total Sq Ft</div>
                       </div>
                       <div className="text-center">
                         <div className="text-2xl font-bold text-card-foreground">
-                          ${filteredFilmConsumption.reduce((sum, item) => sum + item.totalCost, 0).toFixed(2)}
+                          ${filmConsumption.reduce((sum, item) => sum + item.totalCost, 0).toFixed(2)}
                         </div>
                         <div className="text-sm text-muted-foreground">Total Cost</div>
                       </div>
