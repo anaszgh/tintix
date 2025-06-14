@@ -27,6 +27,7 @@ export default function InstallerManagement() {
     email: "",
     firstName: "",
     lastName: "",
+    hourlyRate: "",
   });
 
   const { data: installers = [], isLoading } = useQuery<User[]>({
@@ -130,8 +131,39 @@ export default function InstallerManagement() {
     },
   });
 
+  const updateHourlyRateMutation = useMutation({
+    mutationFn: async ({ id, hourlyRate }: { id: string; hourlyRate: string }) => {
+      await apiRequest("PATCH", `/api/users/${id}/hourly-rate`, { hourlyRate });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Hourly Rate Updated",
+        description: "Installer's hourly rate has been updated successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/installers"] });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to update hourly rate. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const resetForm = () => {
-    setFormData({ email: "", firstName: "", lastName: "" });
+    setFormData({ email: "", firstName: "", lastName: "", hourlyRate: "" });
     setEditingInstaller(null);
   };
 
@@ -150,6 +182,7 @@ export default function InstallerManagement() {
       email: installer.email || "",
       firstName: installer.firstName || "",
       lastName: installer.lastName || "",
+      hourlyRate: installer.hourlyRate || "0.00",
     });
     setIsDialogOpen(true);
   };
@@ -180,6 +213,69 @@ export default function InstallerManagement() {
           {row.original.role}
         </Badge>
       ),
+    },
+    {
+      accessorKey: "hourlyRate",
+      header: "Hourly Rate",
+      cell: ({ row }) => {
+        const [isEditing, setIsEditing] = useState(false);
+        const [editValue, setEditValue] = useState(row.original.hourlyRate || "0.00");
+
+        const handleSave = () => {
+          if (editValue !== row.original.hourlyRate) {
+            updateHourlyRateMutation.mutate({
+              id: row.original.id,
+              hourlyRate: editValue,
+            });
+          }
+          setIsEditing(false);
+        };
+
+        const handleCancel = () => {
+          setEditValue(row.original.hourlyRate || "0.00");
+          setIsEditing(false);
+        };
+
+        if (isEditing) {
+          return (
+            <div className="flex items-center space-x-2">
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                className="w-20"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSave();
+                  if (e.key === "Escape") handleCancel();
+                }}
+                autoFocus
+              />
+              <Button size="sm" onClick={handleSave}>
+                Save
+              </Button>
+              <Button size="sm" variant="ghost" onClick={handleCancel}>
+                Cancel
+              </Button>
+            </div>
+          );
+        }
+
+        return (
+          <div className="flex items-center space-x-2">
+            <span className="font-mono">${Number(row.original.hourlyRate || 0).toFixed(2)}</span>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setIsEditing(true)}
+              disabled={updateHourlyRateMutation.isPending}
+            >
+              <Edit className="h-3 w-3" />
+            </Button>
+          </div>
+        );
+      },
     },
     {
       id: "actions",

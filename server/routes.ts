@@ -68,6 +68,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update user hourly rate
+  app.patch('/api/users/:id/hourly-rate', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== "manager") {
+        return res.status(403).json({ message: "Only managers can update hourly rates" });
+      }
+
+      const targetUserId = req.params.id;
+      const { hourlyRate } = req.body;
+
+      if (!hourlyRate || isNaN(Number(hourlyRate)) || Number(hourlyRate) < 0) {
+        return res.status(400).json({ message: "Invalid hourly rate. Must be a positive number" });
+      }
+
+      const updatedUser = await storage.updateUserHourlyRate(targetUserId, hourlyRate);
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user hourly rate:", error);
+      res.status(500).json({ message: "Failed to update hourly rate" });
+    }
+  });
+
+  // Get labor costs for a job
+  app.get('/api/job-entries/:id/labor-costs', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const laborCosts = await storage.getJobLaborCosts(Number(id));
+      res.json(laborCosts);
+    } catch (error) {
+      console.error("Error fetching labor costs:", error);
+      res.status(500).json({ message: "Failed to fetch labor costs" });
+    }
+  });
+
   // Job entries routes
   app.get("/api/job-entries", isAuthenticated, async (req: any, res) => {
     try {
