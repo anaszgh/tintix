@@ -448,13 +448,22 @@ export class DatabaseStorage implements IStorage {
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-    // Count distinct job entries (vehicles) and sum total windows
+    // Count distinct job entries (vehicles) and sum total windows (including redos)
     const [vehicleCount] = await db
       .select({
         totalVehicles: count(jobEntries.id),
         totalWindows: sql<number>`COALESCE(SUM(${jobEntries.totalWindows}), 0)`,
       })
       .from(jobEntries)
+      .where(whereClause);
+
+    // Count redo entries as additional windows
+    const [redoWindowCount] = await db
+      .select({
+        redoWindows: count(redoEntries.id),
+      })
+      .from(redoEntries)
+      .innerJoin(jobEntries, eq(redoEntries.jobEntryId, jobEntries.id))
       .where(whereClause);
 
     // Calculate average time variance from existing job entries only
@@ -500,7 +509,7 @@ export class DatabaseStorage implements IStorage {
     return {
       totalVehicles: vehicleCount.totalVehicles,
       totalRedos: redoCount.totalRedos,
-      totalWindows: vehicleCount.totalWindows,
+      totalWindows: vehicleCount.totalWindows + (redoWindowCount.redoWindows || 0), // Include redos as additional windows
       avgTimeVariance: Math.round(timeVarianceMetrics.avgTimeVariance),
       activeInstallers: installerCount.activeInstallers,
       jobsWithoutRedos: perfectJobs.jobsWithoutRedos,
@@ -547,6 +556,22 @@ export class DatabaseStorage implements IStorage {
     
     const vehicleCounts = await vehicleCountsQuery;
 
+    // Get redo count per installer (each redo counts as one additional window)
+    const redoWindowCountsQuery = db
+      .select({
+        installerId: redoEntries.installerId,
+        redoWindows: count(redoEntries.id),
+      })
+      .from(redoEntries)
+      .innerJoin(jobEntries, eq(redoEntries.jobEntryId, jobEntries.id))
+      .groupBy(redoEntries.installerId);
+    
+    if (whereClause) {
+      redoWindowCountsQuery.where(whereClause);
+    }
+    
+    const redoWindowCounts = await redoWindowCountsQuery;
+
     // Get redo count per installer from existing job entries only
     const redoCountsQuery = db
       .select({
@@ -573,13 +598,16 @@ export class DatabaseStorage implements IStorage {
     const results = allInstallers.map(installer => {
       const vehicleData = vehicleCounts.find(vc => vc.installerId === installer.id);
       const redoData = redoCounts.find(rc => rc.installerId === installer.id);
+      const redoWindowData = redoWindowCounts.find(rwc => rwc.installerId === installer.id);
       
       const vehicleCount = vehicleData?.vehicleCount || 0;
       const redoCount = redoData?.redoCount || 0;
-      const totalWindows = vehicleData?.totalWindows || 0;
+      const baseWindows = vehicleData?.totalWindows || 0;
+      const redoWindows = redoWindowData?.redoWindows || 0;
+      const totalWindows = baseWindows + redoWindows; // Include redos as additional windows
       
-      // Calculate success rate using actual window counts: (Total Windows - Total Redos) / Total Windows * 100
-      const successfulWindows = totalWindows - redoCount;
+      // Calculate success rate: (Base Windows Successfully Completed) / Total Windows * 100
+      const successfulWindows = baseWindows; // Base windows are successful, redos are failures
       const successRate = totalWindows > 0 
         ? Math.round((successfulWindows / totalWindows) * 100 * 10) / 10
         : 100;
@@ -699,14 +727,19 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    // Get total redos
+    // Get total redos (each redo counts as one additional window)
     const redoResults = await db.select().from(redoEntries);
     const totalRedos = redoResults.length;
+    
+    // Add redos to total window count (each redo is one additional window)
+    totalWindows += totalRedos;
     
     // Get redos per installer
     const installerRedoCounts: Record<string, number> = {};
     redoResults.forEach(redo => {
       installerRedoCounts[redo.installerId] = (installerRedoCounts[redo.installerId] || 0) + 1;
+      // Each redo also counts as one additional window for that installer
+      installerWindowCounts[redo.installerId] = (installerWindowCounts[redo.installerId] || 0) + 1;
     });
     
     // Get all installers
@@ -780,13 +813,33 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.role, "installer"))
       .groupBy(users.id, users.email, users.firstName, users.lastName, users.profileImageUrl, users.role, users.createdAt, users.updatedAt);
 
-    return result.map(row => ({
-      installer: row.installer,
-      totalMinutes: Number(row.totalMinutes) || 0,
-      totalWindows: Number(row.totalWindows) || 0,
-      avgTimePerWindow: row.totalWindows > 0 ? Math.round((Number(row.totalMinutes) / Number(row.totalWindows)) * 10) / 10 : 0,
-      jobCount: Number(row.jobCount) || 0,
-    }));
+    // Get redo counts per installer to add to window counts
+    const redoCounts = await db
+      .select({
+        installerId: redoEntries.installerId,
+        redoCount: sql<number>`COUNT(*)`,
+      })
+      .from(redoEntries)
+      .groupBy(redoEntries.installerId);
+
+    const redoCountMap = new Map<string, number>();
+    redoCounts.forEach(row => {
+      redoCountMap.set(row.installerId, Number(row.redoCount));
+    });
+
+    return result.map(row => {
+      const baseWindows = Number(row.totalWindows) || 0;
+      const redoWindows = redoCountMap.get(row.installer.id) || 0;
+      const totalWindows = baseWindows + redoWindows; // Include redos as additional windows
+
+      return {
+        installer: row.installer,
+        totalMinutes: Number(row.totalMinutes) || 0,
+        totalWindows,
+        avgTimePerWindow: totalWindows > 0 ? Math.round((Number(row.totalMinutes) / totalWindows) * 10) / 10 : 0,
+        jobCount: Number(row.jobCount) || 0,
+      };
+    });
   }
 
   // Film operations
