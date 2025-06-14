@@ -111,11 +111,16 @@ export default function UsersPage() {
       cell: ({ row }: any) => {
         const role = row.original.role;
         return (
-          <Badge variant={role === "manager" ? "default" : "secondary"}>
+          <Badge variant={role === "manager" ? "default" : role === "data_entry" ? "outline" : "secondary"}>
             {role === "manager" ? (
               <>
                 <Shield className="w-3 h-3 mr-1" />
                 Manager
+              </>
+            ) : role === "data_entry" ? (
+              <>
+                <UserCheck className="w-3 h-3 mr-1" />
+                Data Entry
               </>
             ) : (
               <>
@@ -152,6 +157,7 @@ export default function UsersPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="installer">Installer</SelectItem>
+              <SelectItem value="data_entry">Data Entry</SelectItem>
               <SelectItem value="manager">Manager</SelectItem>
             </SelectContent>
           </Select>

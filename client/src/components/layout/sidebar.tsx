@@ -7,17 +7,31 @@ export function Sidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
 
-  const navigation = [
-    { name: "Dashboard", href: "/", icon: BarChart3, current: location === "/" },
-    { name: "Job Entries", href: "/entries", icon: Plus, current: location === "/entries" },
-    { name: "Reports", href: "/reports", icon: BarChart3, current: location === "/reports" },
-    { name: "Time Reports", href: "/time-reports", icon: Clock, current: location === "/time-reports" },
-    ...(user?.role === "manager" ? [
-      { name: "Installer Management", href: "/installers", icon: User, current: location === "/installers" },
-      { name: "User Management", href: "/users", icon: Users, current: location === "/users" },
-      { name: "Film Management", href: "/film-management", icon: FileText, current: location === "/film-management" }
-    ] : []),
-  ];
+  const getNavigationForRole = () => {
+    const userRole = user?.role || '';
+    
+    // Data Entry role - Only job entries access
+    if (userRole === 'data_entry') {
+      return [
+        { name: "Job Entries", href: "/entries", icon: Plus, current: location === "/entries" || location === "/" },
+      ];
+    }
+    
+    // Manager and Installer roles - Full access
+    return [
+      { name: "Dashboard", href: "/", icon: BarChart3, current: location === "/" },
+      { name: "Job Entries", href: "/entries", icon: Plus, current: location === "/entries" },
+      { name: "Reports", href: "/reports", icon: BarChart3, current: location === "/reports" },
+      { name: "Time Reports", href: "/time-reports", icon: Clock, current: location === "/time-reports" },
+      ...(userRole === "manager" ? [
+        { name: "Installer Management", href: "/installers", icon: User, current: location === "/installers" },
+        { name: "User Management", href: "/users", icon: Users, current: location === "/users" },
+        { name: "Film Management", href: "/film-management", icon: FileText, current: location === "/film-management" }
+      ] : []),
+    ];
+  };
+
+  const navigation = getNavigationForRole();
 
   return (
     <aside className="w-64 bg-card border-r border-border flex-shrink-0 flex flex-col">

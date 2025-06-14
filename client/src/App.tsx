@@ -51,11 +51,13 @@ function LoadingScreen() {
 }
 
 function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
     return <LoadingScreen />;
   }
+
+  const userRole = user?.role || '';
 
   return (
     <Switch>
@@ -63,13 +65,24 @@ function Router() {
         <Route path="/" component={Landing} />
       ) : (
         <>
-          <Route path="/" component={Dashboard} />
-          <Route path="/entries" component={Entries} />
-          <Route path="/reports" component={Reports} />
-          <Route path="/time-reports" component={TimeReports} />
-          <Route path="/installers" component={InstallerManagement} />
-          <Route path="/users" component={UsersPage} />
-          <Route path="/film-management" component={FilmManagement} />
+          {/* Data Entry role - Only access to job entries */}
+          {userRole === 'data_entry' ? (
+            <>
+              <Route path="/" component={Entries} />
+              <Route path="/entries" component={Entries} />
+            </>
+          ) : (
+            /* Manager and Installer roles - Full access */
+            <>
+              <Route path="/" component={Dashboard} />
+              <Route path="/entries" component={Entries} />
+              <Route path="/reports" component={Reports} />
+              <Route path="/time-reports" component={TimeReports} />
+              <Route path="/installers" component={InstallerManagement} />
+              <Route path="/users" component={UsersPage} />
+              <Route path="/film-management" component={FilmManagement} />
+            </>
+          )}
         </>
       )}
       <Route component={NotFound} />

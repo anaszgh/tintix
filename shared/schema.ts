@@ -36,7 +36,7 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
-  role: varchar("role").notNull().default("installer"), // "installer" or "manager"
+  role: varchar("role").notNull().default("installer"), // "installer", "manager", or "data_entry"
   hourlyRate: numeric("hourly_rate", { precision: 8, scale: 2 }).default("0.00"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

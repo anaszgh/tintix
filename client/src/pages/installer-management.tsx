@@ -209,8 +209,8 @@ export default function InstallerManagement() {
       accessorKey: "role",
       header: "Role",
       cell: ({ row }) => (
-        <Badge variant={row.original.role === "manager" ? "default" : "secondary"}>
-          {row.original.role}
+        <Badge variant={row.original.role === "manager" ? "default" : row.original.role === "data_entry" ? "outline" : "secondary"}>
+          {row.original.role === "data_entry" ? "Data Entry" : row.original.role}
         </Badge>
       ),
     },
