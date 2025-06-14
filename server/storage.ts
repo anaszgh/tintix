@@ -557,22 +557,90 @@ export class DatabaseStorage implements IStorage {
     }
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-    // Get vehicle count and total windows per installer from existing job entries only
-    const vehicleCountsQuery = db
+    // Get all job entries with window assignments for proper calculation
+    const allJobEntries = await db
+      .select({
+        id: jobEntries.id,
+        totalWindows: jobEntries.totalWindows,
+        windowAssignments: jobEntries.windowAssignments,
+      })
+      .from(jobEntries)
+      .where(whereClause);
+
+    // Calculate actual windows per installer using JavaScript parsing
+    const installerWindowCounts: Record<string, { vehicleCount: number; totalWindows: number }> = {};
+    
+    // Get all job installers for counting vehicles
+    const allJobInstallers = await db
       .select({
         installerId: jobInstallers.installerId,
-        vehicleCount: count(jobInstallers.jobEntryId),
-        totalWindows: sql<number>`SUM(${jobEntries.totalWindows})`,
+        jobEntryId: jobInstallers.jobEntryId,
       })
       .from(jobInstallers)
       .innerJoin(jobEntries, eq(jobInstallers.jobEntryId, jobEntries.id))
-      .groupBy(jobInstallers.installerId);
-    
-    if (whereClause) {
-      vehicleCountsQuery.where(whereClause);
+      .where(whereClause);
+
+    // Count vehicles per installer
+    for (const ji of allJobInstallers) {
+      if (!installerWindowCounts[ji.installerId]) {
+        installerWindowCounts[ji.installerId] = { vehicleCount: 0, totalWindows: 0 };
+      }
+      installerWindowCounts[ji.installerId].vehicleCount++;
     }
-    
-    const vehicleCounts = await vehicleCountsQuery;
+
+    // Count actual windows assigned per installer
+    for (const entry of allJobEntries) {
+      if (entry.windowAssignments) {
+        try {
+          const assignments = typeof entry.windowAssignments === 'string' 
+            ? JSON.parse(entry.windowAssignments) 
+            : entry.windowAssignments;
+          
+          if (Array.isArray(assignments)) {
+            assignments.forEach((assignment: any) => {
+              if (assignment.installerId) {
+                if (!installerWindowCounts[assignment.installerId]) {
+                  installerWindowCounts[assignment.installerId] = { vehicleCount: 0, totalWindows: 0 };
+                }
+                installerWindowCounts[assignment.installerId].totalWindows++;
+              }
+            });
+          }
+        } catch (error) {
+          console.error('Error parsing window assignments:', error);
+          // Fallback: distribute total windows among installers for this job
+          const jobInstallers = allJobInstallers.filter(ji => ji.jobEntryId === entry.id);
+          const windowsPerInstaller = Math.floor(entry.totalWindows / jobInstallers.length);
+          
+          jobInstallers.forEach(ji => {
+            if (!installerWindowCounts[ji.installerId]) {
+              installerWindowCounts[ji.installerId] = { vehicleCount: 0, totalWindows: 0 };
+            }
+            installerWindowCounts[ji.installerId].totalWindows += windowsPerInstaller;
+          });
+        }
+      } else {
+        // No window assignments: distribute total windows equally among installers
+        const jobInstallers = allJobInstallers.filter(ji => ji.jobEntryId === entry.id);
+        if (jobInstallers.length > 0) {
+          const windowsPerInstaller = Math.floor(entry.totalWindows / jobInstallers.length);
+          
+          jobInstallers.forEach(ji => {
+            if (!installerWindowCounts[ji.installerId]) {
+              installerWindowCounts[ji.installerId] = { vehicleCount: 0, totalWindows: 0 };
+            }
+            installerWindowCounts[ji.installerId].totalWindows += windowsPerInstaller;
+          });
+        }
+      }
+    }
+
+    // Convert to the expected format
+    const vehicleCounts = Object.entries(installerWindowCounts).map(([installerId, data]) => ({
+      installerId,
+      vehicleCount: data.vehicleCount,
+      totalWindows: data.totalWindows,
+    }));
 
     // Get redo count per installer (each redo counts as one additional window)
     const redoWindowCountsQuery = db
@@ -627,7 +695,7 @@ export class DatabaseStorage implements IStorage {
       // Calculate success rate: (Base Windows Successfully Completed) / Total Windows * 100
       const successfulWindows = baseWindows; // Base windows are successful, redos are failures
       const successRate = totalWindows > 0 
-        ? Math.round((successfulWindows / totalWindows) * 100 * 10) / 10
+        ? Math.round((successfulWindows / totalWindows) * 1000) / 10  // More precise rounding
         : 100;
 
       return {
