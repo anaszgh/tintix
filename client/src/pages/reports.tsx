@@ -461,8 +461,8 @@ export default function Reports() {
     doc.text(`Average Cost per Sq Ft: $${totalSqft > 0 ? (totalCost / totalSqft).toFixed(2) : '0.00'}`, 20, summaryY + 24);
 
     // Save the PDF
-    const dateRangeStr = appliedDateFilter 
-      ? `_${appliedDateFilter.dateFrom}_to_${appliedDateFilter.dateTo}`
+    const dateRangeStr = appliedCogsDateFilter 
+      ? `_${appliedCogsDateFilter.dateFrom}_to_${appliedCogsDateFilter.dateTo}`
       : '_all_dates';
     
     doc.save(`COGS_Report${dateRangeStr}.pdf`);
@@ -1125,6 +1125,65 @@ export default function Reports() {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              {/* COGS Date Filter */}
+              <div className="mb-6 p-4 bg-muted/30 rounded-lg border">
+                <div className="flex flex-wrap items-end gap-4">
+                  <div className="grid grid-cols-2 gap-4 flex-1">
+                    <div>
+                      <Label htmlFor="cogsDateFrom" className="text-sm font-medium text-muted-foreground mb-2 block">
+                        From Date
+                      </Label>
+                      <Input
+                        id="cogsDateFrom"
+                        type="date"
+                        value={cogsDateFrom}
+                        onChange={(e) => setCogsDateFrom(e.target.value)}
+                        className="bg-background border-border"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="cogsDateTo" className="text-sm font-medium text-muted-foreground mb-2 block">
+                        To Date
+                      </Label>
+                      <Input
+                        id="cogsDateTo"
+                        type="date"
+                        value={cogsDateTo}
+                        onChange={(e) => setCogsDateTo(e.target.value)}
+                        className="bg-background border-border"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={applyCogsDateFilter}
+                      className="bg-primary hover:bg-primary/90"
+                    >
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Apply COGS Filter
+                    </Button>
+                    <Button
+                      onClick={clearCogsDateFilter}
+                      variant="outline"
+                      className="border-border hover:bg-muted"
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Clear
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* Show Applied COGS Filter */}
+                {appliedCogsDateFilter && (
+                  <div className="mt-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                    <p className="text-sm text-muted-foreground">
+                      <strong>Active COGS Filter:</strong> {appliedCogsDateFilter.dateFrom} to {appliedCogsDateFilter.dateTo}
+                    </p>
+                  </div>
+                )}
+              </div>
+              
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
