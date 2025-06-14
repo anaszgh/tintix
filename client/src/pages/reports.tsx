@@ -22,6 +22,11 @@ export default function Reports() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [appliedDateFilter, setAppliedDateFilter] = useState<{dateFrom: string, dateTo: string} | null>(null);
+  
+  // Separate date filter for COGS section
+  const [cogsDateFrom, setCogsDateFrom] = useState("");
+  const [cogsDateTo, setCogsDateTo] = useState("");
+  const [appliedCogsDateFilter, setAppliedCogsDateFilter] = useState<{dateFrom: string, dateTo: string} | null>(null);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -47,7 +52,17 @@ export default function Reports() {
     };
   };
 
+  // Create query parameters for COGS date filtering
+  const getCogsQueryParams = () => {
+    if (!appliedCogsDateFilter) return {};
+    return {
+      dateFrom: appliedCogsDateFilter.dateFrom,
+      dateTo: appliedCogsDateFilter.dateTo
+    };
+  };
+
   const queryParams = getQueryParams();
+  const cogsQueryParams = getCogsQueryParams();
 
   const { data: topPerformers = [] } = useQuery<Array<{
     installer: {
@@ -115,11 +130,11 @@ export default function Reports() {
     totalCost: number;
     jobCount: number;
   }>>({
-    queryKey: ["/api/analytics/film-consumption", queryParams],
+    queryKey: ["/api/analytics/film-consumption", cogsQueryParams],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (queryParams.dateFrom) params.set('dateFrom', queryParams.dateFrom);
-      if (queryParams.dateTo) params.set('dateTo', queryParams.dateTo);
+      if (cogsQueryParams.dateFrom) params.set('dateFrom', cogsQueryParams.dateFrom);
+      if (cogsQueryParams.dateTo) params.set('dateTo', cogsQueryParams.dateTo);
       
       const response = await fetch(`/api/analytics/film-consumption?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch film consumption');
@@ -218,6 +233,56 @@ export default function Reports() {
     });
   };
 
+  // Apply COGS date filter
+  const applyCogsDateFilter = () => {
+    if (!cogsDateFrom || !cogsDateTo) {
+      toast({
+        title: "Invalid Date Range",
+        description: "Please select both start and end dates for COGS filter.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (new Date(cogsDateFrom) > new Date(cogsDateTo)) {
+      toast({
+        title: "Invalid Date Range",
+        description: "Start date must be before end date.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setAppliedCogsDateFilter({ dateFrom: cogsDateFrom, dateTo: cogsDateTo });
+    
+    // Format dates for display
+    const formatDate = (dateStr: string) => {
+      const [year, month, day] = dateStr.split('-');
+      return `${parseInt(month)}/${parseInt(day)}/${year}`;
+    };
+    
+    const fromFormatted = formatDate(cogsDateFrom);
+    const toFormatted = formatDate(cogsDateTo);
+    
+    toast({
+      title: "COGS Filter Applied",
+      description: `Showing COGS data from ${fromFormatted} to ${toFormatted}`,
+      duration: 2000,
+    });
+  };
+
+  // Clear COGS date filter
+  const clearCogsDateFilter = () => {
+    setCogsDateFrom("");
+    setCogsDateTo("");
+    setAppliedCogsDateFilter(null);
+    toast({
+      title: "COGS Filter Cleared",
+      description: "Showing all COGS data",
+      duration: 2000,
+    });
+  };
+
   // Print function
   const printReport = () => {
     window.print();
@@ -277,8 +342,8 @@ export default function Reports() {
 
     XLSX.utils.book_append_sheet(workbook, worksheet, 'COGS Report');
     
-    const dateRange = appliedDateFilter 
-      ? `_${appliedDateFilter.dateFrom}_to_${appliedDateFilter.dateTo}`
+    const dateRange = appliedCogsDateFilter 
+      ? `_${appliedCogsDateFilter.dateFrom}_to_${appliedCogsDateFilter.dateTo}`
       : '_all_dates';
     
     XLSX.writeFile(workbook, `COGS_Report${dateRange}.xlsx`);
@@ -308,8 +373,8 @@ export default function Reports() {
     doc.text('Tintix - Cost of Goods Sold (COGS) Report', pageWidth / 2, 20, { align: 'center' });
     
     doc.setFontSize(12);
-    const dateRange = appliedDateFilter 
-      ? `Date Range: ${appliedDateFilter.dateFrom} to ${appliedDateFilter.dateTo}`
+    const dateRange = appliedCogsDateFilter 
+      ? `Date Range: ${appliedCogsDateFilter.dateFrom} to ${appliedCogsDateFilter.dateTo}`
       : 'Date Range: All Time';
     doc.text(dateRange, pageWidth / 2, 30, { align: 'center' });
     
