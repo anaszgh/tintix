@@ -30,6 +30,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserRole(userId: string, role: string): Promise<User>;
+  updateUserHourlyRate(userId: string, hourlyRate: string): Promise<User>;
   getAllUsers(): Promise<User[]>;
   deleteUser(id: string): Promise<void>;
   
@@ -128,6 +129,14 @@ export interface IStorage {
     totalCost: number;
     jobCount: number;
   }>>;
+
+  // Labor cost calculations
+  getJobLaborCosts(jobEntryId: number): Promise<Array<{
+    installer: User;
+    timeMinutes: number;
+    hourlyRate: number;
+    laborCost: number;
+  }>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -156,6 +165,15 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db
       .update(users)
       .set({ role, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async updateUserHourlyRate(userId: string, hourlyRate: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ hourlyRate, updatedAt: new Date() })
       .where(eq(users.id, userId))
       .returning();
     return user;
@@ -968,6 +986,36 @@ export class DatabaseStorage implements IStorage {
     });
 
     return combinedResults;
+  }
+
+  // Labor cost calculations
+  async getJobLaborCosts(jobEntryId: number): Promise<Array<{
+    installer: User;
+    timeMinutes: number;
+    hourlyRate: number;
+    laborCost: number;
+  }>> {
+    const result = await db
+      .select({
+        installer: users,
+        timeMinutes: installerTimeEntries.timeMinutes,
+      })
+      .from(installerTimeEntries)
+      .innerJoin(users, eq(installerTimeEntries.installerId, users.id))
+      .where(eq(installerTimeEntries.jobEntryId, jobEntryId));
+
+    return result.map(row => {
+      const hourlyRate = Number(row.installer.hourlyRate) || 0;
+      const timeHours = row.timeMinutes / 60;
+      const laborCost = timeHours * hourlyRate;
+
+      return {
+        installer: row.installer,
+        timeMinutes: row.timeMinutes,
+        hourlyRate,
+        laborCost: Math.round(laborCost * 100) / 100, // Round to 2 decimal places
+      };
+    });
   }
 }
 
