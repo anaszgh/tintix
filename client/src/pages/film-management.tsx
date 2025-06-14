@@ -23,6 +23,10 @@ import type { Film } from "@shared/schema";
 
 const filmFormSchema = insertFilmSchema.extend({
   costPerSqft: z.number().min(0.01, "Cost must be greater than 0"),
+  totalSqft: z.number().min(0.01, "Total SQFT must be greater than 0").optional(),
+  grossWeight: z.number().min(0.01, "Gross weight must be greater than 0").optional(),
+  coreWeight: z.number().min(0, "Core weight cannot be negative").optional(),
+  netWeight: z.number().min(0.01, "Net weight must be greater than 0").optional(),
 });
 
 const filmTypes = [
@@ -61,6 +65,10 @@ export default function FilmManagement() {
       name: "",
       type: "",
       costPerSqft: 0,
+      totalSqft: undefined,
+      grossWeight: undefined,
+      coreWeight: undefined,
+      netWeight: undefined,
       isActive: true,
     },
   });
