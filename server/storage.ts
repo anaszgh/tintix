@@ -267,10 +267,16 @@ export class DatabaseStorage implements IStorage {
     const conditions = [];
     
     if (filters?.dateFrom) {
-      conditions.push(gte(jobEntries.date, filters.dateFrom));
+      // Create start of day for dateFrom
+      const startOfDay = new Date(filters.dateFrom);
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      conditions.push(gte(jobEntries.date, startOfDay));
     }
     if (filters?.dateTo) {
-      conditions.push(lte(jobEntries.date, filters.dateTo));
+      // Create end of day for dateTo
+      const endOfDay = new Date(filters.dateTo);
+      endOfDay.setUTCHours(23, 59, 59, 999);
+      conditions.push(lte(jobEntries.date, endOfDay));
     }
 
     let query = db
@@ -430,10 +436,14 @@ export class DatabaseStorage implements IStorage {
     const conditions = [];
     
     if (filters?.dateFrom) {
-      conditions.push(gte(jobEntries.date, filters.dateFrom));
+      const startOfDay = new Date(filters.dateFrom);
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      conditions.push(gte(jobEntries.date, startOfDay));
     }
     if (filters?.dateTo) {
-      conditions.push(lte(jobEntries.date, filters.dateTo));
+      const endOfDay = new Date(filters.dateTo);
+      endOfDay.setUTCHours(23, 59, 59, 999);
+      conditions.push(lte(jobEntries.date, endOfDay));
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -507,14 +517,18 @@ export class DatabaseStorage implements IStorage {
     successRate: number;
   }>> {
     // Build where clause for date filtering
-    let whereClause: any = undefined;
-    if (filters?.dateFrom && filters?.dateTo) {
-      whereClause = sql`${jobEntries.date} BETWEEN ${filters.dateFrom.toISOString().split('T')[0]} AND ${filters.dateTo.toISOString().split('T')[0]}`;
-    } else if (filters?.dateFrom) {
-      whereClause = sql`${jobEntries.date} >= ${filters.dateFrom.toISOString().split('T')[0]}`;
-    } else if (filters?.dateTo) {
-      whereClause = sql`${jobEntries.date} <= ${filters.dateTo.toISOString().split('T')[0]}`;
+    const conditions = [];
+    if (filters?.dateFrom) {
+      const startOfDay = new Date(filters.dateFrom);
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      conditions.push(gte(jobEntries.date, startOfDay));
     }
+    if (filters?.dateTo) {
+      const endOfDay = new Date(filters.dateTo);
+      endOfDay.setUTCHours(23, 59, 59, 999);
+      conditions.push(lte(jobEntries.date, endOfDay));
+    }
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
     // Get vehicle count and total windows per installer from existing job entries only
     const vehicleCountsQuery = db
@@ -599,9 +613,20 @@ export class DatabaseStorage implements IStorage {
     totalCost: number;
     avgTimeMinutes: number;
   }>> {
-    // For now, return all redo breakdown data regardless of filters
-    // TODO: Implement date filtering once Drizzle query builder issues are resolved
-    const results = await db
+    const conditions = [];
+    
+    if (filters?.dateFrom) {
+      const startOfDay = new Date(filters.dateFrom);
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      conditions.push(gte(jobEntries.date, startOfDay));
+    }
+    if (filters?.dateTo) {
+      const endOfDay = new Date(filters.dateTo);
+      endOfDay.setUTCHours(23, 59, 59, 999);
+      conditions.push(lte(jobEntries.date, endOfDay));
+    }
+
+    let query = db
       .select({
         part: redoEntries.part,
         count: count(redoEntries.id),
@@ -610,8 +635,15 @@ export class DatabaseStorage implements IStorage {
         avgTimeMinutes: sql<number>`COALESCE(AVG(${redoEntries.timeMinutes}::numeric), 0)`,
       })
       .from(redoEntries)
+      .innerJoin(jobEntries, eq(redoEntries.jobEntryId, jobEntries.id))
       .groupBy(redoEntries.part)
       .orderBy(desc(count(redoEntries.id)));
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    const results = await query;
 
     return results.map(result => ({
       ...result,
@@ -808,21 +840,18 @@ export class DatabaseStorage implements IStorage {
     jobCount: number;
   }>> {
     // Build filter conditions
-    let whereClause = undefined;
-    if (filters?.dateFrom && filters?.dateTo) {
-      const endDate = new Date(filters.dateTo);
-      endDate.setHours(23, 59, 59, 999);
-      whereClause = and(
-        gte(jobEntries.date, filters.dateFrom),
-        lte(jobEntries.date, endDate)
-      );
-    } else if (filters?.dateFrom) {
-      whereClause = gte(jobEntries.date, filters.dateFrom);
-    } else if (filters?.dateTo) {
-      const endDate = new Date(filters.dateTo);
-      endDate.setHours(23, 59, 59, 999);
-      whereClause = lte(jobEntries.date, endDate);
+    const conditions = [];
+    if (filters?.dateFrom) {
+      const startOfDay = new Date(filters.dateFrom);
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      conditions.push(gte(jobEntries.date, startOfDay));
     }
+    if (filters?.dateTo) {
+      const endOfDay = new Date(filters.dateTo);
+      endOfDay.setUTCHours(23, 59, 59, 999);
+      conditions.push(lte(jobEntries.date, endOfDay));
+    }
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
     // Get job-level consumption
     const jobQuery = db
