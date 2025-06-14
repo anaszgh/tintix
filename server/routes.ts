@@ -692,6 +692,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Inventory management routes
+  app.get("/api/inventory", isAuthenticated, async (req: any, res) => {
+    try {
+      const filmsWithInventory = await storage.getFilmsWithInventory();
+      res.json(filmsWithInventory);
+    } catch (error) {
+      console.error("Error fetching inventory:", error);
+      res.status(500).json({ message: "Failed to fetch inventory" });
+    }
+  });
+
+  app.post("/api/inventory/:filmId/add", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== "manager") {
+        return res.status(403).json({ message: "Only managers can add inventory" });
+      }
+
+      const filmId = parseInt(req.params.filmId);
+      const { quantity, notes } = req.body;
+
+      if (!quantity || quantity <= 0) {
+        return res.status(400).json({ message: "Quantity must be greater than 0" });
+      }
+
+      const inventory = await storage.addInventoryStock(filmId, quantity, userId, notes);
+      res.json(inventory);
+    } catch (error) {
+      console.error("Error adding inventory:", error);
+      res.status(500).json({ message: "Failed to add inventory" });
+    }
+  });
+
+  app.post("/api/inventory/:filmId/adjust", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== "manager") {
+        return res.status(403).json({ message: "Only managers can adjust inventory" });
+      }
+
+      const filmId = parseInt(req.params.filmId);
+      const { newStock, notes } = req.body;
+
+      if (newStock < 0) {
+        return res.status(400).json({ message: "Stock cannot be negative" });
+      }
+
+      const inventory = await storage.adjustInventoryStock(filmId, newStock, userId, notes);
+      res.json(inventory);
+    } catch (error) {
+      console.error("Error adjusting inventory:", error);
+      res.status(500).json({ message: "Failed to adjust inventory" });
+    }
+  });
+
+  app.post("/api/inventory/:filmId/minimum", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.role !== "manager") {
+        return res.status(403).json({ message: "Only managers can set minimum stock" });
+      }
+
+      const filmId = parseInt(req.params.filmId);
+      const { minimumStock } = req.body;
+
+      if (minimumStock < 0) {
+        return res.status(400).json({ message: "Minimum stock cannot be negative" });
+      }
+
+      const inventory = await storage.setMinimumStock(filmId, minimumStock);
+      res.json(inventory);
+    } catch (error) {
+      console.error("Error setting minimum stock:", error);
+      res.status(500).json({ message: "Failed to set minimum stock" });
+    }
+  });
+
+  app.get("/api/inventory/transactions", isAuthenticated, async (req: any, res) => {
+    try {
+      const { filmId, limit } = req.query;
+      const transactions = await storage.getInventoryTransactions(
+        filmId ? parseInt(filmId) : undefined,
+        limit ? parseInt(limit) : undefined
+      );
+      res.json(transactions);
+    } catch (error) {
+      console.error("Error fetching inventory transactions:", error);
+      res.status(500).json({ message: "Failed to fetch inventory transactions" });
+    }
+  });
+
+  app.get("/api/inventory/low-stock", isAuthenticated, async (req: any, res) => {
+    try {
+      const lowStockFilms = await storage.getLowStockFilms();
+      res.json(lowStockFilms);
+    } catch (error) {
+      console.error("Error fetching low stock films:", error);
+      res.status(500).json({ message: "Failed to fetch low stock films" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

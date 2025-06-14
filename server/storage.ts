@@ -144,6 +144,16 @@ export interface IStorage {
     hourlyRate: number;
     laborCost: number;
   }>>;
+
+  // Inventory operations
+  getFilmsWithInventory(): Promise<FilmWithInventory[]>;
+  getFilmInventory(filmId: number): Promise<FilmInventory | undefined>;
+  addInventoryStock(filmId: number, quantity: number, userId: string, notes?: string): Promise<FilmInventory>;
+  deductInventoryStock(filmId: number, quantity: number, userId: string, jobEntryId?: number, notes?: string): Promise<FilmInventory>;
+  adjustInventoryStock(filmId: number, newStock: number, userId: string, notes?: string): Promise<FilmInventory>;
+  setMinimumStock(filmId: number, minimumStock: number): Promise<FilmInventory>;
+  getInventoryTransactions(filmId?: number, limit?: number): Promise<Array<InventoryTransaction & { film: Film; createdByUser: User; jobEntry?: JobEntry }>>;
+  getLowStockFilms(): Promise<FilmWithInventory[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -276,6 +286,23 @@ export class DatabaseStorage implements IStorage {
           windowsCompleted: windowCount,
           timeMinutes: allocatedTime,
         });
+      }
+    }
+
+    // Auto-deduct inventory if film is used
+    if (jobEntry.filmId && jobEntry.totalSqft) {
+      const userId = installerData.length > 0 ? installerData[0].installerId : "system";
+      try {
+        await this.deductInventoryStock(
+          jobEntry.filmId, 
+          jobEntry.totalSqft, 
+          userId, 
+          entry.id, 
+          `Auto-deduction for job ${entry.jobNumber}`
+        );
+      } catch (error) {
+        console.warn(`Failed to deduct inventory for job ${entry.jobNumber}:`, error);
+        // Continue without failing the job creation
       }
     }
     
@@ -1091,6 +1118,221 @@ export class DatabaseStorage implements IStorage {
         laborCost: Math.round(laborCost * 100) / 100, // Round to 2 decimal places
       };
     });
+  }
+
+  // Inventory operations
+  async getFilmsWithInventory(): Promise<FilmWithInventory[]> {
+    const result = await db
+      .select()
+      .from(films)
+      .leftJoin(filmInventory, eq(films.id, filmInventory.filmId))
+      .orderBy(films.type, films.name);
+
+    return result.map(row => ({
+      ...row.films,
+      inventory: row.film_inventory || undefined,
+    }));
+  }
+
+  async getFilmInventory(filmId: number): Promise<FilmInventory | undefined> {
+    const [inventory] = await db
+      .select()
+      .from(filmInventory)
+      .where(eq(filmInventory.filmId, filmId));
+    return inventory;
+  }
+
+  async addInventoryStock(filmId: number, quantity: number, userId: string, notes?: string): Promise<FilmInventory> {
+    // Get current inventory or create if doesn't exist
+    let inventory = await this.getFilmInventory(filmId);
+    const previousStock = inventory ? Number(inventory.currentStock) : 0;
+    const newStock = previousStock + quantity;
+
+    if (inventory) {
+      // Update existing inventory
+      [inventory] = await db
+        .update(filmInventory)
+        .set({ 
+          currentStock: newStock.toString(),
+          updatedAt: new Date()
+        })
+        .where(eq(filmInventory.filmId, filmId))
+        .returning();
+    } else {
+      // Create new inventory record
+      [inventory] = await db
+        .insert(filmInventory)
+        .values({
+          filmId,
+          currentStock: newStock.toString(),
+          minimumStock: "0.00"
+        })
+        .returning();
+    }
+
+    // Log transaction
+    await db.insert(inventoryTransactions).values({
+      filmId,
+      type: "addition",
+      quantity: quantity.toString(),
+      previousStock: previousStock.toString(),
+      newStock: newStock.toString(),
+      notes,
+      createdBy: userId,
+    });
+
+    return inventory;
+  }
+
+  async deductInventoryStock(filmId: number, quantity: number, userId: string, jobEntryId?: number, notes?: string): Promise<FilmInventory> {
+    // Get current inventory or create if doesn't exist
+    let inventory = await this.getFilmInventory(filmId);
+    const previousStock = inventory ? Number(inventory.currentStock) : 0;
+    const newStock = Math.max(0, previousStock - quantity); // Don't allow negative stock
+
+    if (inventory) {
+      // Update existing inventory
+      [inventory] = await db
+        .update(filmInventory)
+        .set({ 
+          currentStock: newStock.toString(),
+          updatedAt: new Date()
+        })
+        .where(eq(filmInventory.filmId, filmId))
+        .returning();
+    } else {
+      // Create new inventory record with negative deduction
+      [inventory] = await db
+        .insert(filmInventory)
+        .values({
+          filmId,
+          currentStock: newStock.toString(),
+          minimumStock: "0.00"
+        })
+        .returning();
+    }
+
+    // Log transaction
+    await db.insert(inventoryTransactions).values({
+      filmId,
+      type: "deduction",
+      quantity: (-quantity).toString(), // Negative for deductions
+      previousStock: previousStock.toString(),
+      newStock: newStock.toString(),
+      jobEntryId,
+      notes,
+      createdBy: userId,
+    });
+
+    return inventory;
+  }
+
+  async adjustInventoryStock(filmId: number, newStock: number, userId: string, notes?: string): Promise<FilmInventory> {
+    // Get current inventory or create if doesn't exist
+    let inventory = await this.getFilmInventory(filmId);
+    const previousStock = inventory ? Number(inventory.currentStock) : 0;
+
+    if (inventory) {
+      // Update existing inventory
+      [inventory] = await db
+        .update(filmInventory)
+        .set({ 
+          currentStock: newStock.toString(),
+          updatedAt: new Date()
+        })
+        .where(eq(filmInventory.filmId, filmId))
+        .returning();
+    } else {
+      // Create new inventory record
+      [inventory] = await db
+        .insert(filmInventory)
+        .values({
+          filmId,
+          currentStock: newStock.toString(),
+          minimumStock: "0.00"
+        })
+        .returning();
+    }
+
+    // Log transaction
+    await db.insert(inventoryTransactions).values({
+      filmId,
+      type: "adjustment",
+      quantity: (newStock - previousStock).toString(),
+      previousStock: previousStock.toString(),
+      newStock: newStock.toString(),
+      notes,
+      createdBy: userId,
+    });
+
+    return inventory;
+  }
+
+  async setMinimumStock(filmId: number, minimumStock: number): Promise<FilmInventory> {
+    // Get current inventory or create if doesn't exist
+    let inventory = await this.getFilmInventory(filmId);
+
+    if (inventory) {
+      // Update existing inventory
+      [inventory] = await db
+        .update(filmInventory)
+        .set({ 
+          minimumStock: minimumStock.toString(),
+          updatedAt: new Date()
+        })
+        .where(eq(filmInventory.filmId, filmId))
+        .returning();
+    } else {
+      // Create new inventory record
+      [inventory] = await db
+        .insert(filmInventory)
+        .values({
+          filmId,
+          currentStock: "0.00",
+          minimumStock: minimumStock.toString()
+        })
+        .returning();
+    }
+
+    return inventory;
+  }
+
+  async getInventoryTransactions(filmId?: number, limit = 100): Promise<Array<InventoryTransaction & { film: Film; createdByUser: User; jobEntry?: JobEntry }>> {
+    let query = db
+      .select()
+      .from(inventoryTransactions)
+      .innerJoin(films, eq(inventoryTransactions.filmId, films.id))
+      .innerJoin(users, eq(inventoryTransactions.createdBy, users.id))
+      .leftJoin(jobEntries, eq(inventoryTransactions.jobEntryId, jobEntries.id))
+      .orderBy(desc(inventoryTransactions.createdAt))
+      .limit(limit);
+
+    if (filmId) {
+      query = query.where(eq(inventoryTransactions.filmId, filmId));
+    }
+
+    const result = await query;
+
+    return result.map(row => ({
+      ...row.inventory_transactions,
+      film: row.films,
+      createdByUser: row.users,
+      jobEntry: row.job_entries || undefined,
+    }));
+  }
+
+  async getLowStockFilms(): Promise<FilmWithInventory[]> {
+    const result = await db
+      .select()
+      .from(films)
+      .innerJoin(filmInventory, eq(films.id, filmInventory.filmId))
+      .where(sql`CAST(${filmInventory.currentStock} AS DECIMAL) <= CAST(${filmInventory.minimumStock} AS DECIMAL)`)
+      .orderBy(films.type, films.name);
+
+    return result.map(row => ({
+      ...row.films,
+      inventory: row.film_inventory,
+    }));
   }
 }
 
