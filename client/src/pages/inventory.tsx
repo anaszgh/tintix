@@ -281,7 +281,7 @@ export default function Inventory() {
                     <div>
                       <div className="font-semibold text-orange-900 dark:text-orange-100">{film.name}</div>
                       <div className="text-sm font-medium text-orange-800 dark:text-orange-200">
-                        {getStockLevel(film)} sq ft remaining
+                        {formatStockDisplay(film)} remaining
                       </div>
                     </div>
                   </div>
@@ -375,7 +375,23 @@ export default function Inventory() {
                                   min="0.01"
                                   required
                                   placeholder="Enter quantity to add"
+                                  onChange={(e) => {
+                                    const sqft = Number(e.target.value);
+                                    const weightPerSqft = getWeightPerSqft(selectedFilm || film);
+                                    const grams = sqft * weightPerSqft;
+                                    const addWeightDisplay = document.getElementById('addWeightDisplay');
+                                    if (addWeightDisplay && grams > 0) {
+                                      addWeightDisplay.textContent = `≈ ${grams.toFixed(0)} grams`;
+                                    } else if (addWeightDisplay) {
+                                      addWeightDisplay.textContent = '';
+                                    }
+                                  }}
                                 />
+                                {getWeightPerSqft(selectedFilm || film) > 0 && (
+                                  <div className="text-sm text-muted-foreground mt-1">
+                                    <span id="addWeightDisplay"></span>
+                                  </div>
+                                )}
                               </div>
                               <div>
                                 <Label htmlFor="notes">Notes (optional)</Label>
@@ -440,7 +456,23 @@ export default function Inventory() {
                                   defaultValue={getStockLevel(selectedFilm || film)}
                                   required
                                   placeholder="Enter new stock level"
+                                  onChange={(e) => {
+                                    const sqft = Number(e.target.value);
+                                    const weightPerSqft = getWeightPerSqft(selectedFilm || film);
+                                    const grams = sqft * weightPerSqft;
+                                    const weightDisplay = document.getElementById('weightDisplay');
+                                    if (weightDisplay && grams > 0) {
+                                      weightDisplay.textContent = `≈ ${grams.toFixed(0)} grams`;
+                                    } else if (weightDisplay) {
+                                      weightDisplay.textContent = '';
+                                    }
+                                  }}
                                 />
+                                {getWeightPerSqft(selectedFilm || film) > 0 && (
+                                  <div className="text-sm text-muted-foreground mt-1">
+                                    <span id="weightDisplay">≈ {(getStockLevel(selectedFilm || film) * getWeightPerSqft(selectedFilm || film)).toFixed(0)} grams</span>
+                                  </div>
+                                )}
                               </div>
                               <div>
                                 <Label htmlFor="notes">Notes (optional)</Label>
