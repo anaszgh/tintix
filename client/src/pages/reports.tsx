@@ -182,6 +182,213 @@ export default function Reports() {
     window.print();
   };
 
+  const printFilmCostReport = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    
+    // Header
+    doc.setFontSize(20);
+    doc.text('Tintix - Film Cost Estimation Report', pageWidth / 2, 20, { align: 'center' });
+    
+    // Date range info
+    doc.setFontSize(12);
+    let dateRangeText = 'All Time';
+    if (appliedDateFilter?.dateFrom || appliedDateFilter?.dateTo) {
+      const fromDate = appliedDateFilter?.dateFrom ? new Date(appliedDateFilter.dateFrom).toLocaleDateString() : 'Start';
+      const toDate = appliedDateFilter?.dateTo ? new Date(appliedDateFilter.dateTo).toLocaleDateString() : 'End';
+      dateRangeText = `${fromDate} - ${toDate}`;
+    }
+    doc.text(`Date Range: ${dateRangeText}`, pageWidth / 2, 30, { align: 'center' });
+    
+    // Film cost table
+    if (jobEntries.length > 0) {
+      const tableHeaders = ['Date', 'Job #', 'Vehicle', 'Film Type', 'Sq Ft', 'Film Cost', 'Duration'];
+      const tableData = jobEntries.map(entry => [
+        new Date(entry.date).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' }),
+        entry.jobNumber,
+        `${entry.vehicleYear || ''} ${entry.vehicleMake || ''} ${entry.vehicleModel || ''}`.trim() || 'N/A',
+        entry.filmId ? filmConsumption.find(f => new Date(f.date).toDateString() === new Date(entry.date).toDateString())?.filmName || 'N/A' : 'N/A',
+        entry.totalSqft ? Number(entry.totalSqft).toFixed(2) : '0.00',
+        `$${entry.filmCost ? Number(entry.filmCost).toFixed(2) : '0.00'}`,
+        entry.durationMinutes ? `${Math.floor(entry.durationMinutes / 60)}h ${entry.durationMinutes % 60}m` : 'N/A'
+      ]);
+      
+      autoTable(doc, {
+        head: [tableHeaders],
+        body: tableData,
+        startY: 45,
+        theme: 'grid',
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [41, 128, 185] },
+        columnStyles: {
+          4: { halign: 'right' },
+          5: { halign: 'right', fontStyle: 'bold' },
+          6: { halign: 'right' }
+        }
+      });
+      
+      // Summary
+      const finalY = (doc as any).lastAutoTable.finalY + 20;
+      doc.setFontSize(14);
+      doc.text('Summary:', 20, finalY);
+      doc.text(`Total Jobs: ${jobEntries.length}`, 20, finalY + 15);
+      doc.text(`Total Film Cost: $${jobEntries.reduce((sum, entry) => sum + (Number(entry.filmCost) || 0), 0).toFixed(2)}`, 20, finalY + 30);
+    }
+    
+    doc.save(`film-cost-report-${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
+  const printRedoCostReport = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    
+    // Header
+    doc.setFontSize(20);
+    doc.text('Tintix - Redo Cost Analysis Report', pageWidth / 2, 20, { align: 'center' });
+    
+    // Date range info
+    doc.setFontSize(12);
+    let dateRangeText = 'All Time';
+    if (appliedDateFilter?.dateFrom || appliedDateFilter?.dateTo) {
+      const fromDate = appliedDateFilter?.dateFrom ? new Date(appliedDateFilter.dateFrom).toLocaleDateString() : 'Start';
+      const toDate = appliedDateFilter?.dateTo ? new Date(appliedDateFilter.dateTo).toLocaleDateString() : 'End';
+      dateRangeText = `${fromDate} - ${toDate}`;
+    }
+    doc.text(`Date Range: ${dateRangeText}`, pageWidth / 2, 30, { align: 'center' });
+    
+    // Redo cost table
+    const redoJobs = jobEntries.filter(entry => entry.redoEntries && entry.redoEntries.length > 0);
+    if (redoJobs.length > 0) {
+      const tableHeaders = ['Date', 'Job #', 'Vehicle', 'Redo Part', 'Installer', 'Redo Sq Ft', 'Redo Cost', 'Redo Time'];
+      const tableData = redoJobs.flatMap(entry => 
+        entry.redoEntries?.map((redo) => {
+          const redoSqft = redo.lengthInches && redo.widthInches ? 
+            (Number(redo.lengthInches) * Number(redo.widthInches)) / 144 : 0;
+          const filmCostPerSqft = entry.filmCost && entry.totalSqft ? 
+            Number(entry.filmCost) / Number(entry.totalSqft) : 0;
+          const redoCost = redoSqft * filmCostPerSqft;
+          
+          return [
+            new Date(entry.date).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' }),
+            entry.jobNumber,
+            `${entry.vehicleYear || ''} ${entry.vehicleMake || ''} ${entry.vehicleModel || ''}`.trim() || 'N/A',
+            redo.part,
+            redo.installer ? `${redo.installer.firstName} ${redo.installer.lastName}` : 'N/A',
+            redoSqft.toFixed(2),
+            `$${redoCost.toFixed(2)}`,
+            redo.timeMinutes ? `${Math.floor(redo.timeMinutes / 60)}h ${redo.timeMinutes % 60}m` : 'N/A'
+          ];
+        }) || []
+      );
+      
+      autoTable(doc, {
+        head: [tableHeaders],
+        body: tableData,
+        startY: 45,
+        theme: 'grid',
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [220, 53, 69] },
+        columnStyles: {
+          5: { halign: 'right' },
+          6: { halign: 'right', fontStyle: 'bold', textColor: [220, 53, 69] },
+          7: { halign: 'right' }
+        }
+      });
+      
+      // Summary
+      const totalRedoCost = redoJobs.reduce((sum, entry) => {
+        const filmCostPerSqft = entry.filmCost && entry.totalSqft ? 
+          Number(entry.filmCost) / Number(entry.totalSqft) : 0;
+        return sum + (entry.redoEntries?.reduce((redoSum, redo) => {
+          const redoSqft = redo.lengthInches && redo.widthInches ? 
+            (Number(redo.lengthInches) * Number(redo.widthInches)) / 144 : 0;
+          return redoSum + (redoSqft * filmCostPerSqft);
+        }, 0) || 0);
+      }, 0);
+      
+      const finalY = (doc as any).lastAutoTable.finalY + 20;
+      doc.setFontSize(14);
+      doc.text('Summary:', 20, finalY);
+      doc.text(`Total Redos: ${redoJobs.reduce((sum, entry) => sum + (entry.redoEntries?.length || 0), 0)}`, 20, finalY + 15);
+      doc.text(`Total Redo Cost: $${totalRedoCost.toFixed(2)}`, 20, finalY + 30);
+    }
+    
+    doc.save(`redo-cost-report-${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
+  const printFilmTypeCostReport = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    
+    // Header
+    doc.setFontSize(20);
+    doc.text('Tintix - Film Type Cost Summary', pageWidth / 2, 20, { align: 'center' });
+    
+    // Date range info
+    doc.setFontSize(12);
+    let dateRangeText = 'All Time';
+    if (appliedDateFilter?.dateFrom || appliedDateFilter?.dateTo) {
+      const fromDate = appliedDateFilter?.dateFrom ? new Date(appliedDateFilter.dateFrom).toLocaleDateString() : 'Start';
+      const toDate = appliedDateFilter?.dateTo ? new Date(appliedDateFilter.dateTo).toLocaleDateString() : 'End';
+      dateRangeText = `${fromDate} - ${toDate}`;
+    }
+    doc.text(`Date Range: ${dateRangeText}`, pageWidth / 2, 30, { align: 'center' });
+    
+    // Film type summary table
+    if (filmConsumption.length > 0) {
+      const filmTypeSummary = filmConsumption.reduce((acc, item) => {
+        const key = `${item.filmType}-${item.filmName}`;
+        if (!acc[key]) {
+          acc[key] = {
+            filmType: item.filmType,
+            filmName: item.filmName,
+            totalJobs: 0,
+            totalSqft: 0,
+            totalCost: 0
+          };
+        }
+        acc[key].totalJobs += item.jobCount;
+        acc[key].totalSqft += item.totalSqft;
+        acc[key].totalCost += item.totalCost;
+        return acc;
+      }, {} as Record<string, any>);
+      
+      const summaryArray = Object.values(filmTypeSummary);
+      const tableHeaders = ['Film Type', 'Film Name', 'Total Jobs', 'Total Sq Ft', 'Total Cost', 'Avg Cost/Job'];
+      const tableData = summaryArray.map((summary: any) => [
+        summary.filmType,
+        summary.filmName,
+        summary.totalJobs.toString(),
+        summary.totalSqft.toFixed(2),
+        `$${summary.totalCost.toFixed(2)}`,
+        `$${(summary.totalCost / summary.totalJobs).toFixed(2)}`
+      ]);
+      
+      autoTable(doc, {
+        head: [tableHeaders],
+        body: tableData,
+        startY: 45,
+        theme: 'grid',
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [41, 128, 185] },
+        columnStyles: {
+          2: { halign: 'right' },
+          3: { halign: 'right' },
+          4: { halign: 'right', fontStyle: 'bold' },
+          5: { halign: 'right' }
+        }
+      });
+      
+      // Summary
+      const finalY = (doc as any).lastAutoTable.finalY + 20;
+      doc.setFontSize(14);
+      doc.text('Summary:', 20, finalY);
+      doc.text(`Total Cost: $${filmConsumption.reduce((sum, item) => sum + item.totalCost, 0).toFixed(2)}`, 20, finalY + 15);
+    }
+    
+    doc.save(`film-type-cost-report-${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   const printFilmConsumptionReport = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
@@ -685,6 +892,358 @@ export default function Reports() {
                         {filmConsumption.reduce((sum, item) => sum + item.jobCount, 0)}
                       </div>
                       <div className="text-sm text-muted-foreground">Total Jobs</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Film Cost Estimation Report */}
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="text-card-foreground flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <FileText className="h-5 w-5" />
+                  <span>Film Cost Estimation Report</span>
+                </div>
+                <Button 
+                  variant="outline" 
+                  onClick={printFilmCostReport}
+                  className="border-border hover:bg-muted"
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print Report
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left p-3 font-medium text-muted-foreground">Date</th>
+                      <th className="text-left p-3 font-medium text-muted-foreground">Job #</th>
+                      <th className="text-left p-3 font-medium text-muted-foreground">Vehicle</th>
+                      <th className="text-left p-3 font-medium text-muted-foreground">Film Type</th>
+                      <th className="text-right p-3 font-medium text-muted-foreground">Sq Ft</th>
+                      <th className="text-right p-3 font-medium text-muted-foreground">Film Cost</th>
+                      <th className="text-right p-3 font-medium text-muted-foreground">Duration</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {jobEntries.length > 0 ? (
+                      jobEntries.map((entry, index) => (
+                        <tr key={entry.id} className="border-b border-border hover:bg-muted/50">
+                          <td className="p-3 text-card-foreground">
+                            {new Date(entry.date).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' })}
+                          </td>
+                          <td className="p-3 text-card-foreground font-mono">{entry.jobNumber}</td>
+                          <td className="p-3 text-card-foreground">
+                            {`${entry.vehicleYear || ''} ${entry.vehicleMake || ''} ${entry.vehicleModel || ''}`.trim() || 'N/A'}
+                          </td>
+                          <td className="p-3 text-card-foreground">
+                            {entry.filmId ? filmConsumption.find(f => new Date(f.date).toDateString() === new Date(entry.date).toDateString())?.filmName || 'N/A' : 'N/A'}
+                          </td>
+                          <td className="p-3 text-right text-card-foreground font-mono">
+                            {entry.totalSqft ? Number(entry.totalSqft).toFixed(2) : '0.00'}
+                          </td>
+                          <td className="p-3 text-right text-card-foreground font-mono">
+                            ${entry.filmCost ? Number(entry.filmCost).toFixed(2) : '0.00'}
+                          </td>
+                          <td className="p-3 text-right text-card-foreground">
+                            {entry.durationMinutes ? `${Math.floor(entry.durationMinutes / 60)}h ${entry.durationMinutes % 60}m` : 'N/A'}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                          No film cost data available for the selected date range.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Summary totals */}
+              {jobEntries.length > 0 && (
+                <div className="mt-6 pt-4 border-t border-border">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-card-foreground">
+                        {jobEntries.length}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Total Jobs</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-card-foreground">
+                        {jobEntries.reduce((sum, entry) => sum + (Number(entry.totalSqft) || 0), 0).toFixed(2)}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Total Sq Ft</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-card-foreground">
+                        ${jobEntries.reduce((sum, entry) => sum + (Number(entry.filmCost) || 0), 0).toFixed(2)}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Total Film Cost</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-card-foreground">
+                        {Math.floor(jobEntries.reduce((sum, entry) => sum + (entry.durationMinutes || 0), 0) / 60)}h {jobEntries.reduce((sum, entry) => sum + (entry.durationMinutes || 0), 0) % 60}m
+                      </div>
+                      <div className="text-sm text-muted-foreground">Total Time</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Redo Cost Analysis Report */}
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="text-card-foreground flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <FileText className="h-5 w-5 text-red-500" />
+                  <span>Redo Cost Analysis Report</span>
+                </div>
+                <Button 
+                  variant="outline" 
+                  onClick={printRedoCostReport}
+                  className="border-border hover:bg-muted"
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print Report
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left p-3 font-medium text-muted-foreground">Date</th>
+                      <th className="text-left p-3 font-medium text-muted-foreground">Job #</th>
+                      <th className="text-left p-3 font-medium text-muted-foreground">Vehicle</th>
+                      <th className="text-left p-3 font-medium text-muted-foreground">Redo Part</th>
+                      <th className="text-left p-3 font-medium text-muted-foreground">Installer</th>
+                      <th className="text-right p-3 font-medium text-muted-foreground">Redo Sq Ft</th>
+                      <th className="text-right p-3 font-medium text-muted-foreground">Redo Cost</th>
+                      <th className="text-right p-3 font-medium text-muted-foreground">Redo Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const redoJobs = jobEntries.filter(entry => entry.redoEntries && entry.redoEntries.length > 0);
+                      return redoJobs.length > 0 ? (
+                        redoJobs.flatMap(entry => 
+                          entry.redoEntries?.map((redo, redoIndex) => {
+                            const redoSqft = redo.lengthInches && redo.widthInches ? 
+                              (Number(redo.lengthInches) * Number(redo.widthInches)) / 144 : 0;
+                            const filmCostPerSqft = entry.filmCost && entry.totalSqft ? 
+                              Number(entry.filmCost) / Number(entry.totalSqft) : 0;
+                            const redoCost = redoSqft * filmCostPerSqft;
+                            
+                            return (
+                              <tr key={`${entry.id}-${redoIndex}`} className="border-b border-border hover:bg-muted/50">
+                                <td className="p-3 text-card-foreground">
+                                  {new Date(entry.date).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' })}
+                                </td>
+                                <td className="p-3 text-card-foreground font-mono">{entry.jobNumber}</td>
+                                <td className="p-3 text-card-foreground">
+                                  {`${entry.vehicleYear || ''} ${entry.vehicleMake || ''} ${entry.vehicleModel || ''}`.trim() || 'N/A'}
+                                </td>
+                                <td className="p-3 text-red-600 font-medium">{redo.part}</td>
+                                <td className="p-3 text-card-foreground">
+                                  {redo.installer ? `${redo.installer.firstName} ${redo.installer.lastName}` : 'N/A'}
+                                </td>
+                                <td className="p-3 text-right text-red-600 font-mono">
+                                  {redoSqft.toFixed(2)}
+                                </td>
+                                <td className="p-3 text-right text-red-600 font-mono font-bold">
+                                  ${redoCost.toFixed(2)}
+                                </td>
+                                <td className="p-3 text-right text-red-600">
+                                  {redo.timeMinutes ? `${Math.floor(redo.timeMinutes / 60)}h ${redo.timeMinutes % 60}m` : 'N/A'}
+                                </td>
+                              </tr>
+                            );
+                          }) || []
+                        )
+                      ) : (
+                        <tr>
+                          <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                            No redo cost data available for the selected date range.
+                          </td>
+                        </tr>
+                      );
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Redo Summary totals */}
+              {(() => {
+                const redoJobs = jobEntries.filter(entry => entry.redoEntries && entry.redoEntries.length > 0);
+                const totalRedos = redoJobs.reduce((sum, entry) => sum + (entry.redoEntries?.length || 0), 0);
+                const totalRedoSqft = redoJobs.reduce((sum, entry) => {
+                  return sum + (entry.redoEntries?.reduce((redoSum, redo) => {
+                    const redoSqft = redo.lengthInches && redo.widthInches ? 
+                      (Number(redo.lengthInches) * Number(redo.widthInches)) / 144 : 0;
+                    return redoSum + redoSqft;
+                  }, 0) || 0);
+                }, 0);
+                const totalRedoCost = redoJobs.reduce((sum, entry) => {
+                  const filmCostPerSqft = entry.filmCost && entry.totalSqft ? 
+                    Number(entry.filmCost) / Number(entry.totalSqft) : 0;
+                  return sum + (entry.redoEntries?.reduce((redoSum, redo) => {
+                    const redoSqft = redo.lengthInches && redo.widthInches ? 
+                      (Number(redo.lengthInches) * Number(redo.widthInches)) / 144 : 0;
+                    return redoSum + (redoSqft * filmCostPerSqft);
+                  }, 0) || 0);
+                }, 0);
+                const totalRedoTime = redoJobs.reduce((sum, entry) => {
+                  return sum + (entry.redoEntries?.reduce((redoSum, redo) => redoSum + (redo.timeMinutes || 0), 0) || 0);
+                }, 0);
+                
+                return totalRedos > 0 ? (
+                  <div className="mt-6 pt-4 border-t border-border">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-red-600">
+                          {totalRedos}
+                        </div>
+                        <div className="text-sm text-muted-foreground">Total Redos</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-red-600">
+                          {totalRedoSqft.toFixed(2)}
+                        </div>
+                        <div className="text-sm text-muted-foreground">Total Redo Sq Ft</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-red-600">
+                          ${totalRedoCost.toFixed(2)}
+                        </div>
+                        <div className="text-sm text-muted-foreground">Total Redo Cost</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-red-600">
+                          {Math.floor(totalRedoTime / 60)}h {totalRedoTime % 60}m
+                        </div>
+                        <div className="text-sm text-muted-foreground">Total Redo Time</div>
+                      </div>
+                    </div>
+                  </div>
+                ) : null;
+              })()}
+            </CardContent>
+          </Card>
+
+          {/* Film Type Cost Summary */}
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="text-card-foreground flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <BarChart3 className="h-5 w-5" />
+                  <span>Film Type Cost Summary</span>
+                </div>
+                <Button 
+                  variant="outline" 
+                  onClick={() => printFilmTypeCostReport()}
+                  className="border-border hover:bg-muted"
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print Report
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left p-3 font-medium text-muted-foreground">Film Type</th>
+                      <th className="text-left p-3 font-medium text-muted-foreground">Film Name</th>
+                      <th className="text-right p-3 font-medium text-muted-foreground">Total Jobs</th>
+                      <th className="text-right p-3 font-medium text-muted-foreground">Total Sq Ft</th>
+                      <th className="text-right p-3 font-medium text-muted-foreground">Total Cost</th>
+                      <th className="text-right p-3 font-medium text-muted-foreground">Avg Cost/Job</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const filmTypeSummary = filmConsumption.reduce((acc, item) => {
+                        const key = `${item.filmType}-${item.filmName}`;
+                        if (!acc[key]) {
+                          acc[key] = {
+                            filmType: item.filmType,
+                            filmName: item.filmName,
+                            totalJobs: 0,
+                            totalSqft: 0,
+                            totalCost: 0
+                          };
+                        }
+                        acc[key].totalJobs += item.jobCount;
+                        acc[key].totalSqft += item.totalSqft;
+                        acc[key].totalCost += item.totalCost;
+                        return acc;
+                      }, {} as Record<string, any>);
+                      
+                      const summaryArray = Object.values(filmTypeSummary);
+                      
+                      return summaryArray.length > 0 ? (
+                        summaryArray.map((summary: any, index) => (
+                          <tr key={index} className="border-b border-border hover:bg-muted/50">
+                            <td className="p-3 text-card-foreground font-medium">{summary.filmType}</td>
+                            <td className="p-3 text-card-foreground">{summary.filmName}</td>
+                            <td className="p-3 text-right text-card-foreground">{summary.totalJobs}</td>
+                            <td className="p-3 text-right text-card-foreground font-mono">
+                              {summary.totalSqft.toFixed(2)}
+                            </td>
+                            <td className="p-3 text-right text-card-foreground font-mono font-bold">
+                              ${summary.totalCost.toFixed(2)}
+                            </td>
+                            <td className="p-3 text-right text-card-foreground font-mono">
+                              ${(summary.totalCost / summary.totalJobs).toFixed(2)}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                            No film type data available for the selected date range.
+                          </td>
+                        </tr>
+                      );
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Film Type Summary totals */}
+              {filmConsumption.length > 0 && (
+                <div className="mt-6 pt-4 border-t border-border">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-card-foreground">
+                        {filmConsumption.reduce((sum, item) => sum + item.jobCount, 0)}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Total Jobs</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-card-foreground">
+                        {filmConsumption.reduce((sum, item) => sum + item.totalSqft, 0).toFixed(2)}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Total Sq Ft</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-card-foreground">
+                        ${filmConsumption.reduce((sum, item) => sum + item.totalCost, 0).toFixed(2)}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Total Cost</div>
                     </div>
                   </div>
                 </div>
