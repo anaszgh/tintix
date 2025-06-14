@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertTriangle, Package, Plus, History, Settings } from "lucide-react";
+import { AlertTriangle, Package, Plus, History, Settings, AlertCircle, CheckCircle, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
@@ -171,13 +171,47 @@ export default function Inventory() {
     return getStockLevel(film) <= getMinimumStock(film) && getMinimumStock(film) > 0;
   };
 
-  const getStockBadgeVariant = (film: FilmWithInventory) => {
+  const getStockStatus = (film: FilmWithInventory) => {
     const stock = getStockLevel(film);
     const minimum = getMinimumStock(film);
+    const warning = minimum * 1.5; // Warning threshold at 150% of minimum
     
-    if (stock === 0) return "destructive";
-    if (stock <= minimum && minimum > 0) return "secondary";
-    return "default";
+    if (stock === 0) return "out_of_stock";
+    if (stock <= minimum && minimum > 0) return "low_stock";
+    if (stock <= warning && minimum > 0) return "warning";
+    return "good";
+  };
+
+  const getStockIcon = (film: FilmWithInventory) => {
+    const status = getStockStatus(film);
+    switch (status) {
+      case "out_of_stock":
+        return <AlertCircle className="h-4 w-4 text-red-500" />;
+      case "low_stock":
+        return <AlertCircle className="h-4 w-4 text-red-500" />;
+      case "warning":
+        return <Clock className="h-4 w-4 text-yellow-500" />;
+      case "good":
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      default:
+        return <Package className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
+  const getStockBadgeVariant = (film: FilmWithInventory) => {
+    const status = getStockStatus(film);
+    switch (status) {
+      case "out_of_stock":
+        return "destructive";
+      case "low_stock":
+        return "destructive";
+      case "warning":
+        return "secondary";
+      case "good":
+        return "default";
+      default:
+        return "default";
+    }
   };
 
   if (isLoading) {
@@ -216,10 +250,13 @@ export default function Inventory() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {lowStockFilms.map((film) => (
                 <div key={film.id} className="flex items-center justify-between p-3 bg-orange-100 dark:bg-orange-900 rounded">
-                  <div>
-                    <div className="font-semibold text-orange-900 dark:text-orange-100">{film.name}</div>
-                    <div className="text-sm font-medium text-orange-800 dark:text-orange-200">
-                      {getStockLevel(film)} sq ft remaining
+                  <div className="flex items-center gap-3">
+                    {getStockIcon(film)}
+                    <div>
+                      <div className="font-semibold text-orange-900 dark:text-orange-100">{film.name}</div>
+                      <div className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                        {getStockLevel(film)} sq ft remaining
+                      </div>
                     </div>
                   </div>
                   <Badge variant="secondary">Low Stock</Badge>
@@ -242,7 +279,10 @@ export default function Inventory() {
               <Card key={film.id} className="relative">
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">{film.name}</CardTitle>
+                    <div className="flex items-center gap-2">
+                      {getStockIcon(film)}
+                      <CardTitle className="text-lg">{film.name}</CardTitle>
+                    </div>
                     <Badge variant={getStockBadgeVariant(film)}>
                       {getStockLevel(film)} sq ft
                     </Badge>
