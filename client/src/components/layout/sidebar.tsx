@@ -34,7 +34,7 @@ export function Sidebar() {
   const navigation = getNavigationForRole();
 
   return (
-    <aside className="w-64 bg-card border-r border-border flex-shrink-0 flex flex-col">
+    <aside className="w-64 bg-card border-r border-border flex-shrink-0 flex flex-col" data-tour="navigation">
       <div className="p-6">
         <div className="flex items-center space-x-3 mb-8">
           <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
