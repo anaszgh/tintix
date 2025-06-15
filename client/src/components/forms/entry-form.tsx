@@ -232,11 +232,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
         timeVariance: data.installerTimeVariances[id] || 0,
       }));
 
-      return apiRequest("/api/job-entries", {
-        method: "POST",
-        body: JSON.stringify({ jobEntry: jobEntryData, installerData }),
-        headers: { "Content-Type": "application/json" }
-      });
+      return apiRequest("POST", "/api/job-entries", { jobEntry: jobEntryData, installerData });
     },
     onSuccess: () => {
       toast({
@@ -275,11 +271,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
         windowAssignments: data.windowAssignments || [],
       };
 
-      return apiRequest(`/api/job-entries/${editingEntry.id}`, {
-        method: "PUT",
-        body: JSON.stringify(jobEntryData),
-        headers: { "Content-Type": "application/json" }
-      });
+      return apiRequest("PUT", `/api/job-entries/${editingEntry.id}`, jobEntryData);
     },
     onSuccess: () => {
       toast({
@@ -326,7 +318,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     
     // Auto-calculate film cost if film is selected
     if (field === 'filmId' && value && films) {
-      const selectedFilm = films.find(f => f.id === parseInt(value));
+      const selectedFilm = films.find(f => f.id === parseInt(value.toString()));
       if (selectedFilm) {
         newRedoEntries[index].filmCost = selectedFilm.costPerSqft;
       }
@@ -341,9 +333,11 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     
     // Auto-calculate film cost if film is selected
     if (field === 'filmId' && value && films) {
-      const selectedFilm = films.find(f => f.id === parseInt(value));
+      const selectedFilm = films.find(f => f.id === parseInt(value.toString()));
       if (selectedFilm) {
-        const sqft = (newDimensions[index].lengthInches * newDimensions[index].widthInches) / 144;
+        const length = Number(newDimensions[index].lengthInches) || 1;
+        const width = Number(newDimensions[index].widthInches) || 1;
+        const sqft = (length * width) / 144;
         newDimensions[index].filmCost = selectedFilm.costPerSqft * sqft;
       }
     }
@@ -353,7 +347,9 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       if (newDimensions[index].filmId && films) {
         const selectedFilm = films.find(f => f.id === newDimensions[index].filmId);
         if (selectedFilm) {
-          const sqft = (newDimensions[index].lengthInches * newDimensions[index].widthInches) / 144;
+          const length = Number(newDimensions[index].lengthInches) || 1;
+          const width = Number(newDimensions[index].widthInches) || 1;
+          const sqft = (length * width) / 144;
           newDimensions[index].filmCost = selectedFilm.costPerSqft * sqft;
         }
       }
