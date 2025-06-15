@@ -29,12 +29,12 @@ const formSchema = insertJobEntrySchema.extend({
   installerIds: z.array(z.string()).min(1, "At least one installer must be selected"),
   totalWindows: z.number().min(1, "Must have at least one window").max(20, "Maximum 20 windows"),
   installerTimeVariances: z.record(z.string(), z.number()), // installer ID -> time variance
-  filmId: z.number().optional(),
   totalSqft: z.number().min(0.1, "Total square footage must be greater than 0").optional(),
   filmCost: z.number().min(0, "Film cost cannot be negative").optional(),
   dimensions: z.array(z.object({
     lengthInches: z.number().min(0.1, "Length must be greater than 0"),
     widthInches: z.number().min(0.1, "Width must be greater than 0"),
+    filmId: z.number().optional(),
     description: z.string().optional(),
   })).min(1, "At least one dimension entry is required"),
   redoEntries: z.array(z.object({
@@ -70,12 +70,13 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     })) : []
   );
 
-  const [dimensions, setDimensions] = useState<Array<{ lengthInches: number; widthInches: number; description?: string }>>(
+  const [dimensions, setDimensions] = useState<Array<{ lengthInches: number; widthInches: number; filmId?: number; description?: string }>>(
     editingEntry && editingEntry.dimensions ? editingEntry.dimensions.map(dim => ({
       lengthInches: Number(dim.lengthInches),
       widthInches: Number(dim.widthInches),
+      filmId: dim.filmId,
       description: dim.description || ""
-    })) : [{ lengthInches: 1, widthInches: 1, description: "" }]
+    })) : [{ lengthInches: 1, widthInches: 1, filmId: undefined, description: "" }]
   );
 
   const [windowAssignments, setWindowAssignments] = useState<Array<{ windowId: string; installerId: string | null; windowName: string }>>(() => {
@@ -92,7 +93,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     return [];
   });
 
-  const updateTotalSqftFromDimensions = (dims: Array<{ lengthInches: number; widthInches: number; description?: string }>) => {
+  const updateTotalSqftFromDimensions = (dims: Array<{ lengthInches: number; widthInches: number; filmId?: number; description?: string }>) => {
     const totalSqft = dims.reduce((total, dim) => 
       total + ((dim.lengthInches * dim.widthInches) / 144), 0
     );
@@ -151,8 +152,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       vehicleYear: "",
       vehicleMake: "",
       vehicleModel: "",
-      filmId: undefined,
-      dimensions: [{ lengthInches: 1, widthInches: 1, description: "" }],
+      dimensions: [{ lengthInches: 1, widthInches: 1, filmId: undefined, description: "" }],
       totalSqft: undefined,
       filmCost: undefined,
       notes: "",
@@ -255,6 +255,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     setRedoEntries([...redoEntries, { 
       part: "windshield", 
       installerId: "",
+      filmId: undefined,
       lengthInches: undefined,
       widthInches: undefined,
       timeMinutes: undefined
