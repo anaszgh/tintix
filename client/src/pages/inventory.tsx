@@ -246,6 +246,20 @@ export default function Inventory() {
     }
   };
 
+  const getStockBadgeVariant = (film: FilmWithInventory) => {
+    const status = getStockStatus(film);
+    switch (status.status) {
+      case "low":
+        return "destructive" as const;
+      case "approaching":
+        return "secondary" as const;
+      case "good":
+        return "default" as const;
+      default:
+        return "outline" as const;
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="container mx-auto p-6">
@@ -315,8 +329,8 @@ export default function Inventory() {
                       {getStockIcon(film)}
                       <CardTitle className="text-lg">{film.name}</CardTitle>
                     </div>
-                    <Badge variant={getStockBadgeVariant(film)}>
-                      {formatStockDisplay(film)}
+                    <Badge variant={getStockBadgeVariant(film)} className={getStatusBadgeColor(getStockStatus(film).status)}>
+                      {getStockStatus(film).text}
                     </Badge>
                   </div>
                   <CardDescription>
