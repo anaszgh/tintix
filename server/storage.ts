@@ -205,7 +205,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Job entry operations
-  async createJobEntry(jobEntry: InsertJobEntry & { windowAssignments?: any[], dimensions?: Array<{lengthInches: number, widthInches: number, filmId: number, description?: string}> }, installerData: Array<{installerId: string, timeVariance: number}>): Promise<JobEntry> {
+  async createJobEntry(jobEntry: InsertJobEntry & { windowAssignments?: any[], dimensions?: Array<{lengthInches: number, widthInches: number, description?: string}> }, installerData: Array<{installerId: string, timeVariance: number}>): Promise<JobEntry> {
     // Generate sequential job number starting from 1
     const existingEntries = await db.select({ id: jobEntries.id }).from(jobEntries);
     const nextJobNumber = existingEntries.length + 1;
@@ -222,20 +222,13 @@ export class DatabaseStorage implements IStorage {
     
     // Add dimensions if provided and calculate total square footage
     let totalSqft = 0;
-    const filmConsumption: Map<number, number> = new Map(); // Track film consumption by filmId
-    
     if (jobEntry.dimensions && jobEntry.dimensions.length > 0) {
       for (const dimension of jobEntry.dimensions) {
         const sqft = (dimension.lengthInches * dimension.widthInches) / 144;
         totalSqft += sqft;
         
-        // Track film consumption
-        const currentConsumption = filmConsumption.get(dimension.filmId) || 0;
-        filmConsumption.set(dimension.filmId, currentConsumption + sqft);
-        
         await db.insert(jobDimensions).values({
           jobEntryId: entry.id,
-          filmId: dimension.filmId,
           lengthInches: dimension.lengthInches.toString(),
           widthInches: dimension.widthInches.toString(),
           sqft: sqft.toString(),
@@ -247,23 +240,6 @@ export class DatabaseStorage implements IStorage {
       await db.update(jobEntries)
         .set({ totalSqft })
         .where(eq(jobEntries.id, entry.id));
-        
-      // Auto-deduct inventory for each film type used
-      const userId = installerData.length > 0 ? installerData[0].installerId : "system";
-      for (const [filmId, consumption] of Array.from(filmConsumption.entries())) {
-        try {
-          await this.deductInventoryStock(
-            filmId, 
-            consumption, 
-            userId, 
-            entry.id, 
-            `Auto-deduction for job ${jobNumber}`
-          );
-        } catch (error) {
-          console.warn(`Failed to deduct inventory for film ${filmId} in job ${jobNumber}:`, error);
-          // Continue without failing the job creation
-        }
-      }
     }
 
     // Add installers to the job with their individual time variances
