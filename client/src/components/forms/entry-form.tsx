@@ -78,7 +78,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     editingEntry && editingEntry.dimensions ? editingEntry.dimensions.map(dim => ({
       lengthInches: Number(dim.lengthInches),
       widthInches: Number(dim.widthInches),
-      filmId: dim.filmId,
+      filmId: dim.filmId ?? undefined,
       description: dim.description || ""
     })) : [{ lengthInches: 1, widthInches: 1, filmId: undefined, description: "" }]
   );
@@ -595,48 +595,9 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
             <p className="text-sm text-muted-foreground">Select film type and calculate material costs</p>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <FormField
-                control={form.control}
-                name="filmId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-muted-foreground">Film Type</FormLabel>
-                    <Select 
-                      onValueChange={(value) => {
-                        field.onChange(value ? parseInt(value) : undefined);
-                        // Auto-calculate cost when film type or sqft changes
-                        const filmId = parseInt(value);
-                        const selectedFilm = films.find(f => f.id === filmId);
-                        const totalSqft = form.getValues("totalSqft");
-                        if (selectedFilm && totalSqft) {
-                          const calculatedCost = Number(selectedFilm.costPerSqft) * totalSqft;
-                          form.setValue("filmCost", calculatedCost);
-                        }
-                      }} 
-                      value={field.value?.toString()}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="bg-background border-border">
-                          <SelectValue placeholder="Select film type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {films.map((film) => (
-                          <SelectItem key={film.id} value={film.id.toString()}>
-                            {film.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Dimensions Section */}
-              <div className="col-span-full">
-                <div className="flex items-center justify-between mb-4">
+            {/* Dimensions Section */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
                   <div>
                     <h3 className="text-lg font-medium">Dimensions</h3>
                     <p className="text-sm text-muted-foreground">Enter length and width measurements</p>
@@ -756,12 +717,14 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                   </div>
                 </div>
               </div>
-
-
             </div>
+          </CardContent>
+        </Card>
 
-            {/* Material Consumption Summary */}
-            {form.watch("filmId") && (dimensions.length > 0 || redoEntries.length > 0) && (
+        {/* Material Consumption Summary */}
+        <Card className="bg-muted/30 border-muted">
+          <CardContent className="space-y-4">
+            {(dimensions.length > 0 || redoEntries.length > 0) && (
               <div className="bg-background border border-border rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-medium text-card-foreground">Material Consumption</h4>
