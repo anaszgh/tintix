@@ -16,7 +16,9 @@ import UsersPage from "@/pages/users";
 import InstallerManagement from "@/pages/installer-management";
 import FilmManagement from "@/pages/film-management";
 import Inventory from "@/pages/inventory";
+import AuthPage from "@/pages/auth-page";
 import NotFound from "@/pages/not-found";
+import { ProtectedRoute } from "@/lib/protected-route";
 
 function LoadingScreen() {
   const [progress, setProgress] = useState(0);
@@ -66,10 +68,11 @@ function Router() {
 
   return (
     <Switch>
+      <Route path="/auth" component={AuthPage} />
       {!isAuthenticated ? (
         <Route path="/" component={Landing} />
       ) : (
-        <>
+        <ProtectedRoute>
           {/* Data Entry role - Only access to job entries */}
           {userRole === 'data_entry' ? (
             <>
@@ -89,7 +92,7 @@ function Router() {
               <Route path="/inventory" component={Inventory} />
             </>
           )}
-        </>
+        </ProtectedRoute>
       )}
       <Route component={NotFound} />
     </Switch>
