@@ -229,9 +229,11 @@ export class DatabaseStorage implements IStorage {
         
         await db.insert(jobDimensions).values({
           jobEntryId: entry.id,
+          filmId: dimension.filmId || 1, // Default film if not specified
           lengthInches: dimension.lengthInches.toString(),
           widthInches: dimension.widthInches.toString(),
           sqft: sqft.toString(),
+          filmCost: dimension.filmCost || "0.00",
           description: dimension.description || null,
         });
       }

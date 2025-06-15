@@ -84,7 +84,6 @@ export const jobEntries = pgTable("job_entries", {
   vehicleYear: varchar("vehicle_year").notNull(),
   vehicleMake: varchar("vehicle_make").notNull(),
   vehicleModel: varchar("vehicle_model").notNull(),
-  filmId: integer("film_id").references(() => films.id), // Reference to film type
   totalSqft: real("total_sqft"), // Total square footage for cost calculation (sum of all dimensions)
   filmCost: numeric("film_cost", { precision: 10, scale: 2 }), // Total film cost for the job
   windowAssignments: jsonb("window_assignments"), // Store detailed window-installer assignments
@@ -101,9 +100,11 @@ export const jobEntries = pgTable("job_entries", {
 export const jobDimensions = pgTable("job_dimensions", {
   id: serial("id").primaryKey(),
   jobEntryId: integer("job_entry_id").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
+  filmId: integer("film_id").notNull().references(() => films.id), // Film type for this consumption entry
   lengthInches: numeric("length_inches", { precision: 8, scale: 2 }).notNull(),
   widthInches: numeric("width_inches", { precision: 8, scale: 2 }).notNull(),
   sqft: numeric("sqft", { precision: 10, scale: 4 }).notNull(), // Calculated L*W/144
+  filmCost: numeric("film_cost", { precision: 10, scale: 2 }), // Cost of film for this specific consumption
   description: varchar("description"), // Optional description (e.g., "Front windshield", "Side windows")
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -120,6 +121,7 @@ export const redoEntries = pgTable("redo_entries", {
   id: serial("id").primaryKey(),
   jobEntryId: integer("job_entry_id").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
   installerId: varchar("installer_id").notNull().references(() => users.id),
+  filmId: integer("film_id").notNull().references(() => films.id), // Film type used for this redo
   part: varchar("part").notNull(), // "windshield", "rollups", "back_windshield", "quarter"
   lengthInches: real("length_inches"), // Material consumption length
   widthInches: real("width_inches"), // Material consumption width
@@ -175,21 +177,21 @@ export const inventoryTransactionsRelations = relations(inventoryTransactions, (
   }),
 }));
 
-export const jobEntriesRelations = relations(jobEntries, ({ many, one }) => ({
+export const jobEntriesRelations = relations(jobEntries, ({ many }) => ({
   jobInstallers: many(jobInstallers),
   redoEntries: many(redoEntries),
   timeEntries: many(installerTimeEntries),
   dimensions: many(jobDimensions),
-  film: one(films, {
-    fields: [jobEntries.filmId],
-    references: [films.id],
-  }),
 }));
 
 export const jobDimensionsRelations = relations(jobDimensions, ({ one }) => ({
   jobEntry: one(jobEntries, {
     fields: [jobDimensions.jobEntryId],
     references: [jobEntries.id],
+  }),
+  film: one(films, {
+    fields: [jobDimensions.filmId],
+    references: [films.id],
   }),
 }));
 
@@ -212,6 +214,10 @@ export const redoEntriesRelations = relations(redoEntries, ({ one }) => ({
   installer: one(users, {
     fields: [redoEntries.installerId],
     references: [users.id],
+  }),
+  film: one(films, {
+    fields: [redoEntries.filmId],
+    references: [films.id],
   }),
 }));
 
