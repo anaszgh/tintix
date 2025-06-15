@@ -1,49 +1,46 @@
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Plus, Trash2 } from "lucide-react";
-import { getCurrentPacificDate } from "@/lib/utils";
+import { apiRequest } from "@/lib/queryClient";
+import { isUnauthorizedError } from "@/lib/authUtils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import { Tooltip, ContextualTooltips } from "@/components/guide/tooltip";
 import { RedoEntry } from "./redo-entry";
 import { VisualCarSelector } from "./visual-car-selector";
-import type { User, Film, JobEntryWithDetails } from "@shared/schema";
-import { useState, useEffect } from "react";
+import { Plus, Save, X } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { insertJobEntrySchema } from "@shared/schema";
+import { z } from "zod";
+import type { User, JobEntryWithDetails, Film } from "@shared/schema";
+import { getCurrentPacificDate } from "@/lib/utils";
 
-const formSchema = z.object({
-  date: z.string().min(1, "Date is required"),
-  vehicleYear: z.string().min(1, "Vehicle year is required"),
-  vehicleMake: z.string().min(1, "Vehicle make is required"),
-  vehicleModel: z.string().min(1, "Vehicle model is required"),
-  totalWindows: z.number().min(1, "Must have at least one window").max(20, "Maximum 20 windows"),
+const formSchema = insertJobEntrySchema.extend({
+  date: z.string(),
   durationMinutes: z.number().min(1, "Duration must be at least 1 minute"),
   installerIds: z.array(z.string()).min(1, "At least one installer must be selected"),
+  totalWindows: z.number().min(1, "Must have at least one window").max(20, "Maximum 20 windows"),
   installerTimeVariances: z.record(z.string(), z.number()), // installer ID -> time variance
-
+  filmId: z.number().optional(),
+  totalSqft: z.number().min(0.1, "Total square footage must be greater than 0").optional(),
+  filmCost: z.number().min(0, "Film cost cannot be negative").optional(),
   dimensions: z.array(z.object({
     lengthInches: z.number().min(0.1, "Length must be greater than 0"),
     widthInches: z.number().min(0.1, "Width must be greater than 0"),
     filmId: z.number().min(1, "Film type must be selected"),
     description: z.string().optional(),
   })).min(1, "At least one dimension entry is required"),
-
-  notes: z.string().optional(),
-
   redoEntries: z.array(z.object({
-    part: z.string().min(1, "Part is required"),
-    filmId: z.number().min(1, "Film type must be selected"),
-    installerId: z.string().min(1, "Installer must be selected"),
-    lengthInches: z.number().min(0.1, "Length must be greater than 0"),
-    widthInches: z.number().min(0.1, "Width must be greater than 0"),
-    timeMinutes: z.number().min(1, "Time must be at least 1 minute"),
+    part: z.string(),
+    installerId: z.string().optional(),
   })).optional(),
 });
 
@@ -53,159 +50,228 @@ interface EntryFormProps {
 }
 
 export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [dimensions, setDimensions] = useState([
-    { lengthInches: 0, widthInches: 0, filmId: 0, description: "" }
-  ]);
-  const [redoEntries, setRedoEntries] = useState<any[]>([]);
-  const [windowAssignments, setWindowAssignments] = useState<any[]>([]);
-
-  // Fetch installers
-  const { data: installers = [] } = useQuery<User[]>({
+  // Load films and installers data first
+  const { data: installers = [], isLoading: installersLoading } = useQuery<User[]>({
     queryKey: ["/api/installers"],
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
-  // Fetch films
-  const { data: films = [] } = useQuery<Film[]>({
+  const { data: films = [], isLoading: filmsLoading } = useQuery<any[]>({
     queryKey: ["/api/films"],
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
+
+  const [redoEntries, setRedoEntries] = useState<Array<{ 
+    part: string; 
+    installerId?: string; 
+    lengthInches?: number;
+    widthInches?: number;
+    timeMinutes?: number;
+  }>>(
+    editingEntry ? editingEntry.redoEntries.map(redo => ({
+      part: redo.part,
+      installerId: redo.installerId,
+      lengthInches: redo.lengthInches ? Number(redo.lengthInches) : undefined,
+      widthInches: redo.widthInches ? Number(redo.widthInches) : undefined,
+      timeMinutes: redo.timeMinutes || undefined,
+    })) : []
+  );
+
+  // Initialize dimensions with proper filmId defaults
+  const [dimensions, setDimensions] = useState<Array<{ lengthInches: number; widthInches: number; filmId: number; description?: string }>>(
+    editingEntry && editingEntry.dimensions ? editingEntry.dimensions.map(dim => ({
+      lengthInches: Number(dim.lengthInches),
+      widthInches: Number(dim.widthInches),
+      filmId: (dim as any).filmId || 33, // Default to first available film
+      description: dim.description || ""
+    })) : [{ lengthInches: 1, widthInches: 1, filmId: 33, description: "" }]
+  );
+
+  // Update default filmId when films load
+  useEffect(() => {
+    if (films.length > 0 && dimensions.some(dim => !films.find(f => f.id === dim.filmId))) {
+      const firstFilmId = films[0].id;
+      setDimensions(dimensions.map(dim => ({
+        ...dim,
+        filmId: films.find(f => f.id === dim.filmId) ? dim.filmId : firstFilmId
+      })));
+    }
+  }, [films]);
+
+  const [windowAssignments, setWindowAssignments] = useState<Array<{ windowId: string; installerId: string | null; windowName: string }>>(() => {
+    if (editingEntry && editingEntry.windowAssignments) {
+      try {
+        const assignments = typeof editingEntry.windowAssignments === 'string' 
+          ? JSON.parse(editingEntry.windowAssignments) 
+          : editingEntry.windowAssignments;
+        return Array.isArray(assignments) ? assignments : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
+
+  const updateTotalSqftFromDimensions = (dims: Array<{ lengthInches: number; widthInches: number; filmId: number; description?: string }>) => {
+    const totalSqft = dims.reduce((total, dim) => 
+      total + ((dim.lengthInches * dim.widthInches) / 144), 0
+    );
+    form.setValue("totalSqft", totalSqft);
+    
+    // Auto-calculate cost when sqft changes
+    const filmId = form.getValues("filmId");
+    const selectedFilm = films.find(f => f.id === filmId);
+    if (selectedFilm && totalSqft > 0) {
+      const calculatedCost = Number(selectedFilm.costPerSqft) * totalSqft;
+      form.setValue("filmCost", calculatedCost);
+    }
+  };
+
+  // Calculate proper duration including redo time for editing
+  const calculateTotalDuration = () => {
+    if (!editingEntry) return undefined;
+    return editingEntry.durationMinutes || undefined;
+  };
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
+    defaultValues: editingEntry ? {
+      date: new Date(editingEntry.date).toISOString().split('T')[0],
+      installerIds: editingEntry.installers.map(i => i.id),
+      totalWindows: editingEntry.totalWindows || 7,
+      durationMinutes: calculateTotalDuration(),
+      installerTimeVariances: editingEntry.installers.reduce((acc, installer) => {
+        acc[installer.id] = installer.timeVariance || 0;
+        return acc;
+      }, {} as Record<string, number>),
+      vehicleYear: editingEntry.vehicleYear,
+      vehicleMake: editingEntry.vehicleMake,
+      vehicleModel: editingEntry.vehicleModel,
+      filmId: editingEntry.filmId || undefined,
+      dimensions: dimensions,
+      totalSqft: editingEntry.totalSqft || undefined,
+      filmCost: editingEntry.filmCost ? Number(editingEntry.filmCost) : undefined,
+      notes: editingEntry.notes || "",
+    } : {
       date: getCurrentPacificDate(),
+      installerIds: [],
+      totalWindows: 7,
+      durationMinutes: undefined,
+      installerTimeVariances: {},
       vehicleYear: "",
       vehicleMake: "",
       vehicleModel: "",
-      totalWindows: 1,
-      durationMinutes: 60,
-      installerIds: [],
-      installerTimeVariances: {},
-      dimensions: [],
+      filmId: undefined,
+      dimensions: [{ lengthInches: 1, widthInches: 1, filmId: 33, description: "" }],
+      totalSqft: undefined,
+      filmCost: undefined,
       notes: "",
-      redoEntries: [],
     },
   });
 
-  // Initialize form data when editing
+  const [createdJobNumber, setCreatedJobNumber] = useState<string | null>(null);
+  const [baseDurationMinutes, setBaseDurationMinutes] = useState<number>(0);
+
+  // Initialize base duration when editing an existing entry
   useEffect(() => {
-    if (editingEntry) {
-      const installerTimeVariances: Record<string, number> = {};
-      editingEntry.installers.forEach(installer => {
-        installerTimeVariances[installer.id] = installer.timeVariance || 0;
-      });
-
-      form.reset({
-        date: editingEntry.date,
-        vehicleYear: editingEntry.vehicleYear,
-        vehicleMake: editingEntry.vehicleMake,
-        vehicleModel: editingEntry.vehicleModel,
-        totalWindows: editingEntry.totalWindows,
-        durationMinutes: editingEntry.durationMinutes,
-        installerIds: editingEntry.installers.map(i => i.id),
-        installerTimeVariances,
-        dimensions: editingEntry.dimensions.map(d => ({
-          lengthInches: d.lengthInches,
-          widthInches: d.widthInches,
-          filmId: d.filmId,
-          description: d.description || "",
-        })),
-        notes: editingEntry.notes || "",
-        redoEntries: editingEntry.redoEntries.map(r => ({
-          part: r.part,
-          filmId: r.filmId,
-          installerId: r.installerId,
-          lengthInches: r.lengthInches,
-          widthInches: r.widthInches,
-          timeMinutes: r.timeMinutes,
-        })),
-      });
-
-      setDimensions(editingEntry.dimensions.map(d => ({
-        lengthInches: d.lengthInches,
-        widthInches: d.widthInches,
-        filmId: d.filmId,
-        description: d.description || "",
-      })));
-
-      setRedoEntries(editingEntry.redoEntries.map(r => ({
-        part: r.part,
-        filmId: r.filmId,
-        installerId: r.installerId,
-        lengthInches: r.lengthInches,
-        widthInches: r.widthInches,
-        timeMinutes: r.timeMinutes,
-      })));
+    if (editingEntry && editingEntry.durationMinutes) {
+      // Calculate the redo time from existing redo entries
+      const existingRedoTime = editingEntry.redoEntries?.reduce((total, redo) => total + (redo.timeMinutes || 0), 0) || 0;
+      // Base duration is total duration minus redo time
+      const calculatedBaseDuration = editingEntry.durationMinutes - existingRedoTime;
+      setBaseDurationMinutes(calculatedBaseDuration);
+      
+      // Always set the form to show the full duration including redo time
+      form.setValue("durationMinutes", editingEntry.durationMinutes, { shouldValidate: false });
     }
   }, [editingEntry, form]);
 
+  // Ensure duration field updates when redo entries change during editing
+  useEffect(() => {
+    if (editingEntry && baseDurationMinutes > 0) {
+      const currentRedoTime = redoEntries.reduce((total, redo) => total + (redo.timeMinutes || 0), 0);
+      const totalDuration = baseDurationMinutes + currentRedoTime;
+      if (form.getValues("durationMinutes") !== totalDuration) {
+        form.setValue("durationMinutes", totalDuration, { shouldValidate: false });
+      }
+    }
+  }, [redoEntries, baseDurationMinutes, editingEntry, form]);
+
+  // Track redo time changes and update total duration
+  useEffect(() => {
+    const redoTime = redoEntries.reduce((total, redo) => total + (redo.timeMinutes || 0), 0);
+    const currentDuration = form.watch("durationMinutes") || 0;
+    
+    // Only update if we have a base duration set and redo time has changed
+    if (baseDurationMinutes > 0) {
+      const newTotalDuration = baseDurationMinutes + redoTime;
+      if (currentDuration !== newTotalDuration) {
+        form.setValue("durationMinutes", newTotalDuration, { shouldValidate: false });
+      }
+    }
+  }, [redoEntries, baseDurationMinutes, form]);
+
   const createEntryMutation = useMutation({
     mutationFn: async (data: z.infer<typeof formSchema>) => {
-      const url = editingEntry ? `/api/job-entries/${editingEntry.id}` : "/api/job-entries";
       const method = editingEntry ? "PUT" : "POST";
-      
-      const payload = {
+      const url = editingEntry ? `/api/job-entries/${editingEntry.id}` : "/api/job-entries";
+      const response = await apiRequest(method, url, {
         ...data,
-        dimensions: dimensions.map(dim => ({
-          lengthInches: dim.lengthInches,
-          widthInches: dim.widthInches,
-          filmId: dim.filmId,
-          description: dim.description || null,
-        })),
-        redoEntries: redoEntries,
-      };
-
-      return apiRequest(url, {
-        method,
-        body: JSON.stringify(payload),
+        windowAssignments: windowAssignments.filter(w => w.installerId),
+        redoEntries,
       });
+      return response;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/job-entries"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+    onSuccess: (response: any) => {
+      // Show job number for new entries
+      if (!editingEntry && response?.jobNumber) {
+        setCreatedJobNumber(response.jobNumber);
+      }
+      
       toast({
-        title: editingEntry ? "Job entry updated" : "Job entry created",
-        description: editingEntry ? "The job entry has been updated successfully." : "The job entry has been created successfully.",
+        title: editingEntry ? "Entry Updated" : "Entry Created",
+        description: editingEntry ? "Job entry has been successfully updated." : `Job entry created with number: ${response?.jobNumber || 'N/A'}`,
       });
+      queryClient.invalidateQueries({ queryKey: ["/api/job-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/analytics/metrics"] });
+      if (!editingEntry) {
+        form.reset();
+        setRedoEntries([]);
+        setWindowAssignments([]);
+      }
       onSuccess?.();
     },
-    onError: (error: Error) => {
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to create job entry",
         variant: "destructive",
       });
     },
   });
 
-  const handleSubmit = (data: z.infer<typeof formSchema>) => {
-    createEntryMutation.mutate(data);
-  };
-
-  const addDimension = () => {
-    setDimensions([...dimensions, { lengthInches: 0, widthInches: 0, filmId: 0, description: "" }]);
-  };
-
-  const removeDimension = (index: number) => {
-    setDimensions(dimensions.filter((_, i) => i !== index));
-  };
-
-  const updateDimension = (index: number, field: string, value: any) => {
-    const updated = [...dimensions];
-    updated[index] = { ...updated[index], [field]: value };
-    setDimensions(updated);
-  };
-
   const addRedoEntry = () => {
-    setRedoEntries([...redoEntries, {
-      part: "",
-      filmId: 0,
+    setRedoEntries([...redoEntries, { 
+      part: "windshield", 
       installerId: "",
-      lengthInches: 0,
-      widthInches: 0,
-      timeMinutes: 0,
+      lengthInches: undefined,
+      widthInches: undefined,
+      timeMinutes: undefined
     }]);
   };
 
@@ -213,425 +279,388 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     setRedoEntries(redoEntries.filter((_, i) => i !== index));
   };
 
-  const updateRedoEntry = (index: number, field: string, value: any) => {
+  const updateRedoEntry = (index: number, field: string, value: string | number) => {
     const updated = [...redoEntries];
     updated[index] = { ...updated[index], [field]: value };
     setRedoEntries(updated);
   };
 
+  const onSubmit = (data: z.infer<typeof formSchema>) => {
+    const jobEntryData = {
+      ...data,
+      windowAssignments,
+      dimensions,
+      redoEntries: redoEntries.length > 0 ? redoEntries : undefined,
+    };
+    console.log('Form submission data:', jobEntryData);
+    createEntryMutation.mutate(jobEntryData);
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        {/* Job Information */}
-        <Card className="bg-muted/30 border-muted">
-          <CardHeader>
-            <CardTitle className="text-lg text-card-foreground">Job Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <FormField
-                control={form.control}
-                name="date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-muted-foreground">Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" className="bg-background border-border" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="vehicleYear"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-muted-foreground">Vehicle Year</FormLabel>
-                    <FormControl>
-                      <Input placeholder="2023" className="bg-background border-border" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="vehicleMake"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-muted-foreground">Vehicle Make</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Toyota" className="bg-background border-border" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="vehicleModel"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-muted-foreground">Vehicle Model</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Camry" className="bg-background border-border" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="totalWindows"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-muted-foreground">Total Windows</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="1"
-                        max="20"
-                        className="bg-background border-border"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="durationMinutes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-muted-foreground">Duration (minutes)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="1"
-                        className="bg-background border-border"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 60)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Job Number Display for existing entries or newly created entries */}
+        {(editingEntry || createdJobNumber) && (
+          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">Job Number</h3>
+                <p className="text-blue-700 dark:text-blue-300 text-sm">Save this number for future reference and searching</p>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-mono font-bold text-blue-800 dark:text-blue-200">
+                  {editingEntry?.jobNumber || createdJobNumber}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => {
+                    const jobNumber = editingEntry?.jobNumber || createdJobNumber;
+                    if (jobNumber) {
+                      navigator.clipboard.writeText(jobNumber);
+                      toast({
+                        title: "Copied!",
+                        description: "Job number copied to clipboard",
+                      });
+                    }
+                  }}
+                >
+                  Copy Job Number
+                </Button>
+              </div>
             </div>
+          </div>
+        )}
 
-            {/* Installer Selection */}
-            <div className="space-y-3">
-              <FormLabel className="text-muted-foreground">Installers</FormLabel>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="date"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Date *</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="totalWindows"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Total Windows *</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="20"
+                    {...field}
+                    onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        {/* Vehicle Information */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <FormField
+            control={form.control}
+            name="vehicleYear"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Vehicle Year *</FormLabel>
+                <FormControl>
+                  <Input placeholder="2024" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="vehicleMake"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Vehicle Make *</FormLabel>
+                <FormControl>
+                  <Input placeholder="Honda" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="vehicleModel"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Vehicle Model *</FormLabel>
+                <FormControl>
+                  <Input placeholder="Civic" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        {/* Installers Selection */}
+        <FormField
+          control={form.control}
+          name="installerIds"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-muted-foreground">
+                Job Installers * (Select one or more installers for this job)
+              </FormLabel>
+              <div className="space-y-2 bg-background border border-border rounded-md p-3">
                 {installers.map((installer) => (
-                  <div key={installer.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={installer.id}
-                      checked={form.watch("installerIds").includes(installer.id)}
-                      onCheckedChange={(checked) => {
-                        const currentIds = form.getValues("installerIds");
-                        if (checked) {
-                          form.setValue("installerIds", [...currentIds, installer.id]);
-                        } else {
-                          form.setValue("installerIds", currentIds.filter(id => id !== installer.id));
-                        }
-                      }}
-                    />
-                    <label htmlFor={installer.id} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      {installer.name}
-                    </label>
+                  <div key={installer.id} className="flex items-center justify-between p-2 border rounded">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id={installer.id}
+                        checked={field.value?.includes(installer.id)}
+                        onCheckedChange={(checked) => {
+                          const currentValue = field.value || [];
+                          const currentVariances = form.getValues("installerTimeVariances") || {};
+                          
+                          if (checked) {
+                            field.onChange([...currentValue, installer.id]);
+                            form.setValue("installerTimeVariances", {
+                              ...currentVariances,
+                              [installer.id]: 0
+                            });
+                          } else {
+                            field.onChange(currentValue.filter(id => id !== installer.id));
+                            const { [installer.id]: removed, ...remainingVariances } = currentVariances;
+                            form.setValue("installerTimeVariances", remainingVariances);
+                          }
+                        }}
+                      />
+                      <label htmlFor={installer.id} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        {installer.firstName} {installer.lastName}
+                      </label>
+                    </div>
+                    
+                    {field.value?.includes(installer.id) && (
+                      <div className="flex items-center space-x-2">
+                        <label className="text-xs text-muted-foreground">Time Variance (minutes):</label>
+                        <Input
+                          type="number"
+                          className="w-20 h-8 text-xs"
+                          placeholder="0"
+                          value={form.watch("installerTimeVariances")?.[installer.id] || 0}
+                          onChange={(e) => {
+                            const currentVariances = form.getValues("installerTimeVariances") || {};
+                            form.setValue("installerTimeVariances", {
+                              ...currentVariances,
+                              [installer.id]: parseInt(e.target.value) || 0
+                            });
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Visual Car Window Assignment */}
-        <div className="space-y-4">
-          <VisualCarSelector
-            installers={installers}
-            selectedInstallers={form.watch("installerIds").map(id => installers.find(i => i.id === id)).filter(Boolean) as User[]}
-            onWindowAssignmentsChange={(assignments) => {
-              setWindowAssignments(assignments);
-              
-              // Auto-update total windows count based on assigned windows
-              form.setValue("totalWindows", assignments.filter(a => a.installerId).length, { shouldValidate: false, shouldDirty: false });
-            }}
-          />
-
-          {/* Window Assignment Summary */}
-          {windowAssignments.filter(w => w.installerId).length > 0 && (
-            <Card className="bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-600">
-              <CardHeader>
-                <CardTitle className="text-slate-900 dark:text-slate-100">Window Assignments</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {windowAssignments.filter(w => w.installerId).map((assignment, index) => {
-                    const installer = installers.find(i => i.id === assignment.installerId);
-                    return (
-                      <div key={index} className="flex justify-between items-center p-2 bg-white dark:bg-slate-700 rounded border">
-                        <span className="text-slate-700 dark:text-slate-300">
-                          {assignment.windowName}: {installer?.name}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
+              <FormMessage />
+            </FormItem>
           )}
-        </div>
-
-        {/* Installer Time Variance Section */}
-        {form.watch("installerIds").length > 0 && (
-          <Card className="bg-muted/30 border-muted">
-            <CardHeader>
-              <CardTitle className="text-lg text-card-foreground">Installer Time Variance</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Adjust time variance for each installer (positive = took longer, negative = finished faster)
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {form.watch("installerIds").map((installerId) => {
-                const installer = installers.find(i => i.id === installerId);
-                const currentVariance = form.watch("installerTimeVariances")?.[installerId] || 0;
-                
-                return (
-                  <div key={installerId} className="flex items-center justify-between p-3 border border-border rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <span className="font-medium">{installer?.name}</span>
-                      <span className="text-sm text-muted-foreground">
-                        Time variance: {currentVariance > 0 ? '+' : ''}{currentVariance} minutes
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const newVariance = (currentVariance || 0) - 5;
-                          form.setValue(`installerTimeVariances.${installerId}`, newVariance);
-                        }}
-                        className="h-8 w-8 p-0"
-                      >
-                        -5
-                      </Button>
-                      <Input
-                        type="number"
-                        value={currentVariance || 0}
-                        onChange={(e) => {
-                          const value = parseInt(e.target.value) || 0;
-                          form.setValue(`installerTimeVariances.${installerId}`, value);
-                        }}
-                        className="w-20 text-center"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const newVariance = (currentVariance || 0) + 5;
-                          form.setValue(`installerTimeVariances.${installerId}`, newVariance);
-                        }}
-                        className="h-8 w-8 p-0"
-                      >
-                        +5
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        )}
+        />
 
         {/* Dimensions Section */}
-        <Card className="bg-muted/30 border-muted">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg text-card-foreground">Dimensions</CardTitle>
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm" 
-                onClick={addDimension}
-                className="border-primary/30 text-primary hover:bg-primary/10"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Add Dimension
-              </Button>
+        <div className="col-span-full">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-medium">Dimensions</h3>
+              <p className="text-sm text-muted-foreground">Enter length and width measurements with film type for each window</p>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const defaultFilmId = films.length > 0 ? films[0].id : 33;
+                setDimensions([...dimensions, { lengthInches: 1, widthInches: 1, filmId: defaultFilmId, description: "" }]);
+              }}
+              className="shrink-0"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Dimension
+            </Button>
+          </div>
+          
+          <div className="space-y-4">
             {dimensions.map((dimension, index) => (
-              <div key={index} className="border border-border rounded-lg p-4 space-y-3">
-                <div className="flex items-center justify-between">
+              <div key={index} className="border rounded-lg p-4 bg-card">
+                <div className="flex items-center justify-between mb-3">
                   <h4 className="font-medium">Dimension {index + 1}</h4>
                   {dimensions.length > 1 && (
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => removeDimension(index)}
-                      className="text-red-500 hover:text-red-700"
+                      onClick={() => {
+                        const newDimensions = dimensions.filter((_, i) => i !== index);
+                        setDimensions(newDimensions);
+                        updateTotalSqftFromDimensions(newDimensions);
+                      }}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <X className="h-4 w-4" />
                     </Button>
                   )}
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Length (inches)</label>
+                    <Label htmlFor={`length-${index}`} className="text-sm font-medium">
+                      Length (inches)
+                    </Label>
                     <Input
+                      id={`length-${index}`}
                       type="number"
                       step="0.1"
                       min="0.1"
-                      value={dimension.lengthInches || ""}
-                      onChange={(e) => updateDimension(index, "lengthInches", parseFloat(e.target.value) || 0)}
-                      className="bg-background border-border"
+                      value={dimension.lengthInches}
+                      onChange={(e) => {
+                        const newDimensions = [...dimensions];
+                        const value = parseFloat(e.target.value) || 1;
+                        newDimensions[index].lengthInches = value;
+                        setDimensions(newDimensions);
+                        updateTotalSqftFromDimensions(newDimensions);
+                      }}
+                      placeholder="1.0"
+                      className="mt-1"
                     />
                   </div>
                   
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Width (inches)</label>
+                    <Label htmlFor={`width-${index}`} className="text-sm font-medium">
+                      Width (inches)
+                    </Label>
                     <Input
+                      id={`width-${index}`}
                       type="number"
                       step="0.1"
                       min="0.1"
-                      value={dimension.widthInches || ""}
-                      onChange={(e) => updateDimension(index, "widthInches", parseFloat(e.target.value) || 0)}
-                      className="bg-background border-border"
+                      value={dimension.widthInches}
+                      onChange={(e) => {
+                        const newDimensions = [...dimensions];
+                        const value = parseFloat(e.target.value) || 1;
+                        newDimensions[index].widthInches = value;
+                        setDimensions(newDimensions);
+                        updateTotalSqftFromDimensions(newDimensions);
+                      }}
+                      placeholder="1.0"
+                      className="mt-1"
                     />
                   </div>
                   
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Film Type</label>
+                    <Label htmlFor={`film-${index}`} className="text-sm font-medium">
+                      Film Type
+                    </Label>
                     <Select
-                      value={dimension.filmId ? dimension.filmId.toString() : ""}
-                      onValueChange={(value) => updateDimension(index, "filmId", parseInt(value))}
+                      value={dimension.filmId.toString()}
+                      onValueChange={(value) => {
+                        const newDimensions = [...dimensions];
+                        newDimensions[index].filmId = parseInt(value);
+                        setDimensions(newDimensions);
+                      }}
                     >
-                      <SelectTrigger className="bg-background border-border">
-                        <SelectValue placeholder="Select film" />
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder={filmsLoading ? "Loading films..." : "Select film type"} />
                       </SelectTrigger>
                       <SelectContent>
-                        {films.map((film) => (
-                          <SelectItem key={film.id} value={film.id.toString()}>
-                            {film.name}
-                          </SelectItem>
-                        ))}
+                        {filmsLoading ? (
+                          <SelectItem value="loading" disabled>Loading films...</SelectItem>
+                        ) : films.length === 0 ? (
+                          <SelectItem value="no-films" disabled>No films available</SelectItem>
+                        ) : (
+                          films.map((film) => (
+                            <SelectItem key={film.id} value={film.id.toString()}>
+                              {film.name} - {film.type}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
                   
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Description (optional)</label>
+                    <Label htmlFor={`description-${index}`} className="text-sm font-medium">
+                      Description (optional)
+                    </Label>
                     <Input
+                      id={`description-${index}`}
                       value={dimension.description || ""}
-                      onChange={(e) => updateDimension(index, "description", e.target.value)}
-                      placeholder="Window description"
-                      className="bg-background border-border"
+                      onChange={(e) => {
+                        const newDimensions = [...dimensions];
+                        newDimensions[index].description = e.target.value;
+                        setDimensions(newDimensions);
+                      }}
+                      placeholder="e.g., Front windshield"
+                      className="mt-1"
                     />
                   </div>
                 </div>
                 
-                <div className="text-sm text-muted-foreground bg-muted p-2 rounded">
-                  Square footage: {dimension.lengthInches && dimension.widthInches 
-                    ? ((dimension.lengthInches * dimension.widthInches) / 144).toFixed(2) 
-                    : "0.00"} sq ft
+                <div className="mt-3 text-sm text-muted-foreground">
+                  Square footage: {((dimension.lengthInches * dimension.widthInches) / 144).toFixed(2)} sq ft
                 </div>
               </div>
             ))}
-            
-            <div className="bg-muted p-4 rounded-lg">
-              <div className="text-lg font-semibold">
-                Total Square Footage: {dimensions.reduce((total, dim) => 
-                  total + ((dim.lengthInches * dim.widthInches) / 144), 0
-                ).toFixed(2)} sq ft
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        {/* Redo Entries Section */}
-        <Card className="bg-muted/30 border-border">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-card-foreground">Redo Entries</CardTitle>
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm" 
-                onClick={addRedoEntry}
-                className="border-primary/30 text-primary hover:bg-primary/10"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Add Redo
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {redoEntries.map((redo, index) => {
-              // Get films used in the current dimensions for redo selection
-              const availableFilms = dimensions
-                .filter(dim => dim.filmId)
-                .map(dim => films?.find(f => f.id === dim.filmId))
-                .filter((film): film is Film => Boolean(film))
-                .filter((film, idx, arr) => arr.findIndex(f => f!.id === film.id) === idx); // Remove duplicates
-              
-              return (
-                <RedoEntry
-                  key={index}
-                  part={redo.part}
-                  filmId={redo.filmId}
-                  installerId={redo.installerId}
-                  lengthInches={redo.lengthInches}
-                  widthInches={redo.widthInches}
-                  timeMinutes={redo.timeMinutes}
-                  installers={installers}
-                  availableFilms={availableFilms}
-                  onPartChange={(value) => updateRedoEntry(index, "part", value)}
-                  onFilmChange={(value) => updateRedoEntry(index, "filmId", value)}
-                  onInstallerChange={(value) => updateRedoEntry(index, "installerId", value)}
-                  onLengthChange={(value) => updateRedoEntry(index, "lengthInches", value)}
-                  onWidthChange={(value) => updateRedoEntry(index, "widthInches", value)}
-                  onTimeChange={(value) => updateRedoEntry(index, "timeMinutes", value)}
-                  onRemove={() => removeRedoEntry(index)}
+        {/* Duration */}
+        <FormField
+          control={form.control}
+          name="durationMinutes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Duration (minutes) *</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  min="1"
+                  {...field}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 0;
+                    field.onChange(value);
+                    if (!editingEntry) {
+                      setBaseDurationMinutes(value);
+                    }
+                  }}
                 />
-              );
-            })}
-            
-            {redoEntries.length === 0 && (
-              <p className="text-xs text-muted-foreground text-center py-4">
-                No redo entries. Add redo entries for different parts of the vehicle as needed.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-        {/* Notes Section */}
+        {/* Notes */}
         <FormField
           control={form.control}
           name="notes"
           render={({ field }) => (
             <FormItem>
-              <FormLabel className="text-muted-foreground">Notes (Optional)</FormLabel>
+              <FormLabel>Notes</FormLabel>
               <FormControl>
-                <Textarea 
-                  placeholder="Add any notes about this job..."
-                  className="bg-background border-border resize-none"
-                  rows={3}
+                <Textarea
+                  placeholder="Additional notes about this job..."
+                  className="resize-none"
                   {...field}
                 />
               </FormControl>
@@ -641,24 +670,13 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
         />
 
         {/* Submit Button */}
-        <div className="flex justify-end pt-6">
-          <Button
-            type="submit"
-            size="lg"
-            disabled={createEntryMutation.isPending}
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            {createEntryMutation.isPending ? (
-              <>
-                <div className="animate-spin -ml-1 mr-3 h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-                {editingEntry ? 'Updating...' : 'Creating...'}
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                {editingEntry ? 'Update Job Entry' : 'Create Job Entry'}
-              </>
-            )}
+        <div className="flex justify-end">
+          <Button type="submit" disabled={createEntryMutation.isPending}>
+            <Save className="h-4 w-4 mr-2" />
+            {createEntryMutation.isPending 
+              ? (editingEntry ? "Updating..." : "Creating...") 
+              : (editingEntry ? "Update Entry" : "Create Entry")
+            }
           </Button>
         </div>
       </form>

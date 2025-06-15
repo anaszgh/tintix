@@ -1,42 +1,62 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Plus, Edit, Trash2, DollarSign } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { isUnauthorizedError } from "@/lib/authUtils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useAuth } from "@/hooks/useAuth";
-import { insertFilmSchema, type Film } from "@shared/schema";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Sidebar } from "@/components/layout/sidebar";
+import { Header } from "@/components/layout/header";
+import { Plus, Edit, Trash2, DollarSign } from "lucide-react";
+import { insertFilmSchema } from "@shared/schema";
+import { z } from "zod";
+import type { Film } from "@shared/schema";
 
-const filmTypes = [
-  "Window Tint",
-  "Paint Protection Film", 
-  "Ceramic Coating",
-  "Vinyl Wrap",
-  "Clear Bra",
-  "Security Film"
-];
-
-const formSchema = insertFilmSchema.extend({
+const filmFormSchema = insertFilmSchema.extend({
   costPerSqft: z.number().min(0.01, "Cost must be greater than 0"),
 });
 
+const filmTypes = [
+  "Ceramic",
+  "Carbon", 
+  "Dyed",
+  "Crystalline",
+  "Metallic",
+  "Hybrid",
+  "Security",
+  "Privacy"
+];
+
 export default function FilmManagement() {
-  const { user } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
   const [editingFilm, setEditingFilm] = useState<Film | null>(null);
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  // Fetch films
+  const { data: films = [], isLoading: filmsLoading } = useQuery<Film[]>({
+    queryKey: ["/api/films/all"],
+    enabled: !!user,
+    retry: (failureCount, error) => {
+      if (isUnauthorizedError(error as Error)) {
+        return false;
+      }
+      return failureCount < 3;
+    },
+  });
+
+  const form = useForm<z.infer<typeof filmFormSchema>>({
+    resolver: zodResolver(filmFormSchema),
     defaultValues: {
       name: "",
       type: "",
@@ -45,54 +65,140 @@ export default function FilmManagement() {
     },
   });
 
-  const { data: films = [], isLoading: filmsLoading } = useQuery<Film[]>({
-    queryKey: ['/api/films'],
-  });
-
+  // Create film mutation
   const createFilmMutation = useMutation({
-    mutationFn: (filmData: z.infer<typeof formSchema>) => 
-      apiRequest('POST', '/api/films', filmData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/films'] });
-      toast({ title: "Film type created successfully" });
-      setIsDialogOpen(false);
-      form.reset();
+    mutationFn: async (data: z.infer<typeof filmFormSchema>) => {
+      const response = await fetch("/api/films", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Failed to create film");
+      return response.json();
     },
-    onError: (error: Error) => {
-      toast({ title: "Error creating film type", description: error.message, variant: "destructive" });
-    }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/films"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/films/all"] });
+      toast({
+        title: "Success",
+        description: "Film type created successfully",
+      });
+      form.reset();
+      setIsDialogOpen(false);
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create film type",
+        variant: "destructive",
+      });
+    },
   });
 
+  // Update film mutation
   const updateFilmMutation = useMutation({
-    mutationFn: ({ id, ...filmData }: { id: number } & z.infer<typeof formSchema>) => 
-      apiRequest('PATCH', `/api/films/${id}`, filmData),
+    mutationFn: async (data: z.infer<typeof filmFormSchema>) => {
+      if (!editingFilm) throw new Error("No film selected for editing");
+      const response = await fetch(`/api/films/${editingFilm.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Failed to update film");
+      return response.json();
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/films'] });
-      toast({ title: "Film type updated successfully" });
-      setIsDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/films"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/films/all"] });
+      toast({
+        title: "Success",
+        description: "Film type updated successfully",
+      });
       form.reset();
       setEditingFilm(null);
+      setIsDialogOpen(false);
     },
-    onError: (error: Error) => {
-      toast({ title: "Error updating film type", description: error.message, variant: "destructive" });
-    }
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update film type",
+        variant: "destructive",
+      });
+    },
   });
 
+  // Delete film mutation
   const deleteFilmMutation = useMutation({
-    mutationFn: (id: number) => apiRequest('DELETE', `/api/films/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/films'] });
-      toast({ title: "Film type deleted successfully" });
+    mutationFn: async (filmId: number) => {
+      const response = await fetch(`/api/films/${filmId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to delete film");
+      return response.json();
     },
-    onError: (error: Error) => {
-      toast({ title: "Error deleting film type", description: error.message, variant: "destructive" });
-    }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/films"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/films/all"] });
+      toast({
+        title: "Success",
+        description: "Film type deleted successfully",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete film type",
+        variant: "destructive",
+      });
+    },
   });
 
-  const openCreateDialog = () => {
-    setEditingFilm(null);
-    form.reset();
-    setIsDialogOpen(true);
+  const handleSubmit = (data: z.infer<typeof filmFormSchema>) => {
+    if (editingFilm) {
+      updateFilmMutation.mutate(data);
+    } else {
+      createFilmMutation.mutate(data);
+    }
   };
 
   const handleEdit = (film: Film) => {
@@ -107,27 +213,37 @@ export default function FilmManagement() {
   };
 
   const handleDelete = (film: Film) => {
-    if (confirm(`Are you sure you want to delete "${film.name}"?`)) {
+    if (confirm(`Are you sure you want to delete "${film.name}"? This action cannot be undone.`)) {
       deleteFilmMutation.mutate(film.id);
     }
   };
 
-  const handleSubmit = (data: z.infer<typeof formSchema>) => {
-    if (editingFilm) {
-      updateFilmMutation.mutate({ id: editingFilm.id, ...data });
-    } else {
-      createFilmMutation.mutate(data);
-    }
+  const openCreateDialog = () => {
+    setEditingFilm(null);
+    form.reset({
+      name: "",
+      type: "",
+      costPerSqft: 0,
+      isActive: true,
+    });
+    setIsDialogOpen(true);
   };
 
-  if (!user || user.role !== 'manager') {
+  if (isLoading || !isAuthenticated) {
     return (
-      <div className="flex min-h-screen bg-background">
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-destructive mb-2">Access Denied</h2>
-            <p className="text-muted-foreground">Only managers can access film management.</p>
-          </div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Check if user is manager
+  if (user?.role !== "manager") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-destructive mb-2">Access Denied</h2>
+          <p className="text-muted-foreground">Only managers can access film management.</p>
         </div>
       </div>
     );
@@ -135,120 +251,118 @@ export default function FilmManagement() {
 
   return (
     <div className="flex min-h-screen bg-background">
+      <Sidebar />
       <main className="flex-1 overflow-hidden">
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <div>
-            <h1 className="text-2xl font-bold text-card-foreground">Film Management</h1>
-            <p className="text-muted-foreground">Manage film types and pricing</p>
-          </div>
-          <Button 
-            onClick={openCreateDialog}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Film Type
-          </Button>
-        </div>
+        <Header 
+          title="Film Management"
+          description="Manage film types and pricing"
+          actions={
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={openCreateDialog} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Film Type
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-card border-border">
+                <DialogHeader>
+                  <DialogTitle className="text-card-foreground">
+                    {editingFilm ? "Edit Film Type" : "Add New Film Type"}
+                  </DialogTitle>
+                </DialogHeader>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-muted-foreground">Film Name *</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="e.g. 3M Ceramic 70%" 
+                              {...field}
+                              className="bg-background border-border"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-card-foreground">
-                {editingFilm ? "Edit Film Type" : "Add New Film Type"}
-              </DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-muted-foreground">Film Name *</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="e.g. 36 XR+ 20%"
-                          {...field}
-                          className="bg-background border-border"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="type"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-muted-foreground">Film Type *</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="bg-background border-border">
+                                <SelectValue placeholder="Select film type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {filmTypes.map((type) => (
+                                <SelectItem key={type} value={type}>
+                                  {type}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="type"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-muted-foreground">Film Type *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="bg-background border-border">
-                            <SelectValue placeholder="Select film type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {filmTypes.map((type) => (
-                            <SelectItem key={type} value={type}>
-                              {type}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="costPerSqft"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-muted-foreground">Cost per Sq Ft *</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="e.g. 8.50"
+                              {...field}
+                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : 0)}
+                              className="bg-background border-border"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="costPerSqft"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-muted-foreground">Cost per Sq Ft *</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="e.g. 8.50"
-                          {...field}
-                          onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : 0)}
-                          className="bg-background border-border"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-
-
-                <div className="flex justify-end space-x-2 pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsDialogOpen(false)}
-                    className="border-border hover:bg-muted"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={createFilmMutation.isPending || updateFilmMutation.isPending}
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                  >
-                    {editingFilm ? "Update" : "Create"} Film Type
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+                    <div className="flex justify-end space-x-2 pt-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsDialogOpen(false)}
+                        className="border-border hover:bg-muted"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={createFilmMutation.isPending || updateFilmMutation.isPending}
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                      >
+                        {editingFilm ? "Update" : "Create"} Film Type
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
+          }
+        />
 
         <div className="p-6 space-y-6">
+          {/* Film Types Table */}
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-card-foreground flex items-center">
@@ -269,38 +383,48 @@ export default function FilmManagement() {
                       <TableHead className="text-muted-foreground">Type</TableHead>
                       <TableHead className="text-muted-foreground">Cost per Sq Ft</TableHead>
                       <TableHead className="text-muted-foreground">Status</TableHead>
-                      <TableHead className="text-muted-foreground text-right">Actions</TableHead>
+                      <TableHead className="text-muted-foreground">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {films.map((film) => (
-                      <TableRow key={film.id} className="border-border hover:bg-muted/50">
-                        <TableCell className="font-medium text-card-foreground">{film.name}</TableCell>
-                        <TableCell className="text-muted-foreground">{film.type}</TableCell>
-                        <TableCell className="text-muted-foreground">${Number(film.costPerSqft).toFixed(2)}</TableCell>
+                      <TableRow key={film.id} className="border-border hover:bg-muted/20">
+                        <TableCell className="font-medium text-card-foreground">
+                          {film.name}
+                        </TableCell>
+                        <TableCell className="text-card-foreground">
+                          <Badge variant="outline" className="border-border text-muted-foreground">
+                            {film.type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-card-foreground font-mono">
+                          ${Number(film.costPerSqft).toFixed(2)}
+                        </TableCell>
                         <TableCell>
-                          <Badge variant={film.isActive ? "default" : "secondary"} className="text-xs">
+                          <Badge 
+                            variant={film.isActive ? "default" : "secondary"}
+                            className={film.isActive ? "bg-success text-white" : "bg-muted text-muted-foreground"}
+                          >
                             {film.isActive ? "Active" : "Inactive"}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
                             <Button
-                              size="sm"
                               variant="outline"
+                              size="sm"
                               onClick={() => handleEdit(film)}
                               className="border-border hover:bg-muted"
                             >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Edit
+                              <Edit className="h-4 w-4" />
                             </Button>
                             <Button
+                              variant="outline"
                               size="sm"
-                              variant="destructive"
                               onClick={() => handleDelete(film)}
+                              className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
                             >
-                              <Trash2 className="h-4 w-4 mr-1" />
-                              Delete
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                         </TableCell>
@@ -308,6 +432,12 @@ export default function FilmManagement() {
                     ))}
                   </TableBody>
                 </Table>
+              )}
+
+              {!filmsLoading && films.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">No film types found. Add your first film type to get started.</p>
+                </div>
               )}
             </CardContent>
           </Card>

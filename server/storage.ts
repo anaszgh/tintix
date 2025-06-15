@@ -222,16 +222,16 @@ export class DatabaseStorage implements IStorage {
     
     // Add dimensions if provided and calculate total square footage
     let totalSqft = 0;
-    let totalFilmCost = 0;
+    const filmConsumption: Map<number, number> = new Map(); // Track film consumption by filmId
+    
     if (jobEntry.dimensions && jobEntry.dimensions.length > 0) {
       for (const dimension of jobEntry.dimensions) {
         const sqft = (dimension.lengthInches * dimension.widthInches) / 144;
         totalSqft += sqft;
         
-        // Get film details to calculate cost
-        const film = await db.select().from(films).where(eq(films.id, dimension.filmId)).limit(1);
-        const filmCost = film.length > 0 ? parseFloat(film[0].costPerSqft) * sqft : 0;
-        totalFilmCost += filmCost;
+        // Track film consumption
+        const currentConsumption = filmConsumption.get(dimension.filmId) || 0;
+        filmConsumption.set(dimension.filmId, currentConsumption + sqft);
         
         await db.insert(jobDimensions).values({
           jobEntryId: entry.id,
@@ -239,18 +239,31 @@ export class DatabaseStorage implements IStorage {
           lengthInches: dimension.lengthInches.toString(),
           widthInches: dimension.widthInches.toString(),
           sqft: sqft.toString(),
-          filmCost: filmCost.toString(),
           description: dimension.description || null,
         });
-        
-        // Deduct from inventory when job is created
-        await this.deductInventoryStock(dimension.filmId, sqft, 'system', entry.id, `Job ${entry.jobNumber} - ${dimension.description || 'Window'}`);
       }
       
       // Update total square footage
       await db.update(jobEntries)
         .set({ totalSqft })
         .where(eq(jobEntries.id, entry.id));
+        
+      // Auto-deduct inventory for each film type used
+      const userId = installerData.length > 0 ? installerData[0].installerId : "system";
+      for (const [filmId, consumption] of Array.from(filmConsumption.entries())) {
+        try {
+          await this.deductInventoryStock(
+            filmId, 
+            consumption, 
+            userId, 
+            entry.id, 
+            `Auto-deduction for job ${jobNumber}`
+          );
+        } catch (error) {
+          console.warn(`Failed to deduct inventory for film ${filmId} in job ${jobNumber}:`, error);
+          // Continue without failing the job creation
+        }
+      }
     }
 
     // Add installers to the job with their individual time variances
@@ -1309,19 +1322,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getInventoryTransactions(filmId?: number, limit = 100): Promise<Array<InventoryTransaction & { film: Film; createdByUser: User; jobEntry?: JobEntry }>> {
-    const whereConditions = filmId ? [eq(inventoryTransactions.filmId, filmId)] : [];
-    
-    const result = await db
+    let query = db
       .select()
       .from(inventoryTransactions)
       .innerJoin(films, eq(inventoryTransactions.filmId, films.id))
       .innerJoin(users, eq(inventoryTransactions.createdBy, users.id))
       .leftJoin(jobEntries, eq(inventoryTransactions.jobEntryId, jobEntries.id))
-      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(desc(inventoryTransactions.createdAt))
       .limit(limit);
 
-    return result.map((row: any) => ({
+    if (filmId) {
+      query = query.where(eq(inventoryTransactions.filmId, filmId));
+    }
+
+    const result = await query;
+
+    return result.map(row => ({
       ...row.inventory_transactions,
       film: row.films,
       createdByUser: row.users,
