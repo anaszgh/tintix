@@ -198,45 +198,51 @@ export default function Inventory() {
   };
 
   const getStockStatus = (film: FilmWithInventory) => {
-    const stock = getStockLevel(film);
+    const current = getStockLevel(film);
     const minimum = getMinimumStock(film);
-    const warning = minimum * 1.5; // Warning threshold at 150% of minimum
     
-    if (stock === 0) return "out_of_stock";
-    if (stock <= minimum && minimum > 0) return "low_stock";
-    if (stock <= warning && minimum > 0) return "warning";
-    return "good";
+    if (minimum === 0) {
+      return { status: 'unknown', color: 'gray', text: 'No minimum set' };
+    }
+    
+    if (current <= minimum) {
+      return { status: 'low', color: 'red', text: 'Low Stock' };
+    } else if (current <= minimum * 1.5) {
+      return { status: 'approaching', color: 'yellow', text: 'Approaching Limit' };
+    } else {
+      return { status: 'good', color: 'green', text: 'Good Stock' };
+    }
+  };
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'low': return 'destructive';
+      case 'approaching': return 'outline';
+      case 'good': return 'default';
+      default: return 'secondary';
+    }
+  };
+
+  const getStatusBadgeColor = (status: string) => {
+    switch (status) {
+      case 'low': return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800';
+      case 'approaching': return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800';
+      case 'good': return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-800';
+    }
   };
 
   const getStockIcon = (film: FilmWithInventory) => {
     const status = getStockStatus(film);
-    switch (status) {
-      case "out_of_stock":
+    switch (status.status) {
+      case "low":
         return <AlertCircle className="h-4 w-4 text-red-500" />;
-      case "low_stock":
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
-      case "warning":
+      case "approaching":
         return <Clock className="h-4 w-4 text-yellow-500" />;
       case "good":
         return <CheckCircle className="h-4 w-4 text-green-500" />;
       default:
         return <Package className="h-4 w-4 text-gray-500" />;
-    }
-  };
-
-  const getStockBadgeVariant = (film: FilmWithInventory) => {
-    const status = getStockStatus(film);
-    switch (status) {
-      case "out_of_stock":
-        return "destructive";
-      case "low_stock":
-        return "destructive";
-      case "warning":
-        return "secondary";
-      case "good":
-        return "default";
-      default:
-        return "default";
     }
   };
 
