@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Edit, Trash2, ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
@@ -168,6 +168,9 @@ export function RecentEntries() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-border">
           <DialogHeader>
             <DialogTitle className="text-card-foreground">Edit Job Entry</DialogTitle>
+            <DialogDescription>
+              Update the details of this job entry including vehicle information, installers, and dimensions.
+            </DialogDescription>
           </DialogHeader>
           <EntryForm 
             editingEntry={editingEntry}
