@@ -53,6 +53,17 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Load films and installers data first
+  const { data: installers = [], isLoading: installersLoading } = useQuery<User[]>({
+    queryKey: ["/api/installers"],
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+  const { data: films = [], isLoading: filmsLoading } = useQuery<any[]>({
+    queryKey: ["/api/films"],
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
   const [redoEntries, setRedoEntries] = useState<Array<{ 
     part: string; 
     installerId?: string; 
@@ -69,14 +80,26 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     })) : []
   );
 
+  // Initialize dimensions with proper filmId defaults
   const [dimensions, setDimensions] = useState<Array<{ lengthInches: number; widthInches: number; filmId: number; description?: string }>>(
     editingEntry && editingEntry.dimensions ? editingEntry.dimensions.map(dim => ({
       lengthInches: Number(dim.lengthInches),
       widthInches: Number(dim.widthInches),
-      filmId: (dim as any).filmId || 1, // Default to first film
+      filmId: (dim as any).filmId || 33, // Default to first available film
       description: dim.description || ""
-    })) : [{ lengthInches: 1, widthInches: 1, filmId: 1, description: "" }]
+    })) : [{ lengthInches: 1, widthInches: 1, filmId: 33, description: "" }]
   );
+
+  // Update default filmId when films load
+  useEffect(() => {
+    if (films.length > 0 && dimensions.some(dim => !films.find(f => f.id === dim.filmId))) {
+      const firstFilmId = films[0].id;
+      setDimensions(dimensions.map(dim => ({
+        ...dim,
+        filmId: films.find(f => f.id === dim.filmId) ? dim.filmId : firstFilmId
+      })));
+    }
+  }, [films, dimensions]);
 
   const [windowAssignments, setWindowAssignments] = useState<Array<{ windowId: string; installerId: string | null; windowName: string }>>(() => {
     if (editingEntry && editingEntry.windowAssignments) {
@@ -106,16 +129,6 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       form.setValue("filmCost", calculatedCost);
     }
   };
-
-  const { data: installers = [], isLoading: installersLoading } = useQuery<User[]>({
-    queryKey: ["/api/installers"],
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-  });
-
-  const { data: films = [], isLoading: filmsLoading } = useQuery<any[]>({
-    queryKey: ["/api/films"],
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-  });
 
   // Calculate proper duration including redo time for editing
   const calculateTotalDuration = () => {
@@ -152,7 +165,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       vehicleMake: "",
       vehicleModel: "",
       filmId: undefined,
-      dimensions: [{ lengthInches: 1, widthInches: 1, description: "" }],
+      dimensions: [{ lengthInches: 1, widthInches: 1, filmId: 1, description: "" }],
       totalSqft: undefined,
       filmCost: undefined,
       notes: "",
@@ -599,7 +612,8 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      setDimensions([...dimensions, { lengthInches: 1, widthInches: 1, filmId: 1, description: "" }]);
+                      const defaultFilmId = films.length > 0 ? films[0].id : 33;
+                      setDimensions([...dimensions, { lengthInches: 1, widthInches: 1, filmId: defaultFilmId, description: "" }]);
                     }}
                     className="shrink-0"
                   >
@@ -687,14 +701,20 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                             }}
                           >
                             <SelectTrigger className="mt-1">
-                              <SelectValue placeholder="Select film type" />
+                              <SelectValue placeholder={filmsLoading ? "Loading films..." : "Select film type"} />
                             </SelectTrigger>
                             <SelectContent>
-                              {films.map((film) => (
-                                <SelectItem key={film.id} value={film.id.toString()}>
-                                  {film.name} - {film.type}
-                                </SelectItem>
-                              ))}
+                              {filmsLoading ? (
+                                <SelectItem value="loading" disabled>Loading films...</SelectItem>
+                              ) : films.length === 0 ? (
+                                <SelectItem value="no-films" disabled>No films available</SelectItem>
+                              ) : (
+                                films.map((film) => (
+                                  <SelectItem key={film.id} value={film.id.toString()}>
+                                    {film.name} - {film.type}
+                                  </SelectItem>
+                                ))
+                              )}
                             </SelectContent>
                           </Select>
                         </div>
