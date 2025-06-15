@@ -291,22 +291,8 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    // Auto-deduct inventory if film is used
-    if (jobEntry.filmId && jobEntry.totalSqft) {
-      const userId = installerData.length > 0 ? installerData[0].installerId : "system";
-      try {
-        await this.deductInventoryStock(
-          jobEntry.filmId, 
-          jobEntry.totalSqft, 
-          userId, 
-          entry.id, 
-          `Auto-deduction for job ${entry.jobNumber}`
-        );
-      } catch (error) {
-        console.warn(`Failed to deduct inventory for job ${entry.jobNumber}:`, error);
-        // Continue without failing the job creation
-      }
-    }
+    // Auto-deduct inventory will be handled per dimension entry since films are now tracked individually
+    // This logic is moved to dimension processing above
     
     return entry;
   }
@@ -1041,7 +1027,8 @@ export class DatabaseStorage implements IStorage {
         jobCount: count(jobEntries.id),
       })
       .from(jobEntries)
-      .leftJoin(films, eq(jobEntries.filmId, films.id))
+      .innerJoin(jobDimensions, eq(jobEntries.id, jobDimensions.jobEntryId))
+      .leftJoin(films, eq(jobDimensions.filmId, films.id))
       .groupBy(sql`DATE(${jobEntries.date})`, films.type, films.name, films.id, films.costPerSqft);
 
     if (whereClause) {
@@ -1054,12 +1041,12 @@ export class DatabaseStorage implements IStorage {
     const redoQuery = db
       .select({
         date: sql<string>`DATE(${jobEntries.date})`,
-        filmId: jobEntries.filmId,
+        filmId: redoEntries.filmId,
         redoSqft: sql<number>`COALESCE(SUM(${redoEntries.sqft}), 0)`,
       })
       .from(redoEntries)
       .innerJoin(jobEntries, eq(redoEntries.jobEntryId, jobEntries.id))
-      .groupBy(sql`DATE(${jobEntries.date})`, jobEntries.filmId);
+      .groupBy(sql`DATE(${jobEntries.date})`, redoEntries.filmId);
 
     if (whereClause) {
       redoQuery.where(whereClause);
