@@ -40,6 +40,10 @@ const formSchema = insertJobEntrySchema.extend({
   redoEntries: z.array(z.object({
     part: z.string(),
     installerId: z.string().optional(),
+    filmId: z.number().optional(),
+    lengthInches: z.number().optional(),
+    widthInches: z.number().optional(),
+    timeMinutes: z.number().optional(),
   })).optional(),
 });
 
@@ -99,7 +103,19 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     );
     form.setValue("totalSqft", totalSqft);
     
-    // Film cost calculation now handled per dimension since films can vary per window
+    // Calculate total film cost from all dimensions
+    const totalFilmCost = dims.reduce((total, dim) => {
+      if (dim.filmId) {
+        const selectedFilm = films.find(f => f.id === dim.filmId);
+        if (selectedFilm) {
+          const dimSqft = (dim.lengthInches * dim.widthInches) / 144;
+          return total + (Number(selectedFilm.costPerSqft) * dimSqft);
+        }
+      }
+      return total;
+    }, 0);
+    
+    form.setValue("filmCost", totalFilmCost);
   };
 
   const { data: installers = [], isLoading: installersLoading } = useQuery<User[]>({
@@ -194,6 +210,42 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       }
     }
   }, [redoEntries, baseDurationMinutes, form]);
+
+  // Auto-recalculate costs when dimensions or films change
+  useEffect(() => {
+    updateTotalSqftFromDimensions(dimensions);
+  }, [dimensions, films]);
+
+  // Also recalculate when redo entries change (for redo film costs)
+  useEffect(() => {
+    const redoFilmCost = redoEntries.reduce((total, redo) => {
+      if (redo.filmId && redo.lengthInches && redo.widthInches) {
+        const selectedFilm = films.find(f => f.id === redo.filmId);
+        if (selectedFilm) {
+          const redoSqft = (redo.lengthInches * redo.widthInches) / 144;
+          return total + (Number(selectedFilm.costPerSqft) * redoSqft);
+        }
+      }
+      return total;
+    }, 0);
+
+    // Add redo costs to the existing dimension costs
+    const dimensionCost = dimensions.reduce((total, dim) => {
+      if (dim.filmId) {
+        const selectedFilm = films.find(f => f.id === dim.filmId);
+        if (selectedFilm) {
+          const dimSqft = (dim.lengthInches * dim.widthInches) / 144;
+          return total + (Number(selectedFilm.costPerSqft) * dimSqft);
+        }
+      }
+      return total;
+    }, 0);
+
+    const totalCost = dimensionCost + redoFilmCost;
+    if (form.getValues("filmCost") !== totalCost) {
+      form.setValue("filmCost", totalCost);
+    }
+  }, [redoEntries, dimensions, films, form]);
 
   const createEntryMutation = useMutation({
     mutationFn: async (data: z.infer<typeof formSchema>) => {

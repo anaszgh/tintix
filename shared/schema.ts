@@ -100,7 +100,7 @@ export const jobEntries = pgTable("job_entries", {
 export const jobDimensions = pgTable("job_dimensions", {
   id: serial("id").primaryKey(),
   jobEntryId: integer("job_entry_id").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
-  filmId: integer("film_id").notNull().references(() => films.id), // Film type for this consumption entry
+  filmId: integer("film_id").references(() => films.id), // Film type for this consumption entry (optional)
   lengthInches: numeric("length_inches", { precision: 8, scale: 2 }).notNull(),
   widthInches: numeric("width_inches", { precision: 8, scale: 2 }).notNull(),
   sqft: numeric("sqft", { precision: 10, scale: 4 }).notNull(), // Calculated L*W/144
