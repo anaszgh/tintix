@@ -105,9 +105,11 @@ export const jobEntries = pgTable("job_entries", {
 export const jobDimensions = pgTable("job_dimensions", {
   id: serial("id").primaryKey(),
   jobEntryId: integer("jobEntryId").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
+  filmId: integer("filmId").notNull().references(() => films.id), // Film type for this dimension
   lengthInches: numeric("lengthInches", { precision: 8, scale: 2 }).notNull(),
   widthInches: numeric("widthInches", { precision: 8, scale: 2 }).notNull(),
   sqft: numeric("sqft", { precision: 10, scale: 4 }).notNull(), // Calculated L*W/144
+  filmCost: numeric("filmCost", { precision: 10, scale: 2 }).notNull(), // Cost for this dimension (sqft * film cost per sqft)
   description: varchar("description"), // Optional description (e.g., "Front windshield", "Side windows")
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -124,6 +126,7 @@ export const redoEntries = pgTable("redo_entries", {
   id: serial("id").primaryKey(),
   jobEntryId: integer("job_entry_id").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
   installerId: varchar("installer_id").notNull().references(() => users.id),
+  filmId: integer("film_id").notNull().references(() => films.id), // Film type used in the redo (must match original job films)
   part: varchar("part").notNull(), // "windshield", "rollups", "back_windshield", "quarter"
   lengthInches: real("length_inches"), // Material consumption length
   widthInches: real("width_inches"), // Material consumption width
@@ -153,6 +156,8 @@ export const usersRelations = relations(users, ({ many }) => ({
 
 export const filmsRelations = relations(films, ({ many, one }) => ({
   jobEntries: many(jobEntries),
+  jobDimensions: many(jobDimensions),
+  redoEntries: many(redoEntries),
   inventory: one(filmInventory),
   inventoryTransactions: many(inventoryTransactions),
 }));
@@ -195,6 +200,10 @@ export const jobDimensionsRelations = relations(jobDimensions, ({ one }) => ({
     fields: [jobDimensions.jobEntryId],
     references: [jobEntries.id],
   }),
+  film: one(films, {
+    fields: [jobDimensions.filmId],
+    references: [films.id],
+  }),
 }));
 
 export const jobInstallersRelations = relations(jobInstallers, ({ one }) => ({
@@ -216,6 +225,10 @@ export const redoEntriesRelations = relations(redoEntries, ({ one }) => ({
   installer: one(users, {
     fields: [redoEntries.installerId],
     references: [users.id],
+  }),
+  film: one(films, {
+    fields: [redoEntries.filmId],
+    references: [films.id],
   }),
 }));
 
