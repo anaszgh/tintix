@@ -205,7 +205,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Job entry operations
-  async createJobEntry(jobEntry: InsertJobEntry & { windowAssignments?: any[], dimensions?: Array<{lengthInches: number, widthInches: number, description?: string}> }, installerData: Array<{installerId: string, timeVariance: number}>): Promise<JobEntry> {
+  async createJobEntry(jobEntry: InsertJobEntry & { windowAssignments?: any[], dimensions?: Array<{lengthInches: number, widthInches: number, filmId: number, description?: string}> }, installerData: Array<{installerId: string, timeVariance: number}>): Promise<JobEntry> {
     // Generate sequential job number starting from 1
     const existingEntries = await db.select({ id: jobEntries.id }).from(jobEntries);
     const nextJobNumber = existingEntries.length + 1;
@@ -222,18 +222,29 @@ export class DatabaseStorage implements IStorage {
     
     // Add dimensions if provided and calculate total square footage
     let totalSqft = 0;
+    let totalFilmCost = 0;
     if (jobEntry.dimensions && jobEntry.dimensions.length > 0) {
       for (const dimension of jobEntry.dimensions) {
         const sqft = (dimension.lengthInches * dimension.widthInches) / 144;
         totalSqft += sqft;
         
+        // Get film details to calculate cost
+        const film = await db.select().from(films).where(eq(films.id, dimension.filmId)).limit(1);
+        const filmCost = film.length > 0 ? parseFloat(film[0].costPerSqft) * sqft : 0;
+        totalFilmCost += filmCost;
+        
         await db.insert(jobDimensions).values({
           jobEntryId: entry.id,
+          filmId: dimension.filmId,
           lengthInches: dimension.lengthInches.toString(),
           widthInches: dimension.widthInches.toString(),
           sqft: sqft.toString(),
+          filmCost: filmCost.toString(),
           description: dimension.description || null,
         });
+        
+        // Deduct from inventory when job is created
+        await this.deductInventoryStock(dimension.filmId, sqft, 'system', entry.id, `Job ${entry.jobNumber} - ${dimension.description || 'Window'}`);
       }
       
       // Update total square footage
