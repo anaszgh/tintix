@@ -27,6 +27,12 @@ const filmFormSchema = insertFilmSchema.extend({
   grossWeight: z.number().min(0.01, "Gross weight must be greater than 0").optional(),
   coreWeight: z.number().min(0, "Core weight cannot be negative").optional(),
   netWeight: z.number().min(0.01, "Net weight must be greater than 0").optional(),
+}).refine((data) => {
+  // Auto-calculate net weight if gross and core weights are provided
+  if (data.grossWeight && data.coreWeight !== undefined) {
+    data.netWeight = data.grossWeight - data.coreWeight;
+  }
+  return true;
 });
 
 const filmTypes = [
@@ -46,6 +52,19 @@ export default function FilmManagement() {
   const queryClient = useQueryClient();
   const [editingFilm, setEditingFilm] = useState<Film | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [calculatedNetWeight, setCalculatedNetWeight] = useState<number | null>(null);
+  const [weightPerSqft, setWeightPerSqft] = useState<number | null>(null);
+
+  // Calculate net weight and weight per sqft
+  const calculateWeights = (grossWeight: number, coreWeight: number, totalSqft: number) => {
+    const netWeight = grossWeight - coreWeight;
+    const weightPerSq = totalSqft > 0 ? netWeight / totalSqft : 0;
+    setCalculatedNetWeight(netWeight);
+    setWeightPerSqft(weightPerSq);
+    
+    // Update the form with calculated net weight
+    form.setValue('netWeight', netWeight);
+  };
 
   // Fetch films
   const { data: films = [], isLoading: filmsLoading } = useQuery<Film[]>({
@@ -369,7 +388,17 @@ export default function FilmManagement() {
                                   min="0"
                                   placeholder="e.g. 150.00"
                                   {...field}
-                                  onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                                  onChange={(e) => {
+                                    const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                                    field.onChange(value);
+                                    
+                                    // Auto-calculate net weight and weight per sqft
+                                    const grossWeight = form.getValues('grossWeight');
+                                    const coreWeight = form.getValues('coreWeight');
+                                    if (grossWeight && coreWeight !== undefined && value) {
+                                      calculateWeights(grossWeight, coreWeight, value);
+                                    }
+                                  }}
                                   className="bg-background border-border"
                                 />
                               </FormControl>
@@ -391,7 +420,17 @@ export default function FilmManagement() {
                                   min="0"
                                   placeholder="e.g. 2500.00"
                                   {...field}
-                                  onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                                  onChange={(e) => {
+                                    const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                                    field.onChange(value);
+                                    
+                                    // Auto-calculate net weight and weight per sqft
+                                    const coreWeight = form.getValues('coreWeight');
+                                    const totalSqft = form.getValues('totalSqft');
+                                    if (value && coreWeight !== undefined && totalSqft) {
+                                      calculateWeights(value, coreWeight, totalSqft);
+                                    }
+                                  }}
                                   className="bg-background border-border"
                                 />
                               </FormControl>
@@ -413,7 +452,17 @@ export default function FilmManagement() {
                                   min="0"
                                   placeholder="e.g. 500.00"
                                   {...field}
-                                  onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                                  onChange={(e) => {
+                                    const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                                    field.onChange(value);
+                                    
+                                    // Auto-calculate net weight and weight per sqft
+                                    const grossWeight = form.getValues('grossWeight');
+                                    const totalSqft = form.getValues('totalSqft');
+                                    if (grossWeight && value !== undefined && totalSqft) {
+                                      calculateWeights(grossWeight, value, totalSqft);
+                                    }
+                                  }}
                                   className="bg-background border-border"
                                 />
                               </FormControl>
@@ -427,16 +476,17 @@ export default function FilmManagement() {
                           name="netWeight"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-muted-foreground">Net Weight (grams)</FormLabel>
+                              <FormLabel className="text-muted-foreground">Net Weight (grams) - Auto Calculated</FormLabel>
                               <FormControl>
                                 <Input
                                   type="number"
                                   step="0.01"
                                   min="0"
-                                  placeholder="e.g. 2000.00"
+                                  placeholder="Auto-calculated"
                                   {...field}
-                                  onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                                  className="bg-background border-border"
+                                  value={calculatedNetWeight !== null ? calculatedNetWeight : field.value || ''}
+                                  readOnly
+                                  className="bg-gray-50 dark:bg-gray-800 border-border text-muted-foreground"
                                 />
                               </FormControl>
                               <FormMessage />
@@ -444,6 +494,15 @@ export default function FilmManagement() {
                           )}
                         />
                       </div>
+                      
+                      {/* Weight per SQFT display */}
+                      {weightPerSqft !== null && weightPerSqft > 0 && (
+                        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                          <div className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                            Weight per Square Foot: {weightPerSqft.toFixed(2)} grams/sq ft
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex justify-end space-x-2 pt-4">
