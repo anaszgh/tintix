@@ -100,9 +100,9 @@ export const jobEntries = pgTable("job_entries", {
 // Separate table for multiple dimension entries per job
 export const jobDimensions = pgTable("job_dimensions", {
   id: serial("id").primaryKey(),
-  jobEntryId: integer("jobEntryId").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
-  lengthInches: numeric("lengthInches", { precision: 8, scale: 2 }).notNull(),
-  widthInches: numeric("widthInches", { precision: 8, scale: 2 }).notNull(),
+  jobEntryId: integer("job_entry_id").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
+  lengthInches: numeric("length_inches", { precision: 8, scale: 2 }).notNull(),
+  widthInches: numeric("width_inches", { precision: 8, scale: 2 }).notNull(),
   sqft: numeric("sqft", { precision: 10, scale: 4 }).notNull(), // Calculated L*W/144
   description: varchar("description"), // Optional description (e.g., "Front windshield", "Side windows")
   createdAt: timestamp("created_at").defaultNow(),

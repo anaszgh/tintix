@@ -59,11 +59,9 @@ export function RecentEntries() {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-card-foreground">Recent Entries</CardTitle>
-          <Link href="/entries">
-            <a className="text-primary hover:text-primary/80 text-sm font-medium flex items-center space-x-1">
-              <span>View All</span>
-              <ArrowRight className="h-4 w-4" />
-            </a>
+          <Link href="/entries" className="text-primary hover:text-primary/80 text-sm font-medium flex items-center space-x-1">
+            <span>View All</span>
+            <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       </CardHeader>
