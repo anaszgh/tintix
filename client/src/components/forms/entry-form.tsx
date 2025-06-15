@@ -675,6 +675,31 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                         </div>
                         
                         <div>
+                          <Label htmlFor={`film-${index}`} className="text-sm font-medium">
+                            Film Type
+                          </Label>
+                          <Select
+                            value={dimension.filmId.toString()}
+                            onValueChange={(value) => {
+                              const newDimensions = [...dimensions];
+                              newDimensions[index].filmId = parseInt(value);
+                              setDimensions(newDimensions);
+                            }}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="Select film type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {films.map((film) => (
+                                <SelectItem key={film.id} value={film.id.toString()}>
+                                  {film.name} - {film.type}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div>
                           <Label htmlFor={`description-${index}`} className="text-sm font-medium">
                             Description (optional)
                           </Label>
