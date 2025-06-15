@@ -55,6 +55,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
   const [redoEntries, setRedoEntries] = useState<Array<{ 
     part: string; 
     installerId?: string; 
+    filmId?: number;
     lengthInches?: number;
     widthInches?: number;
     timeMinutes?: number;
@@ -62,6 +63,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     editingEntry ? editingEntry.redoEntries.map(redo => ({
       part: redo.part,
       installerId: redo.installerId,
+      filmId: redo.filmId,
       lengthInches: redo.lengthInches ? Number(redo.lengthInches) : undefined,
       widthInches: redo.widthInches ? Number(redo.widthInches) : undefined,
       timeMinutes: redo.timeMinutes || undefined,
@@ -135,7 +137,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       vehicleYear: editingEntry.vehicleYear,
       vehicleMake: editingEntry.vehicleMake,
       vehicleModel: editingEntry.vehicleModel,
-      filmId: editingEntry.filmId || undefined,
+      // filmId removed from job level - now handled per dimension/redo
       dimensions: dimensions,
       totalSqft: editingEntry.totalSqft || undefined,
       filmCost: editingEntry.filmCost ? Number(editingEntry.filmCost) : undefined,
@@ -1129,12 +1131,15 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                 key={index}
                 part={redo.part}
                 installerId={redo.installerId}
+                filmId={redo.filmId}
                 lengthInches={redo.lengthInches}
                 widthInches={redo.widthInches}
                 timeMinutes={redo.timeMinutes}
                 installers={installers}
+                availableFilms={films}
                 onPartChange={(value) => updateRedoEntry(index, "part", value)}
                 onInstallerChange={(value) => updateRedoEntry(index, "installerId", value)}
+                onFilmChange={(value) => updateRedoEntry(index, "filmId", value)}
                 onLengthChange={(value) => updateRedoEntry(index, "lengthInches", value)}
                 onWidthChange={(value) => updateRedoEntry(index, "widthInches", value)}
                 onTimeChange={(value) => updateRedoEntry(index, "timeMinutes", value)}
