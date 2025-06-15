@@ -12,7 +12,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
@@ -24,7 +24,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User management routes
   app.get('/api/users', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user || user.role !== "manager") {
@@ -41,7 +41,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch('/api/users/:id/role', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user || user.role !== "manager") {
@@ -71,7 +71,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update user hourly rate
   app.patch('/api/users/:id/hourly-rate', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user || user.role !== "manager") {
@@ -108,7 +108,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Job entries routes
   app.get("/api/job-entries", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -141,7 +141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/job-entries", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -224,7 +224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/job-entries/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -309,7 +309,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/job-entries/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -337,7 +337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/job-entries/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -369,7 +369,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/job-entries/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -393,7 +393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Analytics routes
   app.get("/api/analytics/metrics", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -424,7 +424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/analytics/top-performers", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -495,7 +495,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/installers", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user || user.role !== "manager") {
@@ -526,7 +526,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/installers/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user || user.role !== "manager") {
@@ -558,7 +558,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/installers/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user || user.role !== "manager") {
@@ -581,7 +581,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Temporary endpoint to promote current user to manager (for setup)
   app.post('/api/promote-to-manager', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const updatedUser = await storage.updateUserRole(userId, "manager");
       res.json(updatedUser);
     } catch (error) {
@@ -613,7 +613,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/films", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user || user.role !== "manager") {
@@ -630,7 +630,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/films/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user || user.role !== "manager") {
@@ -648,7 +648,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/films/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user || user.role !== "manager") {
@@ -667,7 +667,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Film consumption analytics
   app.get("/api/analytics/film-consumption", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -705,7 +705,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/inventory/:filmId/add", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user || user.role !== "manager") {
@@ -729,7 +729,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/inventory/:filmId/adjust", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user || user.role !== "manager") {
@@ -753,7 +753,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/inventory/:filmId/minimum", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user || user.role !== "manager") {
