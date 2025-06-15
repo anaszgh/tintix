@@ -33,6 +33,7 @@ export const sessions = pgTable(
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().notNull(),
   email: varchar("email").unique(),
+  password: varchar("password"), // For local auth, null for OAuth users
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
@@ -272,7 +273,9 @@ export const insertInventoryTransactionSchema = createInsertSchema(inventoryTran
 });
 
 // Types
-export type UpsertUser = typeof users.$inferInsert;
+export type UpsertUser = typeof users.$inferInsert & {
+  password?: string;
+};
 export type User = typeof users.$inferSelect;
 export type JobEntry = typeof jobEntries.$inferSelect;
 export type InsertJobEntry = z.infer<typeof insertJobEntrySchema>;
