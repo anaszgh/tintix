@@ -35,10 +35,12 @@ const formSchema = insertJobEntrySchema.extend({
   dimensions: z.array(z.object({
     lengthInches: z.number().min(0.1, "Length must be greater than 0"),
     widthInches: z.number().min(0.1, "Width must be greater than 0"),
+    filmId: z.number().min(1, "Film type must be selected"),
     description: z.string().optional(),
   })).min(1, "At least one dimension entry is required"),
   redoEntries: z.array(z.object({
     part: z.string(),
+    filmId: z.number().min(1, "Film type must be selected"),
     installerId: z.string().optional(),
   })).optional(),
 });
@@ -68,10 +70,11 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     })) : []
   );
 
-  const [dimensions, setDimensions] = useState<Array<{ lengthInches: number; widthInches: number; description?: string }>>(
+  const [dimensions, setDimensions] = useState<Array<{ lengthInches: number; widthInches: number; filmId?: number; description?: string }>>(
     editingEntry && editingEntry.dimensions ? editingEntry.dimensions.map(dim => ({
       lengthInches: Number(dim.lengthInches),
       widthInches: Number(dim.widthInches),
+      filmId: dim.filmId || undefined,
       description: dim.description || ""
     })) : [{ lengthInches: 1, widthInches: 1, description: "" }]
   );
@@ -90,7 +93,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     return [];
   });
 
-  const updateTotalSqftFromDimensions = (dims: Array<{ lengthInches: number; widthInches: number; description?: string }>) => {
+  const updateTotalSqftFromDimensions = (dims: Array<{ lengthInches: number; widthInches: number; filmId?: number; description?: string }>) => {
     const totalSqft = dims.reduce((total, dim) => 
       total + ((dim.lengthInches * dim.widthInches) / 144), 0
     );
@@ -272,10 +275,13 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
 
 
   const onSubmit = (data: z.infer<typeof formSchema>) => {
+    // Filter dimensions to only include those with filmId selected
+    const validDimensions = dimensions.filter(dim => dim.filmId && dim.lengthInches > 0 && dim.widthInches > 0);
+    
     const jobEntryData = {
       ...data,
       windowAssignments,
-      dimensions,
+      dimensions: validDimensions,
       redoEntries: redoEntries.length > 0 ? redoEntries : undefined,
     };
     console.log('Form submission data:', jobEntryData);
@@ -627,7 +633,33 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                         )}
                       </div>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                          <Label htmlFor={`film-${index}`} className="text-sm font-medium">
+                            Film Type *
+                          </Label>
+                          <Select
+                            value={dimension.filmId?.toString() || ""}
+                            onValueChange={(value) => {
+                              const newDimensions = [...dimensions];
+                              newDimensions[index].filmId = parseInt(value);
+                              setDimensions(newDimensions);
+                              updateTotalSqftFromDimensions(newDimensions);
+                            }}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="Select film" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {films?.map((film) => (
+                                <SelectItem key={film.id} value={film.id.toString()}>
+                                  {film.name} - {film.type}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
                         <div>
                           <Label htmlFor={`length-${index}`} className="text-sm font-medium">
                             Length (inches)
