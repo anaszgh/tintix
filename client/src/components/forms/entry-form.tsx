@@ -598,26 +598,26 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
             {/* Dimensions Section */}
             <div>
               <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-medium">Dimensions</h3>
-                    <p className="text-sm text-muted-foreground">Enter length and width measurements</p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setDimensions([...dimensions, { lengthInches: 1, widthInches: 1, description: "" }]);
-                    }}
-                    className="shrink-0"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Dimension
-                  </Button>
+                <div>
+                  <h3 className="text-lg font-medium">Dimensions</h3>
+                  <p className="text-sm text-muted-foreground">Enter length and width measurements</p>
                 </div>
-                
-                <div className="space-y-4">
-                  {dimensions.map((dimension, index) => (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setDimensions([...dimensions, { lengthInches: 1, widthInches: 1, description: "" }]);
+                  }}
+                  className="shrink-0"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Dimension
+                </Button>
+              </div>
+              
+              <div className="space-y-4">
+                {dimensions.map((dimension, index) => (
                     <div key={index} className="border rounded-lg p-4 bg-card">
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="font-medium">Dimension {index + 1}</h4>
