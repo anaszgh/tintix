@@ -28,10 +28,6 @@ const filmTypes = [
 
 const formSchema = insertFilmSchema.extend({
   costPerSqft: z.number().min(0.01, "Cost must be greater than 0"),
-  totalSqft: z.number().optional().nullable(),
-  grossWeight: z.number().optional().nullable(),
-  coreWeight: z.number().optional().nullable(),
-  netWeight: z.number().optional().nullable(),
 });
 
 export default function FilmManagement() {
@@ -39,9 +35,6 @@ export default function FilmManagement() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingFilm, setEditingFilm] = useState<Film | null>(null);
-  const [calculatedNetWeight, setCalculatedNetWeight] = useState<number | null>(null);
-  const [weightPerSqft, setWeightPerSqft] = useState<number | null>(null);
-
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -49,10 +42,6 @@ export default function FilmManagement() {
       type: "",
       costPerSqft: 0,
       isActive: true,
-      totalSqft: null,
-      grossWeight: null,
-      coreWeight: null,
-      netWeight: null,
     },
   });
 
@@ -100,24 +89,9 @@ export default function FilmManagement() {
     }
   });
 
-  const resetCalculatedFields = () => {
-    setCalculatedNetWeight(null);
-    setWeightPerSqft(null);
-  };
-
-  const calculateWeights = (grossWeight: number, coreWeight: number, totalSqft: number) => {
-    const netWeight = grossWeight - coreWeight;
-    const weightPerSqftValue = netWeight / totalSqft;
-    
-    setCalculatedNetWeight(netWeight);
-    setWeightPerSqft(weightPerSqftValue);
-    form.setValue('netWeight', netWeight.toString());
-  };
-
   const openCreateDialog = () => {
     setEditingFilm(null);
     form.reset();
-    resetCalculatedFields();
     setIsDialogOpen(true);
   };
 
@@ -128,17 +102,7 @@ export default function FilmManagement() {
       type: film.type,
       costPerSqft: Number(film.costPerSqft),
       isActive: film.isActive,
-      totalSqft: film.totalSqft || undefined,
-      grossWeight: film.grossWeight || undefined,
-      coreWeight: film.coreWeight || undefined,
-      netWeight: film.netWeight || undefined,
     });
-    
-    // Recalculate weights if all values are present
-    if (film.grossWeight && film.coreWeight !== undefined && film.totalSqft) {
-      calculateWeights(Number(film.grossWeight), Number(film.coreWeight), Number(film.totalSqft));
-    }
-    
     setIsDialogOpen(true);
   };
 
@@ -260,134 +224,7 @@ export default function FilmManagement() {
                   )}
                 />
 
-                <div className="border-t pt-4 mt-4">
-                  <h4 className="text-sm font-medium text-muted-foreground mb-3">Weight Specifications (Optional)</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="totalSqft"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-muted-foreground">Total SQFT in Roll</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              placeholder="e.g. 150.00"
-                              {...field}
-                              onChange={(e) => {
-                                const value = e.target.value ? parseFloat(e.target.value) : undefined;
-                                field.onChange(value);
-                                
-                                const grossWeight = form.getValues('grossWeight');
-                                const coreWeight = form.getValues('coreWeight');
-                                if (grossWeight && coreWeight !== undefined && value) {
-                                  calculateWeights(grossWeight, coreWeight, value);
-                                }
-                              }}
-                              className="bg-background border-border"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
 
-                    <FormField
-                      control={form.control}
-                      name="grossWeight"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-muted-foreground">Gross Weight (grams)</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              placeholder="e.g. 2500.00"
-                              {...field}
-                              onChange={(e) => {
-                                const value = e.target.value ? parseFloat(e.target.value) : undefined;
-                                field.onChange(value);
-                                
-                                const coreWeight = form.getValues('coreWeight');
-                                const totalSqft = form.getValues('totalSqft');
-                                if (value && coreWeight !== undefined && totalSqft) {
-                                  calculateWeights(value, coreWeight, totalSqft);
-                                }
-                              }}
-                              className="bg-background border-border"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="coreWeight"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-muted-foreground">Core Weight (grams)</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              placeholder="e.g. 500.00"
-                              {...field}
-                              onChange={(e) => {
-                                const value = e.target.value ? parseFloat(e.target.value) : undefined;
-                                field.onChange(value);
-                                
-                                const grossWeight = form.getValues('grossWeight');
-                                const totalSqft = form.getValues('totalSqft');
-                                if (grossWeight && value !== undefined && totalSqft) {
-                                  calculateWeights(grossWeight, value, totalSqft);
-                                }
-                              }}
-                              className="bg-background border-border"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="netWeight"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-muted-foreground">Net Weight (grams) - Auto Calculated</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              placeholder="Auto-calculated"
-                              {...field}
-                              value={calculatedNetWeight !== null ? calculatedNetWeight : field.value || ''}
-                              readOnly
-                              className="bg-gray-50 dark:bg-gray-800 border-border text-muted-foreground"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  {weightPerSqft !== null && weightPerSqft > 0 && (
-                    <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                      <div className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                        Weight per Square Foot: {weightPerSqft.toFixed(2)} grams/sq ft
-                      </div>
-                    </div>
-                  )}
-                </div>
 
                 <div className="flex justify-end space-x-2 pt-4">
                   <Button
