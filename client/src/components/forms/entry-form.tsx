@@ -355,6 +355,107 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
           </CardContent>
         </Card>
 
+        {/* Visual Car Window Assignment */}
+        <div className="space-y-4">
+          <VisualCarSelector
+            installers={installers}
+            selectedInstallers={form.watch("installerIds").map(id => installers.find(i => i.id === id)).filter(Boolean) as User[]}
+            onWindowAssignmentsChange={(assignments) => {
+              setWindowAssignments(assignments);
+              
+              // Auto-update total windows count based on assigned windows
+              form.setValue("totalWindows", assignments.filter(a => a.installerId).length, { shouldValidate: false, shouldDirty: false });
+            }}
+          />
+
+          {/* Window Assignment Summary */}
+          {windowAssignments.filter(w => w.installerId).length > 0 && (
+            <Card className="bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+              <CardHeader>
+                <CardTitle className="text-slate-900 dark:text-slate-100">Window Assignments</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {windowAssignments.filter(w => w.installerId).map((assignment, index) => {
+                    const installer = installers.find(i => i.id === assignment.installerId);
+                    return (
+                      <div key={index} className="flex justify-between items-center p-2 bg-white dark:bg-slate-700 rounded border">
+                        <span className="text-slate-700 dark:text-slate-300">
+                          {assignment.windowName}: {installer?.name}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Installer Time Variance Section */}
+        {form.watch("installerIds").length > 0 && (
+          <Card className="bg-muted/30 border-muted">
+            <CardHeader>
+              <CardTitle className="text-lg text-card-foreground">Installer Time Variance</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Adjust time variance for each installer (positive = took longer, negative = finished faster)
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {form.watch("installerIds").map((installerId) => {
+                const installer = installers.find(i => i.id === installerId);
+                const currentVariance = form.watch("installerTimeVariances")?.[installerId] || 0;
+                
+                return (
+                  <div key={installerId} className="flex items-center justify-between p-3 border border-border rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <span className="font-medium">{installer?.name}</span>
+                      <span className="text-sm text-muted-foreground">
+                        Time variance: {currentVariance > 0 ? '+' : ''}{currentVariance} minutes
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const newVariance = (currentVariance || 0) - 5;
+                          form.setValue(`installerTimeVariances.${installerId}`, newVariance);
+                        }}
+                        className="h-8 w-8 p-0"
+                      >
+                        -5
+                      </Button>
+                      <Input
+                        type="number"
+                        value={currentVariance || 0}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value) || 0;
+                          form.setValue(`installerTimeVariances.${installerId}`, value);
+                        }}
+                        className="w-20 text-center"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const newVariance = (currentVariance || 0) + 5;
+                          form.setValue(`installerTimeVariances.${installerId}`, newVariance);
+                        }}
+                        className="h-8 w-8 p-0"
+                      >
+                        +5
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Dimensions Section */}
         <Card className="bg-muted/30 border-muted">
           <CardHeader>
