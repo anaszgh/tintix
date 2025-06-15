@@ -73,23 +73,15 @@ interface EntryFormProps {
 export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
   const { toast } = useToast();
   
-  // State for dimensions and redo entries
+  // State for dimensions - original simple structure
   const [dimensions, setDimensions] = useState<Array<{
     lengthInches: number;
     widthInches: number;
     description?: string;
-    filmId?: number;
-    filmCost?: number;
   }>>([{ lengthInches: 1, widthInches: 1, description: "" }]);
   
-  const [redoEntries, setRedoEntries] = useState<Array<{
-    part: string;
-    reason: string;
-    installerId: string;
-    timeMinutes: number;
-    filmId?: number;
-    filmCost?: number;
-  }>>([]);
+  // State for selected film type (for this specific entry)
+  const [selectedFilmId, setSelectedFilmId] = useState<number | null>(null);
 
   // Fetch data
   const { data: installers } = useQuery<User[]>({
@@ -120,43 +112,32 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
   });
 
   // Auto-calculate total square footage from dimensions
-  const updateTotalSqftFromDimensions = (dims: typeof dimensions) => {
+  const updateTotalSqft = (dims: typeof dimensions) => {
     const totalSqft = dims.reduce((total, dim) => {
       return total + ((dim.lengthInches * dim.widthInches) / 144);
     }, 0);
     form.setValue("totalSqft", totalSqft);
+    return totalSqft;
   };
 
-  // Auto-calculate film cost from dimensions and redo entries
-  const calculateTotalFilmCost = () => {
-    let totalCost = 0;
-    
-    // Add costs from dimensions
-    dimensions.forEach(dim => {
-      if (dim.filmCost) {
-        totalCost += dim.filmCost;
+  // Auto-calculate film cost based on total sqft and selected film
+  const updateFilmCost = (totalSqft: number, filmId: number | null) => {
+    if (filmId && films) {
+      const selectedFilm = films.find(f => f.id === filmId);
+      if (selectedFilm) {
+        const cost = totalSqft * selectedFilm.costPerSqft;
+        form.setValue("filmCost", cost);
       }
-    });
-    
-    // Add costs from redo entries
-    redoEntries.forEach(redo => {
-      if (redo.filmCost) {
-        totalCost += redo.filmCost;
-      }
-    });
-    
-    form.setValue("filmCost", totalCost);
+    } else {
+      form.setValue("filmCost", 0);
+    }
   };
 
-  // Effect to recalculate costs when dimensions change
+  // Effect to recalculate when dimensions or film selection changes
   useEffect(() => {
-    calculateTotalFilmCost();
-  }, [dimensions]);
-
-  // Effect to recalculate costs when redo entries change
-  useEffect(() => {
-    calculateTotalFilmCost();
-  }, [redoEntries]);
+    const totalSqft = updateTotalSqft(dimensions);
+    updateFilmCost(totalSqft, selectedFilmId);
+  }, [dimensions, selectedFilmId, films]);
 
   // Load editing data
   useEffect(() => {
