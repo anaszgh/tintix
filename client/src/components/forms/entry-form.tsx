@@ -1174,23 +1174,35 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            {redoEntries.map((redo, index) => (
-              <RedoEntry
-                key={index}
-                part={redo.part}
-                installerId={redo.installerId}
-                lengthInches={redo.lengthInches}
-                widthInches={redo.widthInches}
-                timeMinutes={redo.timeMinutes}
-                installers={installers}
-                onPartChange={(value) => updateRedoEntry(index, "part", value)}
-                onInstallerChange={(value) => updateRedoEntry(index, "installerId", value)}
-                onLengthChange={(value) => updateRedoEntry(index, "lengthInches", value)}
-                onWidthChange={(value) => updateRedoEntry(index, "widthInches", value)}
-                onTimeChange={(value) => updateRedoEntry(index, "timeMinutes", value)}
-                onRemove={() => removeRedoEntry(index)}
-              />
-            ))}
+            {redoEntries.map((redo, index) => {
+              // Get films used in the current dimensions for redo selection
+              const availableFilms = dimensions
+                .filter(dim => dim.filmId)
+                .map(dim => films?.find(f => f.id === dim.filmId))
+                .filter((film): film is Film => Boolean(film))
+                .filter((film, idx, arr) => arr.findIndex(f => f!.id === film.id) === idx); // Remove duplicates
+              
+              return (
+                <RedoEntry
+                  key={index}
+                  part={redo.part}
+                  filmId={redo.filmId}
+                  installerId={redo.installerId}
+                  lengthInches={redo.lengthInches}
+                  widthInches={redo.widthInches}
+                  timeMinutes={redo.timeMinutes}
+                  installers={installers}
+                  availableFilms={availableFilms}
+                  onPartChange={(value) => updateRedoEntry(index, "part", value)}
+                  onFilmChange={(value) => updateRedoEntry(index, "filmId", value)}
+                  onInstallerChange={(value) => updateRedoEntry(index, "installerId", value)}
+                  onLengthChange={(value) => updateRedoEntry(index, "lengthInches", value)}
+                  onWidthChange={(value) => updateRedoEntry(index, "widthInches", value)}
+                  onTimeChange={(value) => updateRedoEntry(index, "timeMinutes", value)}
+                  onRemove={() => removeRedoEntry(index)}
+                />
+              );
+            })}
             
             {redoEntries.length === 0 && (
               <p className="text-xs text-muted-foreground text-center py-4">
