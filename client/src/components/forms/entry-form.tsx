@@ -56,6 +56,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
   const queryClient = useQueryClient();
   const [redoEntries, setRedoEntries] = useState<Array<{ 
     part: string; 
+    filmId?: number;
     installerId?: string; 
     lengthInches?: number;
     widthInches?: number;
@@ -63,6 +64,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
   }>>(
     editingEntry ? editingEntry.redoEntries.map(redo => ({
       part: redo.part,
+      filmId: redo.filmId,
       installerId: redo.installerId,
       lengthInches: redo.lengthInches ? Number(redo.lengthInches) : undefined,
       widthInches: redo.widthInches ? Number(redo.widthInches) : undefined,
@@ -275,17 +277,33 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
 
 
   const onSubmit = (data: z.infer<typeof formSchema>) => {
-    // Filter dimensions to only include those with filmId selected
-    const validDimensions = dimensions.filter(dim => dim.filmId && dim.lengthInches > 0 && dim.widthInches > 0);
+    // Filter dimensions to only include those with filmId selected and cast properly
+    const validDimensions = dimensions
+      .filter(dim => dim.filmId && dim.lengthInches > 0 && dim.widthInches > 0)
+      .map(dim => ({
+        lengthInches: dim.lengthInches,
+        widthInches: dim.widthInches,
+        filmId: dim.filmId!,
+        description: dim.description
+      }));
+    
+    // Filter redo entries to only include those with filmId selected
+    const validRedoEntries = redoEntries
+      .filter(redo => redo.filmId)
+      .map(redo => ({
+        part: redo.part,
+        filmId: redo.filmId!,
+        installerId: redo.installerId
+      }));
     
     const jobEntryData = {
       ...data,
       windowAssignments,
       dimensions: validDimensions,
-      redoEntries: redoEntries.length > 0 ? redoEntries : undefined,
+      redoEntries: validRedoEntries.length > 0 ? validRedoEntries : undefined,
     };
     console.log('Form submission data:', jobEntryData);
-    createEntryMutation.mutate(jobEntryData);
+    createEntryMutation.mutate(jobEntryData as any);
   };
 
   return (

@@ -2,16 +2,19 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
-import type { User } from "@shared/schema";
+import type { User, Film } from "@shared/schema";
 
 interface RedoEntryProps {
   part: string;
+  filmId?: number;
   installerId?: string;
   lengthInches?: number;
   widthInches?: number;
   timeMinutes?: number;
   installers: User[];
+  availableFilms: Film[]; // Films used in the original job
   onPartChange: (value: string) => void;
+  onFilmChange: (value: number) => void;
   onInstallerChange: (value: string) => void;
   onLengthChange: (value: number) => void;
   onWidthChange: (value: number) => void;
@@ -28,12 +31,15 @@ const redoParts = [
 
 export function RedoEntry({ 
   part, 
+  filmId,
   installerId,
   lengthInches = 0,
   widthInches = 0,
   timeMinutes = 0,
   installers,
+  availableFilms,
   onPartChange, 
+  onFilmChange,
   onInstallerChange,
   onLengthChange,
   onWidthChange,
@@ -57,7 +63,7 @@ export function RedoEntry({
         </Button>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3">
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1 block">Part</label>
           <Select value={part} onValueChange={onPartChange}>
@@ -68,6 +74,22 @@ export function RedoEntry({
               {redoParts.map((redoPart) => (
                 <SelectItem key={redoPart.value} value={redoPart.value}>
                   {redoPart.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">Film Type *</label>
+          <Select value={filmId?.toString() || ""} onValueChange={(value) => onFilmChange(parseInt(value))}>
+            <SelectTrigger className="bg-background border-border">
+              <SelectValue placeholder="Select film" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableFilms.map((film) => (
+                <SelectItem key={film.id} value={film.id.toString()}>
+                  {film.name} - {film.type}
                 </SelectItem>
               ))}
             </SelectContent>
