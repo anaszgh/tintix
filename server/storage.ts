@@ -205,7 +205,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Job entry operations
-  async createJobEntry(jobEntry: InsertJobEntry & { windowAssignments?: any[], dimensions?: Array<{lengthInches: number, widthInches: number, filmId?: number, filmCost?: number, description?: string}> }, installerData: Array<{installerId: string, timeVariance: number}>): Promise<JobEntry> {
+  async createJobEntry(jobEntry: InsertJobEntry & { windowAssignments?: any[], dimensions?: Array<{lengthInches: number, widthInches: number, description?: string}> }, installerData: Array<{installerId: string, timeVariance: number}>): Promise<JobEntry> {
     // Generate sequential job number starting from 1
     const existingEntries = await db.select({ id: jobEntries.id }).from(jobEntries);
     const nextJobNumber = existingEntries.length + 1;
@@ -229,11 +229,9 @@ export class DatabaseStorage implements IStorage {
         
         await db.insert(jobDimensions).values({
           jobEntryId: entry.id,
-          filmId: dimension.filmId || null, // Film ID now tracked per dimension
           lengthInches: dimension.lengthInches.toString(),
           widthInches: dimension.widthInches.toString(),
           sqft: sqft.toString(),
-          filmCost: dimension.filmCost?.toString() || "0.00",
           description: dimension.description || null,
         });
       }
@@ -291,8 +289,22 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    // Auto-deduct inventory will be handled per dimension entry since films are now tracked individually
-    // This logic is moved to dimension processing above
+    // Auto-deduct inventory if film is used
+    if (jobEntry.filmId && jobEntry.totalSqft) {
+      const userId = installerData.length > 0 ? installerData[0].installerId : "system";
+      try {
+        await this.deductInventoryStock(
+          jobEntry.filmId, 
+          jobEntry.totalSqft, 
+          userId, 
+          entry.id, 
+          `Auto-deduction for job ${entry.jobNumber}`
+        );
+      } catch (error) {
+        console.warn(`Failed to deduct inventory for job ${entry.jobNumber}:`, error);
+        // Continue without failing the job creation
+      }
+    }
     
     return entry;
   }
@@ -1027,8 +1039,7 @@ export class DatabaseStorage implements IStorage {
         jobCount: count(jobEntries.id),
       })
       .from(jobEntries)
-      .innerJoin(jobDimensions, eq(jobEntries.id, jobDimensions.jobEntryId))
-      .leftJoin(films, eq(jobDimensions.filmId, films.id))
+      .leftJoin(films, eq(jobEntries.filmId, films.id))
       .groupBy(sql`DATE(${jobEntries.date})`, films.type, films.name, films.id, films.costPerSqft);
 
     if (whereClause) {
@@ -1041,12 +1052,12 @@ export class DatabaseStorage implements IStorage {
     const redoQuery = db
       .select({
         date: sql<string>`DATE(${jobEntries.date})`,
-        filmId: redoEntries.filmId,
+        filmId: jobEntries.filmId,
         redoSqft: sql<number>`COALESCE(SUM(${redoEntries.sqft}), 0)`,
       })
       .from(redoEntries)
       .innerJoin(jobEntries, eq(redoEntries.jobEntryId, jobEntries.id))
-      .groupBy(sql`DATE(${jobEntries.date})`, redoEntries.filmId);
+      .groupBy(sql`DATE(${jobEntries.date})`, jobEntries.filmId);
 
     if (whereClause) {
       redoQuery.where(whereClause);
