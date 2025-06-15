@@ -1298,7 +1298,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getInventoryTransactions(filmId?: number, limit = 100): Promise<Array<InventoryTransaction & { film: Film; createdByUser: User; jobEntry?: JobEntry }>> {
-    let query = this.db
+    let query = db
       .select()
       .from(inventoryTransactions)
       .innerJoin(films, eq(inventoryTransactions.filmId, films.id))
@@ -1313,7 +1313,7 @@ export class DatabaseStorage implements IStorage {
 
     const result = await query;
 
-    return result.map(row => ({
+    return result.map((row: any) => ({
       ...row.inventory_transactions,
       film: row.films,
       createdByUser: row.users,

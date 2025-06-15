@@ -52,11 +52,7 @@ export default function FilmManagement() {
 
   const createFilmMutation = useMutation({
     mutationFn: (filmData: z.infer<typeof formSchema>) => 
-      apiRequest('/api/films', {
-        method: 'POST',
-        body: JSON.stringify(filmData),
-        headers: { 'Content-Type': 'application/json' }
-      }),
+      apiRequest('POST', '/api/films', filmData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/films'] });
       toast({ title: "Film type created successfully" });
@@ -70,11 +66,7 @@ export default function FilmManagement() {
 
   const updateFilmMutation = useMutation({
     mutationFn: ({ id, ...filmData }: { id: number } & z.infer<typeof formSchema>) => 
-      apiRequest(`/api/films/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(filmData),
-        headers: { 'Content-Type': 'application/json' }
-      }),
+      apiRequest('PATCH', `/api/films/${id}`, filmData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/films'] });
       toast({ title: "Film type updated successfully" });
@@ -88,10 +80,7 @@ export default function FilmManagement() {
   });
 
   const deleteFilmMutation = useMutation({
-    mutationFn: (id: number) => apiRequest(`/api/films/${id}`, { 
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' }
-    }),
+    mutationFn: (id: number) => apiRequest(`/api/films/${id}`, 'DELETE'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/films'] });
       toast({ title: "Film type deleted successfully" });
