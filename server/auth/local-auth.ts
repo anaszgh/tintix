@@ -119,7 +119,7 @@ export function setupLocalAuth(app: Express) {
         firstName,
         lastName,
         password: hashedPassword,
-        role: "installer", // Default role
+        role: "data_entry", // Default role
         hourlyRate: "25.00", // Default hourly rate
       });
 
