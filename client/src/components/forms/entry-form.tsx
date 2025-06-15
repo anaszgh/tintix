@@ -64,6 +64,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     queryKey: ["/api/films"],
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
+
   const [redoEntries, setRedoEntries] = useState<Array<{ 
     part: string; 
     installerId?: string; 
@@ -99,7 +100,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
         filmId: films.find(f => f.id === dim.filmId) ? dim.filmId : firstFilmId
       })));
     }
-  }, [films, dimensions]);
+  }, [films]);
 
   const [windowAssignments, setWindowAssignments] = useState<Array<{ windowId: string; installerId: string | null; windowName: string }>>(() => {
     if (editingEntry && editingEntry.windowAssignments) {
@@ -165,7 +166,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       vehicleMake: "",
       vehicleModel: "",
       filmId: undefined,
-      dimensions: [{ lengthInches: 1, widthInches: 1, filmId: 1, description: "" }],
+      dimensions: [{ lengthInches: 1, widthInches: 1, filmId: 33, description: "" }],
       totalSqft: undefined,
       filmCost: undefined,
       notes: "",
@@ -284,8 +285,6 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     setRedoEntries(updated);
   };
 
-
-
   const onSubmit = (data: z.infer<typeof formSchema>) => {
     const jobEntryData = {
       ...data,
@@ -341,176 +340,46 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
             name="date"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-muted-foreground">Date *</FormLabel>
+                <FormLabel>Date *</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="date" 
-                    {...field}
-                    className="bg-background border-border"
-                  />
+                  <Input type="date" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
 
-          {/* Job Duration Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
-            <FormField
-              control={form.control}
-              name="durationMinutes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-muted-foreground">Job Duration (minutes) *</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number"
-                      min="1"
-                      placeholder="Enter total job duration"
-                      {...field}
-                      onChange={(e) => {
-                        const value = e.target.value ? parseInt(e.target.value) : undefined;
-                        field.onChange(value);
-                        // Track base duration when manually entered
-                        if (value && value > 0) {
-                          setBaseDurationMinutes(value);
-                        }
-                      }}
-                      className="bg-background border-border"
-                    />
-                  </FormControl>
-                  <div className="text-sm text-muted-foreground">
-                    Total time for this job in minutes (e.g., 80 for 1 hour 20 minutes)
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="flex items-center justify-center">
-              <div className="text-sm text-muted-foreground bg-background border rounded-lg p-4">
-                <p className="font-medium">Quick Reference:</p>
-                <p>30 min = 30</p>
-                <p>1 hr = 60</p>
-                <p>1 hr 30 min = 90</p>
-                <p>2 hr = 120</p>
-              </div>
-            </div>
-          </div>
-
           <FormField
             control={form.control}
-            name="installerIds"
+            name="totalWindows"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-muted-foreground">
-                  Job Installers * (Select one or more installers for this job)
-                </FormLabel>
-                <div className="space-y-2 bg-background border border-border rounded-md p-3">
-                  {installers.map((installer) => (
-                    <div key={installer.id} className="flex items-center justify-between p-2 border rounded">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id={installer.id}
-                          checked={field.value?.includes(installer.id)}
-                          onCheckedChange={(checked) => {
-                            const currentValue = field.value || [];
-                            const currentVariances = form.getValues("installerTimeVariances") || {};
-                            
-                            if (checked) {
-                              field.onChange([...currentValue, installer.id]);
-                              form.setValue("installerTimeVariances", {
-                                ...currentVariances,
-                                [installer.id]: 0
-                              });
-                            } else {
-                              field.onChange(currentValue.filter(id => id !== installer.id));
-                              const newVariances = { ...currentVariances };
-                              delete newVariances[installer.id];
-                              form.setValue("installerTimeVariances", newVariances);
-                            }
-                          }}
-                        />
-                        <label
-                          htmlFor={installer.id}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                        >
-                          {installer.firstName} {installer.lastName}
-                        </label>
-                      </div>
-                      
-                      {field.value?.includes(installer.id) && (
-                        <div className="flex items-center space-x-2">
-                          <label className="text-xs text-muted-foreground">Time Variance (min):</label>
-                          <div className="flex items-center space-x-1 border rounded">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-red-500 hover:bg-red-50"
-                              onClick={() => {
-                                const currentVariances = form.getValues("installerTimeVariances") || {};
-                                const currentValue = currentVariances[installer.id] || 0;
-                                form.setValue("installerTimeVariances", {
-                                  ...currentVariances,
-                                  [installer.id]: currentValue - 1
-                                });
-                              }}
-                            >
-                              -
-                            </Button>
-                            <Input
-                              type="number"
-                              className="w-16 h-8 text-xs text-center border-0 focus:ring-0"
-                              value={form.watch("installerTimeVariances")?.[installer.id] || 0}
-                              onChange={(e) => {
-                                const currentVariances = form.getValues("installerTimeVariances") || {};
-                                form.setValue("installerTimeVariances", {
-                                  ...currentVariances,
-                                  [installer.id]: parseInt(e.target.value) || 0
-                                });
-                              }}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-green-500 hover:bg-green-50"
-                              onClick={() => {
-                                const currentVariances = form.getValues("installerTimeVariances") || {};
-                                const currentValue = currentVariances[installer.id] || 0;
-                                form.setValue("installerTimeVariances", {
-                                  ...currentVariances,
-                                  [installer.id]: currentValue + 1
-                                });
-                              }}
-                            >
-                              +
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                <FormLabel>Total Windows *</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="20"
+                    {...field}
+                    onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
 
+        {/* Vehicle Information */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FormField
             control={form.control}
             name="vehicleYear"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-muted-foreground">Vehicle Year *</FormLabel>
+                <FormLabel>Vehicle Year *</FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="e.g. 2023" 
-                    {...field}
-                    className="bg-background border-border"
-                  />
+                  <Input placeholder="2024" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -522,13 +391,9 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
             name="vehicleMake"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-muted-foreground">Make *</FormLabel>
+                <FormLabel>Vehicle Make *</FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="e.g. Honda" 
-                    {...field}
-                    className="bg-background border-border"
-                  />
+                  <Input placeholder="Honda" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -540,13 +405,9 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
             name="vehicleModel"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-muted-foreground">Model *</FormLabel>
+                <FormLabel>Vehicle Model *</FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="e.g. Civic" 
-                    {...field}
-                    className="bg-background border-border"
-                  />
+                  <Input placeholder="Civic" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -554,662 +415,234 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
           />
         </div>
 
-        {/* Film Information Section */}
-        <Card className="bg-muted/30 border-muted">
-          <CardHeader>
-            <CardTitle className="text-lg text-card-foreground">Film Information</CardTitle>
-            <p className="text-sm text-muted-foreground">Select film type and calculate material costs</p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <FormField
-                control={form.control}
-                name="filmId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-muted-foreground">Film Type</FormLabel>
-                    <Select 
-                      onValueChange={(value) => {
-                        field.onChange(value ? parseInt(value) : undefined);
-                        // Auto-calculate cost when film type or sqft changes
-                        const filmId = parseInt(value);
-                        const selectedFilm = films.find(f => f.id === filmId);
-                        const totalSqft = form.getValues("totalSqft");
-                        if (selectedFilm && totalSqft) {
-                          const calculatedCost = Number(selectedFilm.costPerSqft) * totalSqft;
-                          form.setValue("filmCost", calculatedCost);
-                        }
-                      }} 
-                      value={field.value?.toString()}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="bg-background border-border">
-                          <SelectValue placeholder="Select film type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {films.map((film) => (
-                          <SelectItem key={film.id} value={film.id.toString()}>
-                            {film.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Dimensions Section */}
-              <div className="col-span-full">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-medium">Dimensions</h3>
-                    <p className="text-sm text-muted-foreground">Enter length and width measurements</p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const defaultFilmId = films.length > 0 ? films[0].id : 33;
-                      setDimensions([...dimensions, { lengthInches: 1, widthInches: 1, filmId: defaultFilmId, description: "" }]);
-                    }}
-                    className="shrink-0"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Dimension
-                  </Button>
-                </div>
-                
-                <div className="space-y-4">
-                  {dimensions.map((dimension, index) => (
-                    <div key={index} className="border rounded-lg p-4 bg-card">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-medium">Dimension {index + 1}</h4>
-                        {dimensions.length > 1 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              const newDimensions = dimensions.filter((_, i) => i !== index);
-                              setDimensions(newDimensions);
-                              updateTotalSqftFromDimensions(newDimensions);
-                            }}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div>
-                          <Label htmlFor={`length-${index}`} className="text-sm font-medium">
-                            Length (inches)
-                          </Label>
-                          <Input
-                            id={`length-${index}`}
-                            type="number"
-                            step="0.1"
-                            min="0.1"
-                            value={dimension.lengthInches}
-                            onChange={(e) => {
-                              const newDimensions = [...dimensions];
-                              const value = parseFloat(e.target.value) || 1;
-                              newDimensions[index].lengthInches = value;
-                              setDimensions(newDimensions);
-                              updateTotalSqftFromDimensions(newDimensions);
-                            }}
-                            placeholder="1.0"
-                            className="mt-1"
-                          />
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor={`width-${index}`} className="text-sm font-medium">
-                            Width (inches)
-                          </Label>
-                          <Input
-                            id={`width-${index}`}
-                            type="number"
-                            step="0.1"
-                            min="0.1"
-                            value={dimension.widthInches}
-                            onChange={(e) => {
-                              const newDimensions = [...dimensions];
-                              const value = parseFloat(e.target.value) || 1;
-                              newDimensions[index].widthInches = value;
-                              setDimensions(newDimensions);
-                              updateTotalSqftFromDimensions(newDimensions);
-                            }}
-                            placeholder="1.0"
-                            className="mt-1"
-                          />
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor={`film-${index}`} className="text-sm font-medium">
-                            Film Type
-                          </Label>
-                          <Select
-                            value={dimension.filmId.toString()}
-                            onValueChange={(value) => {
-                              const newDimensions = [...dimensions];
-                              newDimensions[index].filmId = parseInt(value);
-                              setDimensions(newDimensions);
-                            }}
-                          >
-                            <SelectTrigger className="mt-1">
-                              <SelectValue placeholder={filmsLoading ? "Loading films..." : "Select film type"} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {filmsLoading ? (
-                                <SelectItem value="loading" disabled>Loading films...</SelectItem>
-                              ) : films.length === 0 ? (
-                                <SelectItem value="no-films" disabled>No films available</SelectItem>
-                              ) : (
-                                films.map((film) => (
-                                  <SelectItem key={film.id} value={film.id.toString()}>
-                                    {film.name} - {film.type}
-                                  </SelectItem>
-                                ))
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor={`description-${index}`} className="text-sm font-medium">
-                            Description (optional)
-                          </Label>
-                          <Input
-                            id={`description-${index}`}
-                            value={dimension.description || ""}
-                            onChange={(e) => {
-                              const newDimensions = [...dimensions];
-                              newDimensions[index].description = e.target.value;
-                              setDimensions(newDimensions);
-                            }}
-                            placeholder="e.g., Front windshield"
-                            className="mt-1"
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="mt-3 text-sm text-muted-foreground">
-                        Square footage: {dimension.lengthInches && dimension.widthInches 
-                          ? ((dimension.lengthInches * dimension.widthInches) / 144).toFixed(2) 
-                          : "0.00"} sq ft
-                      </div>
-                    </div>
-                  ))}
-                  
-                  <div className="bg-muted p-4 rounded-lg">
-                    <div className="text-lg font-semibold">
-                      Total Square Footage: {dimensions.reduce((total, dim) => 
-                        total + ((dim.lengthInches * dim.widthInches) / 144), 0
-                      ).toFixed(2)} sq ft
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-
-            </div>
-
-            {/* Material Consumption Summary */}
-            {form.watch("filmId") && (dimensions.length > 0 || redoEntries.length > 0) && (
-              <div className="bg-background border border-border rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-medium text-card-foreground">Material Consumption</h4>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      // Create print-specific styles that match the actual design
-                      const printContent = document.createElement('div');
-                      printContent.innerHTML = `
-                        <style>
-                          @media print {
-                            body * { visibility: hidden; }
-                            .print-section, .print-section * { visibility: visible; }
-                            .print-section { position: absolute; left: 0; top: 0; width: 100%; }
-                            .print-container {
-                              background: #f8fafc;
-                              border: 1px solid #e2e8f0;
-                              border-radius: 8px;
-                              padding: 16px;
-                              max-width: 600px;
-                              margin: 20px auto;
-                              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                            }
-                            .print-header {
-                              display: flex;
-                              justify-content: space-between;
-                              align-items: center;
-                              margin-bottom: 16px;
-                              font-weight: 600;
-                              font-size: 16px;
-                              color: #1e293b;
-                            }
-                            .print-row {
-                              display: flex;
-                              justify-content: space-between;
-                              padding: 8px 0;
-                              font-size: 14px;
-                            }
-                            .print-label {
-                              color: #64748b;
-                            }
-                            .print-value {
-                              color: #1e293b;
-                              font-weight: 500;
-                            }
-                            .print-separator {
-                              border-top: 1px solid #e2e8f0;
-                              margin: 12px 0;
-                              padding-top: 8px;
-                            }
-                            .print-total-row {
-                              font-weight: 600;
-                              border-top: 1px solid #e2e8f0;
-                              padding-top: 8px;
-                              margin-top: 8px;
-                            }
-                            .print-blue { color: #2563eb; }
-                            .print-red { color: #dc2626; }
-                            .print-green { color: #16a34a; }
-                            .print-small {
-                              font-size: 12px;
-                              color: #dc2626;
-                              margin-top: 8px;
-                            }
-                            .job-consumption {
-                              border-top: 1px solid #e2e8f0;
-                              padding-top: 8px;
-                              margin-top: 8px;
-                            }
-                            .consumption-header {
-                              font-size: 12px;
-                              font-weight: 600;
-                              color: #64748b;
-                              margin-bottom: 8px;
-                            }
-                            .redo-consumption {
-                              border-top: 1px solid #e2e8f0;
-                              padding-top: 8px;
-                              margin-top: 8px;
-                            }
-                            .redo-header {
-                              font-size: 12px;
-                              font-weight: 600;
-                              color: #dc2626;
-                              margin-bottom: 8px;
-                            }
-                          </style>
-                        </div>
-                        <div class="print-section">
-                          <div class="print-container">
-                            <div class="print-header">
-                              <span>Material Consumption</span>
-                            </div>
-                            
-                            <div class="print-row">
-                              <span class="print-label">Film Type:</span>
-                              <span class="print-value">${films.find(f => f.id === form.watch("filmId"))?.name || 'N/A'}</span>
-                            </div>
-                            
-                            <div class="print-row">
-                              <span class="print-label">Rate per sq ft:</span>
-                              <span class="print-value">$${Number(films.find(f => f.id === form.watch("filmId"))?.costPerSqft || 0).toFixed(2)}</span>
-                            </div>
-
-                            ${dimensions.length > 0 ? `
-                              <div class="job-consumption">
-                                <div class="consumption-header">Job Consumption</div>
-                                ${dimensions.map((dim, index) => {
-                                  const sqft = (dim.lengthInches * dim.widthInches) / 144;
-                                  return `
-                                    <div class="print-row" style="font-size: 12px;">
-                                      <span class="print-label">${dim.description || `Dimension ${index + 1}`}: ${dim.lengthInches}" × ${dim.widthInches}"</span>
-                                      <span class="print-value">${sqft.toFixed(2)} sq ft</span>
-                                    </div>
-                                  `;
-                                }).join('')}
-                              </div>
-                            ` : ''}
-
-                            ${redoEntries.filter(redo => redo.lengthInches && redo.widthInches).length > 0 ? `
-                              <div class="redo-consumption">
-                                <div class="redo-header">REDO Consumption</div>
-                                ${redoEntries.filter(redo => redo.lengthInches && redo.widthInches).map((redo, index) => {
-                                  const sqft = (redo.lengthInches! * redo.widthInches!) / 144;
-                                  return `
-                                    <div class="print-row" style="font-size: 12px;">
-                                      <span class="print-label">${redo.part}: ${redo.lengthInches}" × ${redo.widthInches}" (REDO)</span>
-                                      <span class="print-value print-red">${sqft.toFixed(2)} sq ft</span>
-                                    </div>
-                                  `;
-                                }).join('')}
-                              </div>
-                            ` : ''}
-                            
-                            ${(() => {
-                              const jobSqft = dimensions.reduce((total, dim) => total + ((dim.lengthInches * dim.widthInches) / 144), 0);
-                              const redoSqft = redoEntries.reduce((total, redo) => {
-                                if (redo.lengthInches && redo.widthInches) {
-                                  return total + ((redo.lengthInches * redo.widthInches) / 144);
-                                }
-                                return total;
-                              }, 0);
-                              const totalSqft = jobSqft + redoSqft;
-                              const costPerSqft = Number(films.find(f => f.id === form.watch("filmId"))?.costPerSqft || 0);
-                              const jobCost = (totalSqft - redoSqft) * costPerSqft;
-                              const redoCost = redoSqft * costPerSqft;
-                              const totalCost = totalSqft * costPerSqft;
-                              const totalFormDuration = form.watch("durationMinutes") || 0;
-                              const redoTime = redoEntries.reduce((total, redo) => total + (redo.timeMinutes || 0), 0);
-                              const baseDuration = baseDurationMinutes > 0 ? baseDurationMinutes : Math.max(0, totalFormDuration - redoTime);
-                              const totalDuration = baseDuration + redoTime;
-                              const totalHours = (totalDuration / 60).toFixed(1);
-                              
-                              return `
-                                <div class="print-separator">
-                                  <div class="print-row">
-                                    <span class="print-label">Total Material SQFT:</span>
-                                    <span class="print-value">${totalSqft.toFixed(2)} sq ft</span>
-                                  </div>
-                                  <div class="print-row">
-                                    <span class="print-label">Total Cost:</span>
-                                    <span class="print-value print-blue">$${jobCost.toFixed(2)}</span>
-                                  </div>
-                                  ${redoSqft > 0 ? `
-                                    <div class="print-row">
-                                      <span class="print-label">Total Cost Redo:</span>
-                                      <span class="print-value print-red">$${redoCost.toFixed(2)}</span>
-                                    </div>
-                                  ` : ''}
-                                  <div class="print-row print-total-row">
-                                    <span class="print-label">Overall Cost:</span>
-                                    <span class="print-value print-green">$${totalCost.toFixed(2)}</span>
-                                  </div>
-                                  <div class="print-row">
-                                    <span class="print-label">Job Time:</span>
-                                    <span class="print-value">${Math.floor(baseDuration / 60)}h ${baseDuration % 60}m</span>
-                                  </div>
-                                  ${redoTime > 0 ? `
-                                    <div class="print-row">
-                                      <span class="print-label">Redo Time:</span>
-                                      <span class="print-value print-red">${Math.floor(redoTime / 60)}h ${redoTime % 60}m</span>
-                                    </div>
-                                  ` : ''}
-                                  <div class="print-row print-total-row">
-                                    <span class="print-label">Total Time:</span>
-                                    <span class="print-value">${Math.floor(totalDuration / 60)}h ${totalDuration % 60}m</span>
-                                  </div>
-                                  ${redoSqft > 0 ? `<div class="print-small">Includes ${redoSqft.toFixed(2)} sq ft redo material</div>` : ''}
-                                  ${redoTime > 0 ? `<div class="print-small">Includes ${(redoTime / 60).toFixed(1)} hours redo time</div>` : ''}
-                                </div>
-                              `;
-                            })()}
-                          </div>
-                        </div>
-                      `;
-                      document.body.appendChild(printContent);
-                      window.print();
-                      document.body.removeChild(printContent);
-                    }}
-                    className="flex items-center gap-1"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <polyline points="6,9 6,2 18,2 18,9"></polyline>
-                      <path d="M6,18H4a2,2 0 0,1-2-2v-5a2,2 0 0,1,2-2H20a2,2 0 0,1,2,2v5a2,2 0 0,1-2,2H18"></path>
-                      <polyline points="6,14 18,14 18,22 6,22 6,14"></polyline>
-                    </svg>
-                    Print
-                  </Button>
-                </div>
-                
-                <div className="space-y-3">
-                  {/* Film Information */}
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Film Type:</span>
-                    <span className="text-card-foreground">
-                      {films.find(f => f.id === form.watch("filmId"))?.name}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Rate per sq ft:</span>
-                    <span className="text-card-foreground">
-                      ${Number(films.find(f => f.id === form.watch("filmId"))?.costPerSqft || 0).toFixed(2)}
-                    </span>
-                  </div>
-
-                  {/* Regular Job Consumption */}
-                  {dimensions.length > 0 && (
-                    <div className="border-t border-border pt-2">
-                      <div className="text-xs font-medium text-muted-foreground mb-2">Job Consumption</div>
-                      {dimensions.map((dim, index) => {
-                        const sqft = (dim.lengthInches * dim.widthInches) / 144;
-                        return (
-                          <div key={index} className="flex justify-between text-xs">
-                            <span className="text-muted-foreground">
-                              {dim.description || `Dimension ${index + 1}`}: {dim.lengthInches}" × {dim.widthInches}"
-                            </span>
-                            <span className="text-card-foreground">{sqft.toFixed(2)} sq ft</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Redo Consumption */}
-                  {redoEntries.filter(redo => redo.lengthInches && redo.widthInches).length > 0 && (
-                    <div className="border-t border-border pt-2">
-                      <div className="text-xs font-medium text-destructive mb-2">REDO Consumption</div>
-                      {redoEntries.filter(redo => redo.lengthInches && redo.widthInches).map((redo, index) => {
-                        const sqft = (redo.lengthInches! * redo.widthInches!) / 144;
-                        return (
-                          <div key={index} className="flex justify-between text-xs">
-                            <span className="text-muted-foreground">
-                              {redo.part}: {redo.lengthInches}" × {redo.widthInches}" (REDO)
-                            </span>
-                            <span className="text-destructive">{sqft.toFixed(2)} sq ft</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Total Calculation */}
-                  {(() => {
-                    const jobSqft = dimensions.reduce((total, dim) => total + ((dim.lengthInches * dim.widthInches) / 144), 0);
-                    const redoSqft = redoEntries.reduce((total, redo) => {
-                      if (redo.lengthInches && redo.widthInches) {
-                        return total + ((redo.lengthInches * redo.widthInches) / 144);
-                      }
-                      return total;
-                    }, 0);
-                    const totalSqft = jobSqft + redoSqft;
-                    const costPerSqft = Number(films.find(f => f.id === form.watch("filmId"))?.costPerSqft || 0);
-                    const totalCost = totalSqft * costPerSqft;
-
-                    // Calculate time breakdown properly
-                    const totalFormDuration = form.watch("durationMinutes") || 0;
-                    const redoTime = redoEntries.reduce((total, redo) => total + (redo.timeMinutes || 0), 0);
-                    // Base duration is the original job time (total minus redo time)
-                    const baseDuration = baseDurationMinutes > 0 ? baseDurationMinutes : Math.max(0, totalFormDuration - redoTime);
-                    const totalDuration = baseDuration + redoTime;
-
-                    // Update form values with calculated totals
-                    if (form.watch("totalSqft") !== totalSqft) {
-                      form.setValue("totalSqft", totalSqft);
-                    }
-                    if (form.watch("filmCost") !== totalCost) {
-                      form.setValue("filmCost", totalCost);
-                    }
-
-                    const jobCost = (totalSqft - redoSqft) * costPerSqft;
-                    const redoCost = redoSqft * costPerSqft;
-                    const totalHours = (totalDuration / 60).toFixed(1);
-
-                    return (
-                      <div className="border-t border-border pt-2 space-y-1">
-                        <div className="flex justify-between text-sm font-medium">
-                          <span className="text-card-foreground">Total Material SQFT:</span>
-                          <span className="text-card-foreground">{totalSqft.toFixed(2)} sq ft</span>
-                        </div>
-                        <div className="flex justify-between text-sm font-medium">
-                          <span className="text-card-foreground">Total Cost:</span>
-                          <span className="text-blue-600 font-semibold">${jobCost.toFixed(2)}</span>
-                        </div>
-                        {redoSqft > 0 && (
-                          <div className="flex justify-between text-sm font-medium">
-                            <span className="text-card-foreground">Total Cost Redo:</span>
-                            <span className="text-red-600 font-semibold">${redoCost.toFixed(2)}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between text-sm font-bold border-t pt-1">
-                          <span className="text-card-foreground">Overall Cost:</span>
-                          <span className="text-success font-bold">${totalCost.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-sm font-medium">
-                          <span className="text-card-foreground">Job Time:</span>
-                          <span className="text-card-foreground">{Math.floor(baseDuration / 60)}h {baseDuration % 60}m</span>
-                        </div>
-                        {redoTime > 0 && (
-                          <div className="flex justify-between text-sm font-medium">
-                            <span className="text-card-foreground">Redo Time:</span>
-                            <span className="text-red-600">{Math.floor(redoTime / 60)}h {redoTime % 60}m</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between text-sm font-bold border-t pt-1">
-                          <span className="text-card-foreground">Total Time:</span>
-                          <span className="text-card-foreground">{Math.floor(totalDuration / 60)}h {totalDuration % 60}m</span>
-                        </div>
-                        {redoSqft > 0 && (
-                          <div className="text-xs text-destructive">
-                            Includes {redoSqft.toFixed(2)} sq ft redo material
-                          </div>
-                        )}
-                        {redoTime > 0 && (
-                          <div className="text-xs text-destructive">
-                            Includes {(redoTime / 60).toFixed(1)} hours redo time
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Visual Car Window Assignment */}
-        <div className="space-y-4">
-          <VisualCarSelector
-            installers={installers}
-            selectedInstallers={form.watch("installerIds").map(id => installers.find(i => i.id === id)).filter(Boolean) as User[]}
-            onWindowAssignmentsChange={(assignments) => {
-              setWindowAssignments(assignments);
-              
-              // Only update total windows count, don't modify job-level installer selection
-              form.setValue("totalWindows", assignments.filter(a => a.installerId).length, { shouldValidate: false, shouldDirty: false });
-            }}
-          />
-
-          {/* Window Assignment Summary */}
-          {windowAssignments.filter(w => w.installerId).length > 0 && (
-            <Card className="bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-600">
-              <CardHeader>
-                <CardTitle className="text-sm text-slate-900 dark:text-slate-100">Window Assignments</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {windowAssignments.filter(w => w.installerId).map((assignment) => {
-                  const installer = installers.find(i => i.id === assignment.installerId);
-                  return (
-                    <div key={assignment.windowId} className="flex justify-between items-center text-sm">
-                      <span className="font-medium text-slate-900 dark:text-slate-100">{assignment.windowName}</span>
-                      <span className="text-blue-700 dark:text-blue-300 font-semibold">
-                        {installer ? `${installer.firstName} ${installer.lastName}` : 'Unknown'}
-                      </span>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        <Card className="bg-muted/30 border-border">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-card-foreground">Redo Entries</CardTitle>
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm" 
-                onClick={addRedoEntry}
-                className="border-primary/30 text-primary hover:bg-primary/10"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Add Redo
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {redoEntries.map((redo, index) => (
-              <RedoEntry
-                key={index}
-                part={redo.part}
-                installerId={redo.installerId}
-                lengthInches={redo.lengthInches}
-                widthInches={redo.widthInches}
-                timeMinutes={redo.timeMinutes}
-                installers={installers}
-                onPartChange={(value) => updateRedoEntry(index, "part", value)}
-                onInstallerChange={(value) => updateRedoEntry(index, "installerId", value)}
-                onLengthChange={(value) => updateRedoEntry(index, "lengthInches", value)}
-                onWidthChange={(value) => updateRedoEntry(index, "widthInches", value)}
-                onTimeChange={(value) => updateRedoEntry(index, "timeMinutes", value)}
-                onRemove={() => removeRedoEntry(index)}
-              />
-            ))}
-            
-            {redoEntries.length === 0 && (
-              <p className="text-xs text-muted-foreground text-center py-4">
-                No redo entries. Add redo entries for different parts of the vehicle as needed.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
+        {/* Installers Selection */}
         <FormField
           control={form.control}
-          name="notes"
+          name="installerIds"
           render={({ field }) => (
             <FormItem>
-              <FormLabel className="text-muted-foreground">Notes (Optional)</FormLabel>
+              <FormLabel className="text-muted-foreground">
+                Job Installers * (Select one or more installers for this job)
+              </FormLabel>
+              <div className="space-y-2 bg-background border border-border rounded-md p-3">
+                {installers.map((installer) => (
+                  <div key={installer.id} className="flex items-center justify-between p-2 border rounded">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id={installer.id}
+                        checked={field.value?.includes(installer.id)}
+                        onCheckedChange={(checked) => {
+                          const currentValue = field.value || [];
+                          const currentVariances = form.getValues("installerTimeVariances") || {};
+                          
+                          if (checked) {
+                            field.onChange([...currentValue, installer.id]);
+                            form.setValue("installerTimeVariances", {
+                              ...currentVariances,
+                              [installer.id]: 0
+                            });
+                          } else {
+                            field.onChange(currentValue.filter(id => id !== installer.id));
+                            const { [installer.id]: removed, ...remainingVariances } = currentVariances;
+                            form.setValue("installerTimeVariances", remainingVariances);
+                          }
+                        }}
+                      />
+                      <label htmlFor={installer.id} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        {installer.firstName} {installer.lastName}
+                      </label>
+                    </div>
+                    
+                    {field.value?.includes(installer.id) && (
+                      <div className="flex items-center space-x-2">
+                        <label className="text-xs text-muted-foreground">Time Variance (minutes):</label>
+                        <Input
+                          type="number"
+                          className="w-20 h-8 text-xs"
+                          placeholder="0"
+                          value={form.watch("installerTimeVariances")?.[installer.id] || 0}
+                          onChange={(e) => {
+                            const currentVariances = form.getValues("installerTimeVariances") || {};
+                            form.setValue("installerTimeVariances", {
+                              ...currentVariances,
+                              [installer.id]: parseInt(e.target.value) || 0
+                            });
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Dimensions Section */}
+        <div className="col-span-full">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-medium">Dimensions</h3>
+              <p className="text-sm text-muted-foreground">Enter length and width measurements with film type for each window</p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const defaultFilmId = films.length > 0 ? films[0].id : 33;
+                setDimensions([...dimensions, { lengthInches: 1, widthInches: 1, filmId: defaultFilmId, description: "" }]);
+              }}
+              className="shrink-0"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Dimension
+            </Button>
+          </div>
+          
+          <div className="space-y-4">
+            {dimensions.map((dimension, index) => (
+              <div key={index} className="border rounded-lg p-4 bg-card">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium">Dimension {index + 1}</h4>
+                  {dimensions.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const newDimensions = dimensions.filter((_, i) => i !== index);
+                        setDimensions(newDimensions);
+                        updateTotalSqftFromDimensions(newDimensions);
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <Label htmlFor={`length-${index}`} className="text-sm font-medium">
+                      Length (inches)
+                    </Label>
+                    <Input
+                      id={`length-${index}`}
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      value={dimension.lengthInches}
+                      onChange={(e) => {
+                        const newDimensions = [...dimensions];
+                        const value = parseFloat(e.target.value) || 1;
+                        newDimensions[index].lengthInches = value;
+                        setDimensions(newDimensions);
+                        updateTotalSqftFromDimensions(newDimensions);
+                      }}
+                      placeholder="1.0"
+                      className="mt-1"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor={`width-${index}`} className="text-sm font-medium">
+                      Width (inches)
+                    </Label>
+                    <Input
+                      id={`width-${index}`}
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      value={dimension.widthInches}
+                      onChange={(e) => {
+                        const newDimensions = [...dimensions];
+                        const value = parseFloat(e.target.value) || 1;
+                        newDimensions[index].widthInches = value;
+                        setDimensions(newDimensions);
+                        updateTotalSqftFromDimensions(newDimensions);
+                      }}
+                      placeholder="1.0"
+                      className="mt-1"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor={`film-${index}`} className="text-sm font-medium">
+                      Film Type
+                    </Label>
+                    <Select
+                      value={dimension.filmId.toString()}
+                      onValueChange={(value) => {
+                        const newDimensions = [...dimensions];
+                        newDimensions[index].filmId = parseInt(value);
+                        setDimensions(newDimensions);
+                      }}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder={filmsLoading ? "Loading films..." : "Select film type"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filmsLoading ? (
+                          <SelectItem value="loading" disabled>Loading films...</SelectItem>
+                        ) : films.length === 0 ? (
+                          <SelectItem value="no-films" disabled>No films available</SelectItem>
+                        ) : (
+                          films.map((film) => (
+                            <SelectItem key={film.id} value={film.id.toString()}>
+                              {film.name} - {film.type}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor={`description-${index}`} className="text-sm font-medium">
+                      Description (optional)
+                    </Label>
+                    <Input
+                      id={`description-${index}`}
+                      value={dimension.description || ""}
+                      onChange={(e) => {
+                        const newDimensions = [...dimensions];
+                        newDimensions[index].description = e.target.value;
+                        setDimensions(newDimensions);
+                      }}
+                      placeholder="e.g., Front windshield"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+                
+                <div className="mt-3 text-sm text-muted-foreground">
+                  Square footage: {((dimension.lengthInches * dimension.widthInches) / 144).toFixed(2)} sq ft
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Duration */}
+        <FormField
+          control={form.control}
+          name="durationMinutes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Duration (minutes) *</FormLabel>
               <FormControl>
-                <Textarea 
-                  rows={3}
-                  placeholder="Any additional notes about this job..." 
+                <Input
+                  type="number"
+                  min="1"
                   {...field}
-                  value={field.value || ""}
-                  className="bg-background border-border resize-none"
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 0;
+                    field.onChange(value);
+                    if (!editingEntry) {
+                      setBaseDurationMinutes(value);
+                    }
+                  }}
                 />
               </FormControl>
               <FormMessage />
@@ -1217,26 +650,33 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
           )}
         />
 
-        {/* Show form errors for debugging */}
-        {Object.keys(form.formState.errors).length > 0 && (
-          <div className="bg-red-50 border border-red-200 rounded-md p-4">
-            <h4 className="text-red-800 font-medium mb-2">Form Validation Errors:</h4>
-            <pre className="text-red-600 text-sm">{JSON.stringify(form.formState.errors, null, 2)}</pre>
-          </div>
-        )}
+        {/* Notes */}
+        <FormField
+          control={form.control}
+          name="notes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Notes</FormLabel>
+              <FormControl>
+                <Textarea
+                  placeholder="Additional notes about this job..."
+                  className="resize-none"
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-        <div className="flex items-center justify-end space-x-3 pt-6 border-t border-border">
-          <Button 
-            type="submit" 
-            disabled={createEntryMutation.isPending}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground"
-          >
-            {createEntryMutation.isPending ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}
-            {editingEntry ? "Update Entry" : "Save Entry"}
+        {/* Submit Button */}
+        <div className="flex justify-end">
+          <Button type="submit" disabled={createEntryMutation.isPending}>
+            <Save className="h-4 w-4 mr-2" />
+            {createEntryMutation.isPending 
+              ? (editingEntry ? "Updating..." : "Creating...") 
+              : (editingEntry ? "Update Entry" : "Create Entry")
+            }
           </Button>
         </div>
       </form>
