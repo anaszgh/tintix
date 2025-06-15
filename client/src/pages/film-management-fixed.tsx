@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -6,7 +6,7 @@ import { z } from "zod";
 import { Plus, Edit, Trash2, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,10 +16,12 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { insertFilmSchema, type Film } from "@shared/schema";
+import { Sidebar } from "@/components/sidebar";
+import { Header } from "@/components/header";
 
 const filmTypes = [
   "Window Tint",
-  "Paint Protection Film", 
+  "Paint Protection Film",
   "Ceramic Coating",
   "Vinyl Wrap",
   "Clear Bra",
@@ -35,6 +37,9 @@ export default function FilmManagement() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingFilm, setEditingFilm] = useState<Film | null>(null);
+  const [calculatedNetWeight, setCalculatedNetWeight] = useState<number | null>(null);
+  const [weightPerSqft, setWeightPerSqft] = useState<number | null>(null);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -42,21 +47,29 @@ export default function FilmManagement() {
       type: "",
       costPerSqft: 0,
       isActive: true,
+      totalSqft: undefined,
+      grossWeight: undefined,
+      coreWeight: undefined,
+      netWeight: undefined,
     },
   });
 
-  const { data: films = [], isLoading: filmsLoading } = useQuery<Film[]>({
+  const { data: films = [], isLoading: filmsLoading } = useQuery({
     queryKey: ['/api/films'],
   });
 
   const createFilmMutation = useMutation({
     mutationFn: (filmData: z.infer<typeof formSchema>) => 
-      apiRequest('POST', '/api/films', filmData),
+      apiRequest('/api/films', {
+        method: 'POST',
+        body: JSON.stringify(filmData),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/films'] });
       toast({ title: "Film type created successfully" });
       setIsDialogOpen(false);
       form.reset();
+      resetCalculatedFields();
     },
     onError: (error: Error) => {
       toast({ title: "Error creating film type", description: error.message, variant: "destructive" });
@@ -65,13 +78,17 @@ export default function FilmManagement() {
 
   const updateFilmMutation = useMutation({
     mutationFn: ({ id, ...filmData }: { id: number } & z.infer<typeof formSchema>) => 
-      apiRequest('PATCH', `/api/films/${id}`, filmData),
+      apiRequest(`/api/films/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(filmData),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/films'] });
       toast({ title: "Film type updated successfully" });
       setIsDialogOpen(false);
       form.reset();
       setEditingFilm(null);
+      resetCalculatedFields();
     },
     onError: (error: Error) => {
       toast({ title: "Error updating film type", description: error.message, variant: "destructive" });
@@ -79,7 +96,7 @@ export default function FilmManagement() {
   });
 
   const deleteFilmMutation = useMutation({
-    mutationFn: (id: number) => apiRequest('DELETE', `/api/films/${id}`),
+    mutationFn: (id: number) => apiRequest(`/api/films/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/films'] });
       toast({ title: "Film type deleted successfully" });
@@ -89,9 +106,24 @@ export default function FilmManagement() {
     }
   });
 
+  const resetCalculatedFields = () => {
+    setCalculatedNetWeight(null);
+    setWeightPerSqft(null);
+  };
+
+  const calculateWeights = (grossWeight: number, coreWeight: number, totalSqft: number) => {
+    const netWeight = grossWeight - coreWeight;
+    const weightPerSqftValue = netWeight / totalSqft;
+    
+    setCalculatedNetWeight(netWeight);
+    setWeightPerSqft(weightPerSqftValue);
+    form.setValue('netWeight', netWeight);
+  };
+
   const openCreateDialog = () => {
     setEditingFilm(null);
     form.reset();
+    resetCalculatedFields();
     setIsDialogOpen(true);
   };
 
@@ -102,7 +134,17 @@ export default function FilmManagement() {
       type: film.type,
       costPerSqft: Number(film.costPerSqft),
       isActive: film.isActive,
+      totalSqft: film.totalSqft || undefined,
+      grossWeight: film.grossWeight || undefined,
+      coreWeight: film.coreWeight || undefined,
+      netWeight: film.netWeight || undefined,
     });
+    
+    // Recalculate weights if all values are present
+    if (film.grossWeight && film.coreWeight !== undefined && film.totalSqft) {
+      calculateWeights(film.grossWeight, film.coreWeight, film.totalSqft);
+    }
+    
     setIsDialogOpen(true);
   };
 
@@ -123,6 +165,7 @@ export default function FilmManagement() {
   if (!user || user.role !== 'manager') {
     return (
       <div className="flex min-h-screen bg-background">
+        <Sidebar />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-destructive mb-2">Access Denied</h2>
@@ -135,20 +178,21 @@ export default function FilmManagement() {
 
   return (
     <div className="flex min-h-screen bg-background">
+      <Sidebar />
       <main className="flex-1 overflow-hidden">
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <div>
-            <h1 className="text-2xl font-bold text-card-foreground">Film Management</h1>
-            <p className="text-muted-foreground">Manage film types and pricing</p>
-          </div>
-          <Button 
-            onClick={openCreateDialog}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Film Type
-          </Button>
-        </div>
+        <Header 
+          title="Film Management"
+          description="Manage film types and pricing"
+          actions={
+            <Button 
+              onClick={openCreateDialog}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Film Type
+            </Button>
+          }
+        />
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="max-w-md">
@@ -167,7 +211,7 @@ export default function FilmManagement() {
                       <FormLabel className="text-muted-foreground">Film Name *</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="e.g. 36 XR+ 20%"
+                          placeholder="e.g. 36\" XR+ %20"
                           {...field}
                           className="bg-background border-border"
                         />
@@ -224,7 +268,134 @@ export default function FilmManagement() {
                   )}
                 />
 
+                <div className="border-t pt-4 mt-4">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-3">Weight Specifications (Optional)</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="totalSqft"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-muted-foreground">Total SQFT in Roll</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="e.g. 150.00"
+                              {...field}
+                              onChange={(e) => {
+                                const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                                field.onChange(value);
+                                
+                                const grossWeight = form.getValues('grossWeight');
+                                const coreWeight = form.getValues('coreWeight');
+                                if (grossWeight && coreWeight !== undefined && value) {
+                                  calculateWeights(grossWeight, coreWeight, value);
+                                }
+                              }}
+                              className="bg-background border-border"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
+                    <FormField
+                      control={form.control}
+                      name="grossWeight"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-muted-foreground">Gross Weight (grams)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="e.g. 2500.00"
+                              {...field}
+                              onChange={(e) => {
+                                const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                                field.onChange(value);
+                                
+                                const coreWeight = form.getValues('coreWeight');
+                                const totalSqft = form.getValues('totalSqft');
+                                if (value && coreWeight !== undefined && totalSqft) {
+                                  calculateWeights(value, coreWeight, totalSqft);
+                                }
+                              }}
+                              className="bg-background border-border"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="coreWeight"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-muted-foreground">Core Weight (grams)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="e.g. 500.00"
+                              {...field}
+                              onChange={(e) => {
+                                const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                                field.onChange(value);
+                                
+                                const grossWeight = form.getValues('grossWeight');
+                                const totalSqft = form.getValues('totalSqft');
+                                if (grossWeight && value !== undefined && totalSqft) {
+                                  calculateWeights(grossWeight, value, totalSqft);
+                                }
+                              }}
+                              className="bg-background border-border"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="netWeight"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-muted-foreground">Net Weight (grams) - Auto Calculated</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="Auto-calculated"
+                              {...field}
+                              value={calculatedNetWeight !== null ? calculatedNetWeight : field.value || ''}
+                              readOnly
+                              className="bg-gray-50 dark:bg-gray-800 border-border text-muted-foreground"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  {weightPerSqft !== null && weightPerSqft > 0 && (
+                    <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                      <div className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                        Weight per Square Foot: {weightPerSqft.toFixed(2)} grams/sq ft
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 <div className="flex justify-end space-x-2 pt-4">
                   <Button
@@ -273,7 +444,7 @@ export default function FilmManagement() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {films.map((film) => (
+                    {films.map((film: Film) => (
                       <TableRow key={film.id} className="border-border hover:bg-muted/50">
                         <TableCell className="font-medium text-card-foreground">{film.name}</TableCell>
                         <TableCell className="text-muted-foreground">{film.type}</TableCell>

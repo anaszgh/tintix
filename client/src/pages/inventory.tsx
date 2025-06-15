@@ -171,25 +171,73 @@ export default function Inventory() {
     return getStockLevel(film) <= getMinimumStock(film) && getMinimumStock(film) > 0;
   };
 
-  const getStockStatus = (film: FilmWithInventory) => {
-    const stock = getStockLevel(film);
-    const minimum = getMinimumStock(film);
-    const warning = minimum * 1.5; // Warning threshold at 150% of minimum
+  // Calculate weight per SQFT based on film specifications
+  const getWeightPerSqft = (film: FilmWithInventory): number => {
+    const totalSqft = (film as any).totalSqft;
+    const netWeight = (film as any).netWeight;
+    if (!totalSqft || !netWeight || Number(totalSqft) === 0) return 0;
+    return Number(netWeight) / Number(totalSqft);
+  };
+
+  // Calculate current stock in grams
+  const getStockInGrams = (film: FilmWithInventory): number => {
+    const weightPerSqft = getWeightPerSqft(film);
+    const stockSqft = getStockLevel(film);
+    return weightPerSqft * stockSqft;
+  };
+
+  // Format stock display showing both SQFT and grams
+  const formatStockDisplay = (film: FilmWithInventory): string => {
+    const sqft = getStockLevel(film);
+    const grams = getStockInGrams(film);
     
-    if (stock === 0) return "out_of_stock";
-    if (stock <= minimum && minimum > 0) return "low_stock";
-    if (stock <= warning && minimum > 0) return "warning";
-    return "good";
+    if (grams > 0) {
+      return `${sqft.toFixed(1)} sq ft (${grams.toFixed(0)}g)`;
+    }
+    return `${sqft.toFixed(1)} sq ft`;
+  };
+
+  const getStockStatus = (film: FilmWithInventory) => {
+    const current = getStockLevel(film);
+    const minimum = getMinimumStock(film);
+    
+    if (minimum === 0) {
+      return { status: 'unknown', color: 'gray', text: 'No minimum set' };
+    }
+    
+    if (current <= minimum) {
+      return { status: 'low', color: 'red', text: 'Low Stock' };
+    } else if (current <= minimum * 1.5) {
+      return { status: 'approaching', color: 'yellow', text: 'Approaching Limit' };
+    } else {
+      return { status: 'good', color: 'green', text: 'Good Stock' };
+    }
+  };
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'low': return 'destructive';
+      case 'approaching': return 'outline';
+      case 'good': return 'default';
+      default: return 'secondary';
+    }
+  };
+
+  const getStatusBadgeColor = (status: string) => {
+    switch (status) {
+      case 'low': return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800';
+      case 'approaching': return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800';
+      case 'good': return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-900/20 dark:text-gray-400 dark:border-gray-800';
+    }
   };
 
   const getStockIcon = (film: FilmWithInventory) => {
     const status = getStockStatus(film);
-    switch (status) {
-      case "out_of_stock":
+    switch (status.status) {
+      case "low":
         return <AlertCircle className="h-4 w-4 text-red-500" />;
-      case "low_stock":
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
-      case "warning":
+      case "approaching":
         return <Clock className="h-4 w-4 text-yellow-500" />;
       case "good":
         return <CheckCircle className="h-4 w-4 text-green-500" />;
@@ -200,17 +248,15 @@ export default function Inventory() {
 
   const getStockBadgeVariant = (film: FilmWithInventory) => {
     const status = getStockStatus(film);
-    switch (status) {
-      case "out_of_stock":
-        return "destructive";
-      case "low_stock":
-        return "destructive";
-      case "warning":
-        return "secondary";
+    switch (status.status) {
+      case "low":
+        return "destructive" as const;
+      case "approaching":
+        return "secondary" as const;
       case "good":
-        return "default";
+        return "default" as const;
       default:
-        return "default";
+        return "outline" as const;
     }
   };
 
@@ -255,7 +301,7 @@ export default function Inventory() {
                     <div>
                       <div className="font-semibold text-orange-900 dark:text-orange-100">{film.name}</div>
                       <div className="text-sm font-medium text-orange-800 dark:text-orange-200">
-                        {getStockLevel(film)} sq ft remaining
+                        {formatStockDisplay(film)} remaining
                       </div>
                     </div>
                   </div>
@@ -283,8 +329,8 @@ export default function Inventory() {
                       {getStockIcon(film)}
                       <CardTitle className="text-lg">{film.name}</CardTitle>
                     </div>
-                    <Badge variant={getStockBadgeVariant(film)}>
-                      {getStockLevel(film)} sq ft
+                    <Badge variant={getStockBadgeVariant(film)} className={getStatusBadgeColor(getStockStatus(film).status)}>
+                      {getStockStatus(film).text}
                     </Badge>
                   </div>
                   <CardDescription>
@@ -295,7 +341,7 @@ export default function Inventory() {
                   <div className="space-y-4">
                     <div className="flex justify-between text-sm">
                       <span>Current Stock:</span>
-                      <span className="font-medium">{getStockLevel(film)} sq ft</span>
+                      <span className="font-medium">{formatStockDisplay(film)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Minimum Stock:</span>
@@ -349,7 +395,23 @@ export default function Inventory() {
                                   min="0.01"
                                   required
                                   placeholder="Enter quantity to add"
+                                  onChange={(e) => {
+                                    const sqft = Number(e.target.value);
+                                    const weightPerSqft = getWeightPerSqft(selectedFilm || film);
+                                    const grams = sqft * weightPerSqft;
+                                    const addWeightDisplay = document.getElementById('addWeightDisplay');
+                                    if (addWeightDisplay && grams > 0) {
+                                      addWeightDisplay.textContent = `≈ ${grams.toFixed(0)} grams`;
+                                    } else if (addWeightDisplay) {
+                                      addWeightDisplay.textContent = '';
+                                    }
+                                  }}
                                 />
+                                {getWeightPerSqft(selectedFilm || film) > 0 && (
+                                  <div className="text-sm text-muted-foreground mt-1">
+                                    <span id="addWeightDisplay"></span>
+                                  </div>
+                                )}
                               </div>
                               <div>
                                 <Label htmlFor="notes">Notes (optional)</Label>
@@ -414,7 +476,23 @@ export default function Inventory() {
                                   defaultValue={getStockLevel(selectedFilm || film)}
                                   required
                                   placeholder="Enter new stock level"
+                                  onChange={(e) => {
+                                    const sqft = Number(e.target.value);
+                                    const weightPerSqft = getWeightPerSqft(selectedFilm || film);
+                                    const grams = sqft * weightPerSqft;
+                                    const weightDisplay = document.getElementById('weightDisplay');
+                                    if (weightDisplay && grams > 0) {
+                                      weightDisplay.textContent = `≈ ${grams.toFixed(0)} grams`;
+                                    } else if (weightDisplay) {
+                                      weightDisplay.textContent = '';
+                                    }
+                                  }}
                                 />
+                                {getWeightPerSqft(selectedFilm || film) > 0 && (
+                                  <div className="text-sm text-muted-foreground mt-1">
+                                    <span id="weightDisplay">≈ {(getStockLevel(selectedFilm || film) * getWeightPerSqft(selectedFilm || film)).toFixed(0)} grams</span>
+                                  </div>
+                                )}
                               </div>
                               <div>
                                 <Label htmlFor="notes">Notes (optional)</Label>

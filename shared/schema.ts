@@ -48,6 +48,10 @@ export const films = pgTable("films", {
   name: varchar("name").notNull().unique(), // Film name/type
   type: varchar("type").notNull(), // Category: "ceramic", "carbon", "dyed", etc.
   costPerSqft: numeric("cost_per_sqft", { precision: 10, scale: 2 }).notNull(), // Cost per square foot
+  totalSqft: numeric("total_sqft", { precision: 10, scale: 2 }), // Total square feet in roll
+  grossWeight: numeric("gross_weight", { precision: 10, scale: 2 }), // Total weight including core (grams)
+  coreWeight: numeric("core_weight", { precision: 10, scale: 2 }), // Weight of core only (grams)
+  netWeight: numeric("net_weight", { precision: 10, scale: 2 }), // Net film weight (grams)
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -100,8 +104,7 @@ export const jobEntries = pgTable("job_entries", {
 // Separate table for multiple dimension entries per job
 export const jobDimensions = pgTable("job_dimensions", {
   id: serial("id").primaryKey(),
-  jobEntryId: integer("job_entry_id").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
-  filmId: integer("film_id").notNull().references(() => films.id), // Each dimension has its own film type
+  jobEntryId: integer("jobEntryId").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
   lengthInches: numeric("lengthInches", { precision: 8, scale: 2 }).notNull(),
   widthInches: numeric("widthInches", { precision: 8, scale: 2 }).notNull(),
   sqft: numeric("sqft", { precision: 10, scale: 4 }).notNull(), // Calculated L*W/144
@@ -121,7 +124,6 @@ export const redoEntries = pgTable("redo_entries", {
   id: serial("id").primaryKey(),
   jobEntryId: integer("job_entry_id").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
   installerId: varchar("installer_id").notNull().references(() => users.id),
-  filmId: integer("film_id").references(() => films.id), // Film type used for redo work
   part: varchar("part").notNull(), // "windshield", "rollups", "back_windshield", "quarter"
   lengthInches: real("length_inches"), // Material consumption length
   widthInches: real("width_inches"), // Material consumption width

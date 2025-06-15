@@ -35,6 +35,7 @@ export default function FilmManagement() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingFilm, setEditingFilm] = useState<Film | null>(null);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -51,7 +52,11 @@ export default function FilmManagement() {
 
   const createFilmMutation = useMutation({
     mutationFn: (filmData: z.infer<typeof formSchema>) => 
-      apiRequest('POST', '/api/films', filmData),
+      apiRequest('/api/films', {
+        method: 'POST',
+        body: JSON.stringify(filmData),
+        headers: { 'Content-Type': 'application/json' }
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/films'] });
       toast({ title: "Film type created successfully" });
@@ -65,7 +70,11 @@ export default function FilmManagement() {
 
   const updateFilmMutation = useMutation({
     mutationFn: ({ id, ...filmData }: { id: number } & z.infer<typeof formSchema>) => 
-      apiRequest('PATCH', `/api/films/${id}`, filmData),
+      apiRequest(`/api/films/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(filmData),
+        headers: { 'Content-Type': 'application/json' }
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/films'] });
       toast({ title: "Film type updated successfully" });
@@ -79,7 +88,10 @@ export default function FilmManagement() {
   });
 
   const deleteFilmMutation = useMutation({
-    mutationFn: (id: number) => apiRequest('DELETE', `/api/films/${id}`),
+    mutationFn: (id: number) => apiRequest(`/api/films/${id}`, { 
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' }
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/films'] });
       toast({ title: "Film type deleted successfully" });
@@ -223,8 +235,6 @@ export default function FilmManagement() {
                     </FormItem>
                   )}
                 />
-
-
 
                 <div className="flex justify-end space-x-2 pt-4">
                   <Button
