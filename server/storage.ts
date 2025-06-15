@@ -250,7 +250,7 @@ export class DatabaseStorage implements IStorage {
         
       // Auto-deduct inventory for each film type used
       const userId = installerData.length > 0 ? installerData[0].installerId : "system";
-      for (const [filmId, consumption] of filmConsumption.entries()) {
+      for (const [filmId, consumption] of Array.from(filmConsumption.entries())) {
         try {
           await this.deductInventoryStock(
             filmId, 

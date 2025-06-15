@@ -35,6 +35,7 @@ const formSchema = insertJobEntrySchema.extend({
   dimensions: z.array(z.object({
     lengthInches: z.number().min(0.1, "Length must be greater than 0"),
     widthInches: z.number().min(0.1, "Width must be greater than 0"),
+    filmId: z.number().min(1, "Film type must be selected"),
     description: z.string().optional(),
   })).min(1, "At least one dimension entry is required"),
   redoEntries: z.array(z.object({
@@ -68,12 +69,13 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     })) : []
   );
 
-  const [dimensions, setDimensions] = useState<Array<{ lengthInches: number; widthInches: number; description?: string }>>(
+  const [dimensions, setDimensions] = useState<Array<{ lengthInches: number; widthInches: number; filmId: number; description?: string }>>(
     editingEntry && editingEntry.dimensions ? editingEntry.dimensions.map(dim => ({
       lengthInches: Number(dim.lengthInches),
       widthInches: Number(dim.widthInches),
+      filmId: (dim as any).filmId || 1, // Default to first film
       description: dim.description || ""
-    })) : [{ lengthInches: 1, widthInches: 1, description: "" }]
+    })) : [{ lengthInches: 1, widthInches: 1, filmId: 1, description: "" }]
   );
 
   const [windowAssignments, setWindowAssignments] = useState<Array<{ windowId: string; installerId: string | null; windowName: string }>>(() => {
@@ -90,7 +92,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     return [];
   });
 
-  const updateTotalSqftFromDimensions = (dims: Array<{ lengthInches: number; widthInches: number; description?: string }>) => {
+  const updateTotalSqftFromDimensions = (dims: Array<{ lengthInches: number; widthInches: number; filmId: number; description?: string }>) => {
     const totalSqft = dims.reduce((total, dim) => 
       total + ((dim.lengthInches * dim.widthInches) / 144), 0
     );
@@ -597,7 +599,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      setDimensions([...dimensions, { lengthInches: 1, widthInches: 1, description: "" }]);
+                      setDimensions([...dimensions, { lengthInches: 1, widthInches: 1, filmId: 1, description: "" }]);
                     }}
                     className="shrink-0"
                   >
@@ -627,7 +629,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                         )}
                       </div>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div>
                           <Label htmlFor={`length-${index}`} className="text-sm font-medium">
                             Length (inches)
