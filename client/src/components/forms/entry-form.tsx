@@ -29,9 +29,7 @@ const formSchema = insertJobEntrySchema.extend({
   installerIds: z.array(z.string()).min(1, "At least one installer must be selected"),
   totalWindows: z.number().min(1, "Must have at least one window").max(20, "Maximum 20 windows"),
   installerTimeVariances: z.record(z.string(), z.number()), // installer ID -> time variance
-  filmId: z.number().optional(),
-  totalSqft: z.number().min(0.1, "Total square footage must be greater than 0").optional(),
-  filmCost: z.number().min(0, "Film cost cannot be negative").optional(),
+
   dimensions: z.array(z.object({
     lengthInches: z.number().min(0.1, "Length must be greater than 0"),
     widthInches: z.number().min(0.1, "Width must be greater than 0"),
@@ -563,53 +561,10 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
           />
         </div>
 
-        {/* Film Information Section */}
+        {/* Dimensions Section */}
         <Card className="bg-muted/30 border-muted">
-          <CardHeader>
-            <CardTitle className="text-lg text-card-foreground">Film Information</CardTitle>
-            <p className="text-sm text-muted-foreground">Select film type and calculate material costs</p>
-          </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <FormField
-                control={form.control}
-                name="filmId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-muted-foreground">Film Type</FormLabel>
-                    <Select 
-                      onValueChange={(value) => {
-                        field.onChange(value ? parseInt(value) : undefined);
-                        // Auto-calculate cost when film type or sqft changes
-                        const filmId = parseInt(value);
-                        const selectedFilm = films.find(f => f.id === filmId);
-                        const totalSqft = form.getValues("totalSqft");
-                        if (selectedFilm && totalSqft) {
-                          const calculatedCost = Number(selectedFilm.costPerSqft) * totalSqft;
-                          form.setValue("filmCost", calculatedCost);
-                        }
-                      }} 
-                      value={field.value?.toString()}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="bg-background border-border">
-                          <SelectValue placeholder="Select film type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {films.map((film) => (
-                          <SelectItem key={film.id} value={film.id.toString()}>
-                            {film.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Dimensions Section */}
+            {/* Dimensions Section */}
               <div className="col-span-full">
                 <div className="flex items-center justify-between mb-4">
                   <div>
@@ -757,21 +712,110 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                   </div>
                 </div>
               </div>
+          </CardContent>
+        </Card>
 
-
+        {/* Redo Entries Section */}
+        <Card className="bg-muted/30 border-border">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-card-foreground">Redo Entries</CardTitle>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                onClick={addRedoEntry}
+                className="border-primary/30 text-primary hover:bg-primary/10"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add Redo
+              </Button>
             </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {redoEntries.map((redo, index) => {
+              // Get films used in the current dimensions for redo selection
+              const availableFilms = dimensions
+                .filter(dim => dim.filmId)
+                .map(dim => films?.find(f => f.id === dim.filmId))
+                .filter((film): film is Film => Boolean(film))
+                .filter((film, idx, arr) => arr.findIndex(f => f!.id === film.id) === idx); // Remove duplicates
+              
+              return (
+                <RedoEntry
+                  key={index}
+                  part={redo.part}
+                  filmId={redo.filmId}
+                  installerId={redo.installerId}
+                  lengthInches={redo.lengthInches}
+                  widthInches={redo.widthInches}
+                  timeMinutes={redo.timeMinutes}
+                  installers={installers}
+                  availableFilms={availableFilms}
+                  onPartChange={(value) => updateRedoEntry(index, "part", value)}
+                  onFilmChange={(value) => updateRedoEntry(index, "filmId", value)}
+                  onInstallerChange={(value) => updateRedoEntry(index, "installerId", value)}
+                  onLengthChange={(value) => updateRedoEntry(index, "lengthInches", value)}
+                  onWidthChange={(value) => updateRedoEntry(index, "widthInches", value)}
+                  onTimeChange={(value) => updateRedoEntry(index, "timeMinutes", value)}
+                  onRemove={() => removeRedoEntry(index)}
+                />
+              );
+            })}
+            
+            {redoEntries.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-4">
+                No redo entries. Add redo entries for different parts of the vehicle as needed.
+              </p>
+            )}
+          </CardContent>
+        </Card>
 
-            {/* Material Consumption Summary */}
-            {form.watch("filmId") && (dimensions.length > 0 || redoEntries.length > 0) && (
-              <div className="bg-background border border-border rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-medium text-card-foreground">Material Consumption</h4>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      // Create print-specific styles that match the actual design
+        {/* Notes Section */}
+        <FormField
+          control={form.control}
+          name="notes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-muted-foreground">Notes (Optional)</FormLabel>
+              <FormControl>
+                <Textarea 
+                  placeholder="Add any notes about this job..."
+                  className="bg-background border-border resize-none"
+                  rows={3}
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Submit Button */}
+        <div className="flex justify-end pt-6">
+          <Button
+            type="submit"
+            size="lg"
+            disabled={createEntryMutation.isPending}
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            {createEntryMutation.isPending ? (
+              <>
+                <div className="animate-spin -ml-1 mr-3 h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                {editingEntry ? 'Updating...' : 'Creating...'}
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                {editingEntry ? 'Update Job Entry' : 'Create Job Entry'}
+              </>
+            )}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
                       const printContent = document.createElement('div');
                       printContent.innerHTML = `
                         <style>
