@@ -48,10 +48,6 @@ export const films = pgTable("films", {
   name: varchar("name").notNull().unique(), // Film name/type
   type: varchar("type").notNull(), // Category: "ceramic", "carbon", "dyed", etc.
   costPerSqft: numeric("cost_per_sqft", { precision: 10, scale: 2 }).notNull(), // Cost per square foot
-  totalSqft: numeric("total_sqft", { precision: 10, scale: 2 }), // Total square feet in roll
-  grossWeight: numeric("gross_weight", { precision: 10, scale: 2 }), // Total weight including core (grams)
-  coreWeight: numeric("core_weight", { precision: 10, scale: 2 }), // Weight of core only (grams)
-  netWeight: numeric("net_weight", { precision: 10, scale: 2 }), // Net film weight (grams)
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
