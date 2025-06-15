@@ -167,14 +167,14 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
         vehicleMake: editingEntry.vehicleMake,
         vehicleModel: editingEntry.vehicleModel,
         totalWindows: editingEntry.totalWindows,
-        durationMinutes: editingEntry.durationMinutes,
+        durationMinutes: editingEntry.durationMinutes ?? 60,
         installerIds: editingEntry.installers.map(i => i.id),
         installerTimeVariances: editingEntry.installers.reduce((acc, installer) => {
           acc[installer.id] = installer.timeVariance;
           return acc;
         }, {} as Record<string, number>),
-        totalSqft: editingEntry.totalSqft ?? 0,
-        filmCost: editingEntry.filmCost ?? 0,
+        totalSqft: parseFloat(editingEntry.totalSqft?.toString() || "0"),
+        filmCost: parseFloat(editingEntry.filmCost?.toString() || "0"),
         notes: editingEntry.notes || "",
         redoEntries: [],
       });
@@ -235,6 +235,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       return apiRequest("/api/job-entries", {
         method: "POST",
         body: JSON.stringify({ jobEntry: jobEntryData, installerData }),
+        headers: { "Content-Type": "application/json" }
       });
     },
     onSuccess: () => {
@@ -261,15 +262,15 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     mutationFn: async (data: FormValues) => {
       if (!editingEntry) throw new Error("No entry to update");
       
-      const jobEntryData: Partial<InsertJobEntry> = {
+      const jobEntryData = {
         date: data.date,
         vehicleYear: data.vehicleYear,
         vehicleMake: data.vehicleMake,
         vehicleModel: data.vehicleModel,
         totalWindows: data.totalWindows,
         durationMinutes: data.durationMinutes,
-        totalSqft: data.totalSqft,
-        filmCost: data.filmCost,
+        totalSqft: data.totalSqft.toString(),
+        filmCost: data.filmCost.toString(),
         notes: data.notes,
         windowAssignments: data.windowAssignments || [],
       };
@@ -277,6 +278,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       return apiRequest(`/api/job-entries/${editingEntry.id}`, {
         method: "PUT",
         body: JSON.stringify(jobEntryData),
+        headers: { "Content-Type": "application/json" }
       });
     },
     onSuccess: () => {
@@ -707,7 +709,9 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                           }}
                         />
                         <label htmlFor={installer.id} className="text-sm font-medium">
-                          {installer.name}
+                          {installer.firstName && installer.lastName 
+                            ? `${installer.firstName} ${installer.lastName}` 
+                            : installer.email || installer.id}
                         </label>
                       </div>
                     ))}
@@ -718,7 +722,10 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
             />
 
             {form.watch("installerIds").map((installerId) => {
-              const installerName = installers?.find(i => i.id === installerId)?.name || "Unknown";
+              const installer = installers?.find(i => i.id === installerId);
+              const installerName = installer?.firstName && installer?.lastName 
+                ? `${installer.firstName} ${installer.lastName}` 
+                : installer?.email || "Unknown";
               return (
                 <div key={installerId} className="space-y-2">
                   <Label>Time Variance for {installerName} (minutes)</Label>
@@ -804,7 +811,9 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                           <SelectContent>
                             {installers?.map((installer) => (
                               <SelectItem key={installer.id} value={installer.id}>
-                                {installer.name}
+                                {installer.firstName && installer.lastName 
+                                  ? `${installer.firstName} ${installer.lastName}` 
+                                  : installer.email || installer.id}
                               </SelectItem>
                             ))}
                           </SelectContent>
