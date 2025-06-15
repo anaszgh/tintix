@@ -205,7 +205,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Job entry operations
-  async createJobEntry(jobEntry: InsertJobEntry & { windowAssignments?: any[], dimensions?: Array<{lengthInches: number, widthInches: number, description?: string}> }, installerData: Array<{installerId: string, timeVariance: number}>): Promise<JobEntry> {
+  async createJobEntry(jobEntry: InsertJobEntry & { windowAssignments?: any[], dimensions?: Array<{lengthInches: number, widthInches: number, filmId?: number, filmCost?: number, description?: string}> }, installerData: Array<{installerId: string, timeVariance: number}>): Promise<JobEntry> {
     // Generate sequential job number starting from 1
     const existingEntries = await db.select({ id: jobEntries.id }).from(jobEntries);
     const nextJobNumber = existingEntries.length + 1;
@@ -229,11 +229,11 @@ export class DatabaseStorage implements IStorage {
         
         await db.insert(jobDimensions).values({
           jobEntryId: entry.id,
-          filmId: dimension.filmId || 1, // Default film if not specified
+          filmId: dimension.filmId || null, // Film ID now tracked per dimension
           lengthInches: dimension.lengthInches.toString(),
           widthInches: dimension.widthInches.toString(),
           sqft: sqft.toString(),
-          filmCost: dimension.filmCost || "0.00",
+          filmCost: dimension.filmCost?.toString() || "0.00",
           description: dimension.description || null,
         });
       }

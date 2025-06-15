@@ -99,13 +99,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     );
     form.setValue("totalSqft", totalSqft);
     
-    // Auto-calculate cost when sqft changes
-    const filmId = form.getValues("filmId");
-    const selectedFilm = films.find(f => f.id === filmId);
-    if (selectedFilm && totalSqft > 0) {
-      const calculatedCost = Number(selectedFilm.costPerSqft) * totalSqft;
-      form.setValue("filmCost", calculatedCost);
-    }
+    // Film cost calculation now handled per dimension since films can vary per window
   };
 
   const { data: installers = [], isLoading: installersLoading } = useQuery<User[]>({
