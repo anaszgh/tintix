@@ -80,7 +80,7 @@ export default function FilmManagement() {
   });
 
   const deleteFilmMutation = useMutation({
-    mutationFn: (id: number) => apiRequest(`/api/films/${id}`, 'DELETE'),
+    mutationFn: (id: number) => apiRequest('DELETE', `/api/films/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/films'] });
       toast({ title: "Film type deleted successfully" });
