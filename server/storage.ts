@@ -211,7 +211,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Job entry operations
-  async createJobEntry(jobEntry: InsertJobEntry & { windowAssignments?: any[], dimensions?: Array<{lengthInches: number, widthInches: number, description?: string}> }, installerData: Array<{installerId: string, timeVariance: number}>): Promise<JobEntry> {
+  async createJobEntry(jobEntry: InsertJobEntry & { 
+    windowAssignments?: any[], 
+    dimensions?: Array<{
+      lengthInches: number, 
+      widthInches: number, 
+      description?: string,
+      filmId?: number
+    }> 
+  }, installerData: Array<{installerId: string, timeVariance: number}>): Promise<JobEntry> {
     // Generate sequential job number starting from 1
     const existingEntries = await db.select({ id: jobEntries.id }).from(jobEntries);
     const nextJobNumber = existingEntries.length + 1;
@@ -226,25 +234,56 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     
-    // Add dimensions if provided and calculate total square footage
+    // Add dimensions if provided and calculate total square footage and film cost
     let totalSqft = 0;
+    let totalFilmCost = 0;
+    
     if (jobEntry.dimensions && jobEntry.dimensions.length > 0) {
       for (const dimension of jobEntry.dimensions) {
         const sqft = (dimension.lengthInches * dimension.widthInches) / 144;
         totalSqft += sqft;
         
+        // Calculate film cost for this dimension if filmId is provided
+        let dimensionFilmCost = 0;
+        if (dimension.filmId) {
+          const [film] = await db.select().from(films).where(eq(films.id, dimension.filmId));
+          if (film) {
+            dimensionFilmCost = Number(film.costPerSqft) * sqft;
+            totalFilmCost += dimensionFilmCost;
+            
+            // Auto-deduct inventory for this dimension
+            const userId = installerData.length > 0 ? installerData[0].installerId : "system";
+            try {
+              await this.deductInventoryStock(
+                dimension.filmId, 
+                sqft, 
+                userId, 
+                entry.id, 
+                `Auto-deduction for dimension in job ${entry.jobNumber}`
+              );
+            } catch (error) {
+              console.warn(`Failed to deduct inventory for dimension in job ${entry.jobNumber}:`, error);
+            }
+          }
+        }
+        
         await db.insert(jobDimensions).values({
           jobEntryId: entry.id,
+          filmId: dimension.filmId || null,
           lengthInches: dimension.lengthInches.toString(),
           widthInches: dimension.widthInches.toString(),
           sqft: sqft.toString(),
+          filmCost: dimensionFilmCost.toString(),
           description: dimension.description || null,
         });
       }
       
-      // Update total square footage
+      // Update total square footage and film cost
       await db.update(jobEntries)
-        .set({ totalSqft })
+        .set({ 
+          totalSqft,
+          filmCost: totalFilmCost.toString()
+        })
         .where(eq(jobEntries.id, entry.id));
     }
 
@@ -292,23 +331,6 @@ export class DatabaseStorage implements IStorage {
           windowsCompleted: windowCount,
           timeMinutes: allocatedTime,
         });
-      }
-    }
-
-    // Auto-deduct inventory if film is used
-    if (jobEntry.filmId && jobEntry.totalSqft) {
-      const userId = installerData.length > 0 ? installerData[0].installerId : "system";
-      try {
-        await this.deductInventoryStock(
-          jobEntry.filmId, 
-          jobEntry.totalSqft, 
-          userId, 
-          entry.id, 
-          `Auto-deduction for job ${entry.jobNumber}`
-        );
-      } catch (error) {
-        console.warn(`Failed to deduct inventory for job ${entry.jobNumber}:`, error);
-        // Continue without failing the job creation
       }
     }
     
@@ -413,17 +435,26 @@ export class DatabaseStorage implements IStorage {
       installer: r.installer!,
     }));
 
-    // Get all dimensions for this job
+    // Get all dimensions for this job with film info
     const dimensionResults = await db
-      .select()
+      .select({
+        dimension: jobDimensions,
+        film: films,
+      })
       .from(jobDimensions)
+      .leftJoin(films, eq(jobDimensions.filmId, films.id))
       .where(eq(jobDimensions.jobEntryId, id));
+
+    const dimensions = dimensionResults.map(r => ({
+      ...r.dimension,
+      film: r.film || undefined,
+    }));
 
     return {
       ...entry,
       installers: installers as (User & { timeVariance: number })[],
       redoEntries: redoEntriesWithInstallers,
-      dimensions: dimensionResults,
+      dimensions,
     };
   }
 
@@ -1032,38 +1063,43 @@ export class DatabaseStorage implements IStorage {
     }
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-    // Get job-level consumption
-    const jobQuery = db
+    // Get dimension-level consumption (since filmId is now in jobDimensions)
+    const dimensionQuery = db
       .select({
         date: sql<string>`DATE(${jobEntries.date})`,
         filmType: films.type,
         filmName: films.name,
         filmId: films.id,
         costPerSqft: films.costPerSqft,
-        totalSqft: sql<number>`COALESCE(SUM(${jobEntries.totalSqft}), 0)`,
-        totalCost: sql<number>`COALESCE(SUM(CAST(${jobEntries.filmCost} AS DECIMAL)), 0)`,
-        jobCount: count(jobEntries.id),
+        totalSqft: sql<number>`COALESCE(SUM(${jobDimensions.sqft}::numeric), 0)`,
+        totalCost: sql<number>`COALESCE(SUM(${jobDimensions.filmCost}::numeric), 0)`,
+        jobCount: sql<number>`COUNT(DISTINCT ${jobEntries.id})`,
       })
-      .from(jobEntries)
-      .leftJoin(films, eq(jobEntries.filmId, films.id))
+      .from(jobDimensions)
+      .innerJoin(jobEntries, eq(jobDimensions.jobEntryId, jobEntries.id))
+      .innerJoin(films, eq(jobDimensions.filmId, films.id))
       .groupBy(sql`DATE(${jobEntries.date})`, films.type, films.name, films.id, films.costPerSqft);
 
     if (whereClause) {
-      jobQuery.where(whereClause);
+      dimensionQuery.where(whereClause);
     }
 
-    const jobResults = await jobQuery.orderBy(sql`DATE(${jobEntries.date}) DESC`, films.type, films.name);
+    const dimensionResults = await dimensionQuery.orderBy(sql`DATE(${jobEntries.date}) DESC`, films.type, films.name);
 
-    // Get redo consumption grouped by date and film
+    // Get redo consumption grouped by date and film (redos still reference job entries)
+    // For redos, we need to get the film type from the job's dimensions
     const redoQuery = db
       .select({
         date: sql<string>`DATE(${jobEntries.date})`,
-        filmId: jobEntries.filmId,
+        filmType: films.type,
+        filmName: films.name,
         redoSqft: sql<number>`COALESCE(SUM(${redoEntries.sqft}), 0)`,
       })
       .from(redoEntries)
       .innerJoin(jobEntries, eq(redoEntries.jobEntryId, jobEntries.id))
-      .groupBy(sql`DATE(${jobEntries.date})`, jobEntries.filmId);
+      .innerJoin(jobDimensions, eq(jobEntries.id, jobDimensions.jobEntryId))
+      .innerJoin(films, eq(jobDimensions.filmId, films.id))
+      .groupBy(sql`DATE(${jobEntries.date})`, films.type, films.name);
 
     if (whereClause) {
       redoQuery.where(whereClause);
@@ -1071,25 +1107,27 @@ export class DatabaseStorage implements IStorage {
 
     const redoResults = await redoQuery;
 
-    // Combine job and redo consumption
-    const combinedResults = jobResults.map(jobResult => {
+    // Combine dimension and redo consumption
+    const combinedResults = dimensionResults.map(dimensionResult => {
       // Find matching redo consumption for this date and film
       const matchingRedo = redoResults.find(
-        redo => redo.date === jobResult.date && redo.filmId === jobResult.filmId
+        redo => redo.date === dimensionResult.date && 
+                redo.filmType === dimensionResult.filmType && 
+                redo.filmName === dimensionResult.filmName
       );
       
       const redoSqft = Number(matchingRedo?.redoSqft || 0);
-      const totalSqft = Number(jobResult.totalSqft) + redoSqft;
-      const redoCost = redoSqft * Number(jobResult.costPerSqft || 0);
-      const totalCost = Number(jobResult.totalCost) + redoCost;
+      const totalSqft = Number(dimensionResult.totalSqft) + redoSqft;
+      const redoCost = redoSqft * Number(dimensionResult.costPerSqft || 0);
+      const totalCost = Number(dimensionResult.totalCost) + redoCost;
 
       return {
-        date: jobResult.date || 'Unknown',
-        filmType: jobResult.filmType || 'Unknown',
-        filmName: jobResult.filmName || 'Unknown Film',
+        date: dimensionResult.date || 'Unknown',
+        filmType: dimensionResult.filmType || 'Unknown',
+        filmName: dimensionResult.filmName || 'Unknown Film',
         totalSqft: totalSqft,
         totalCost: totalCost,
-        jobCount: Number(jobResult.jobCount) || 0,
+        jobCount: Number(dimensionResult.jobCount) || 0,
       };
     });
 

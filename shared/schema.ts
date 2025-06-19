@@ -19,7 +19,7 @@ import { z } from "zod";
 // Session storage table.
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
 export const sessions = pgTable(
-  "sessions",
+  "session",
   {
     sid: varchar("sid").primaryKey(),
     sess: jsonb("sess").notNull(),
@@ -85,7 +85,6 @@ export const jobEntries = pgTable("job_entries", {
   vehicleYear: varchar("vehicle_year").notNull(),
   vehicleMake: varchar("vehicle_make").notNull(),
   vehicleModel: varchar("vehicle_model").notNull(),
-  filmId: integer("film_id").references(() => films.id), // Reference to film type
   totalSqft: real("total_sqft"), // Total square footage for cost calculation (sum of all dimensions)
   filmCost: numeric("film_cost", { precision: 10, scale: 2 }), // Total film cost for the job
   windowAssignments: jsonb("window_assignments"), // Store detailed window-installer assignments
@@ -102,9 +101,11 @@ export const jobEntries = pgTable("job_entries", {
 export const jobDimensions = pgTable("job_dimensions", {
   id: serial("id").primaryKey(),
   jobEntryId: integer("job_entry_id").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
+  filmId: integer("film_id").references(() => films.id), // Add film type per dimension
   lengthInches: numeric("length_inches", { precision: 8, scale: 2 }).notNull(),
   widthInches: numeric("width_inches", { precision: 8, scale: 2 }).notNull(),
   sqft: numeric("sqft", { precision: 10, scale: 4 }).notNull(), // Calculated L*W/144
+  filmCost: numeric("film_cost", { precision: 10, scale: 2 }), // Cost for this specific dimension
   description: varchar("description"), // Optional description (e.g., "Front windshield", "Side windows")
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -125,6 +126,7 @@ export const redoEntries = pgTable("redo_entries", {
   lengthInches: real("length_inches"), // Material consumption length
   widthInches: real("width_inches"), // Material consumption width
   sqft: real("sqft"), // Calculated square footage (length * width / 144)
+  filmId: integer("film_id").references(() => films.id), // Add film type per dimension
   materialCost: numeric("material_cost", { precision: 10, scale: 2 }), // Cost of material used for redo
   timeMinutes: integer("time_minutes").default(0), // Time spent on redo in minutes
   timestamp: timestamp("timestamp").notNull(),
@@ -149,7 +151,7 @@ export const usersRelations = relations(users, ({ many }) => ({
 }));
 
 export const filmsRelations = relations(films, ({ many, one }) => ({
-  jobEntries: many(jobEntries),
+  jobDimensions: many(jobDimensions),
   inventory: one(filmInventory),
   inventoryTransactions: many(inventoryTransactions),
 }));
@@ -176,21 +178,21 @@ export const inventoryTransactionsRelations = relations(inventoryTransactions, (
   }),
 }));
 
-export const jobEntriesRelations = relations(jobEntries, ({ many, one }) => ({
+export const jobEntriesRelations = relations(jobEntries, ({ many }) => ({
   jobInstallers: many(jobInstallers),
   redoEntries: many(redoEntries),
   timeEntries: many(installerTimeEntries),
   dimensions: many(jobDimensions),
-  film: one(films, {
-    fields: [jobEntries.filmId],
-    references: [films.id],
-  }),
 }));
 
 export const jobDimensionsRelations = relations(jobDimensions, ({ one }) => ({
   jobEntry: one(jobEntries, {
     fields: [jobDimensions.jobEntryId],
     references: [jobEntries.id],
+  }),
+  film: one(films, { // Add film relation
+    fields: [jobDimensions.filmId],
+    references: [films.id],
   }),
 }));
 
@@ -301,5 +303,5 @@ export type FilmWithInventory = Film & {
 export type JobEntryWithDetails = JobEntry & {
   installers: (User & { timeVariance: number })[];
   redoEntries: (RedoEntry & { installer: User })[];
-  dimensions: JobDimension[];
+  dimensions: (JobDimension & { film?: Film })[]; // Include film info
 };

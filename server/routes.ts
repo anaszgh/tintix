@@ -2,8 +2,10 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupLocalAuth, isAuthenticated } from "./auth/local-auth";
-import { insertJobEntrySchema, insertRedoEntrySchema, insertJobInstallerSchema } from "@shared/schema";
+import { insertJobEntrySchema, insertRedoEntrySchema, insertJobInstallerSchema, films } from "@shared/schema";
 import { z } from "zod";
+import { eq } from "drizzle-orm";
+import { db } from "./db";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -196,18 +198,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ? (redoData.lengthInches * redoData.widthInches) / 144 
             : null;
 
-          const validatedRedo = insertRedoEntrySchema.parse({
+          // Calculate material cost if filmId is provided
+          let materialCost = redoData.filmCost || null;
+          if (redoData.filmId && sqft && !materialCost) {
+            const [film] = await db.select().from(films).where(eq(films.id, redoData.filmId));
+            if (film) {
+              materialCost = Number(film.costPerSqft) * sqft;
+            }
+          }
+
+          // Create the redo entry data with proper field mapping
+          const redoEntryData = {
             jobEntryId: jobEntry.id,
             installerId: redoData.installerId || installerIds[0], // Default to first installer if not specified
             part: redoData.part,
             lengthInches: redoData.lengthInches || null,
             widthInches: redoData.widthInches || null,
             sqft: sqft,
-            materialCost: redoData.materialCost || null,
+            filmId: redoData.filmId || null,
+            materialCost: materialCost ? materialCost.toString() : null,
             timeMinutes: redoData.timeMinutes || 0,
             timestamp: new Date(), // Use current timestamp
-          });
+          };
+
+          const validatedRedo = insertRedoEntrySchema.parse(redoEntryData);
           await storage.createRedoEntry(validatedRedo);
+
+          // Auto-deduct inventory for redo if filmId is provided
+          if (redoData.filmId && sqft) {
+            const userId = installerIds.length > 0 ? installerIds[0] : "system";
+            try {
+              await storage.deductInventoryStock(
+                redoData.filmId, 
+                sqft, 
+                userId, 
+                jobEntry.id, 
+                `Auto-deduction for redo entry in job ${jobEntry.jobNumber}`
+              );
+            } catch (error) {
+              console.warn(`Failed to deduct inventory for redo entry in job ${jobEntry.jobNumber}:`, error);
+            }
+          }
         }
       }
 
@@ -283,13 +314,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Recreate redo entries if provided
       if (req.body.redoEntries && Array.isArray(req.body.redoEntries)) {
         for (const redoData of req.body.redoEntries) {
-          const validatedRedo = insertRedoEntrySchema.parse({
+          // Calculate square footage if dimensions are provided
+          const sqft = redoData.lengthInches && redoData.widthInches 
+            ? (redoData.lengthInches * redoData.widthInches) / 144 
+            : null;
+
+          // Calculate material cost if filmId is provided
+          let materialCost = redoData.filmCost || null;
+          if (redoData.filmId && sqft && !materialCost) {
+            const [film] = await db.select().from(films).where(eq(films.id, redoData.filmId));
+            if (film) {
+              materialCost = Number(film.costPerSqft) * sqft;
+            }
+          }
+
+          // Create the redo entry data with proper field mapping
+          const redoEntryData = {
             jobEntryId: entryId,
             installerId: redoData.installerId || installerIds[0],
             part: redoData.part,
+            lengthInches: redoData.lengthInches || null,
+            widthInches: redoData.widthInches || null,
+            sqft: sqft,
+            filmId: redoData.filmId || null,
+            materialCost: materialCost ? materialCost.toString() : null,
+            timeMinutes: redoData.timeMinutes || 0,
             timestamp: new Date(),
-          });
+          };
+
+          const validatedRedo = insertRedoEntrySchema.parse(redoEntryData);
           await storage.createRedoEntry(validatedRedo);
+
+          // Auto-deduct inventory for redo if filmId is provided
+          if (redoData.filmId && sqft) {
+            const userId = installerIds.length > 0 ? installerIds[0] : "system";
+            try {
+              await storage.deductInventoryStock(
+                redoData.filmId, 
+                sqft, 
+                userId, 
+                entryId, 
+                `Auto-deduction for redo entry in job update`
+              );
+            } catch (error) {
+              console.warn(`Failed to deduct inventory for redo entry in job update:`, error);
+            }
+          }
         }
       }
 

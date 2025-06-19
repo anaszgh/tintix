@@ -29,17 +29,23 @@ const formSchema = insertJobEntrySchema.extend({
   installerIds: z.array(z.string()).min(1, "At least one installer must be selected"),
   totalWindows: z.number().min(1, "Must have at least one window").max(20, "Maximum 20 windows"),
   installerTimeVariances: z.record(z.string(), z.number()), // installer ID -> time variance
-  filmId: z.number().optional(),
   totalSqft: z.number().min(0.1, "Total square footage must be greater than 0").optional(),
   filmCost: z.number().min(0, "Film cost cannot be negative").optional(),
   dimensions: z.array(z.object({
     lengthInches: z.number().min(0.1, "Length must be greater than 0"),
     widthInches: z.number().min(0.1, "Width must be greater than 0"),
+    filmId: z.number().optional(),
+    filmCost: z.number().min(0, "Film cost cannot be negative").optional(),
     description: z.string().optional(),
   })).min(1, "At least one dimension entry is required"),
   redoEntries: z.array(z.object({
     part: z.string(),
     installerId: z.string().optional(),
+    lengthInches: z.number().optional(),
+    widthInches: z.number().optional(),
+    timeMinutes: z.number().optional(),
+    filmId: z.number().optional(),
+    filmCost: z.number().optional(),
   })).optional(),
 });
 
@@ -52,12 +58,14 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [redoEntries, setRedoEntries] = useState<Array<{ 
-    part: string; 
-    installerId?: string; 
+  const [redoEntries, setRedoEntries] = useState<Array<{
+    part: string;
+    installerId?: string;
     lengthInches?: number;
     widthInches?: number;
     timeMinutes?: number;
+    filmId?: number;
+    filmCost?: number;
   }>>(
     editingEntry ? editingEntry.redoEntries.map(redo => ({
       part: redo.part,
@@ -65,22 +73,32 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       lengthInches: redo.lengthInches ? Number(redo.lengthInches) : undefined,
       widthInches: redo.widthInches ? Number(redo.widthInches) : undefined,
       timeMinutes: redo.timeMinutes || undefined,
+      filmId: redo.filmId || undefined,
+      filmCost: redo.materialCost ? Number(redo.materialCost) : undefined,
     })) : []
   );
 
-  const [dimensions, setDimensions] = useState<Array<{ lengthInches: number; widthInches: number; description?: string }>>(
+  const [dimensions, setDimensions] = useState<Array<{
+    lengthInches: number;
+    widthInches: number;
+    filmId?: number;
+    filmCost?: number;
+    description?: string
+  }>>(
     editingEntry && editingEntry.dimensions ? editingEntry.dimensions.map(dim => ({
       lengthInches: Number(dim.lengthInches),
       widthInches: Number(dim.widthInches),
+      filmId: dim.filmId || undefined,
+      filmCost: dim.filmCost ? Number(dim.filmCost) : undefined,
       description: dim.description || ""
-    })) : [{ lengthInches: 1, widthInches: 1, description: "" }]
+    })) : [{ lengthInches: 1, widthInches: 1, filmId: undefined, filmCost: undefined, description: "" }]
   );
 
   const [windowAssignments, setWindowAssignments] = useState<Array<{ windowId: string; installerId: string | null; windowName: string }>>(() => {
     if (editingEntry && editingEntry.windowAssignments) {
       try {
-        const assignments = typeof editingEntry.windowAssignments === 'string' 
-          ? JSON.parse(editingEntry.windowAssignments) 
+        const assignments = typeof editingEntry.windowAssignments === 'string'
+          ? JSON.parse(editingEntry.windowAssignments)
           : editingEntry.windowAssignments;
         return Array.isArray(assignments) ? assignments : [];
       } catch {
@@ -90,19 +108,26 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     return [];
   });
 
-  const updateTotalSqftFromDimensions = (dims: Array<{ lengthInches: number; widthInches: number; description?: string }>) => {
-    const totalSqft = dims.reduce((total, dim) => 
+  const updateTotalSqftFromDimensions = (dims: Array<{
+    lengthInches: number;
+    widthInches: number;
+    filmId?: number;
+    filmCost?: number;
+    description?: string
+  }>) => {
+    const totalSqft = dims.reduce((total, dim) =>
       total + ((dim.lengthInches * dim.widthInches) / 144), 0
     );
     form.setValue("totalSqft", totalSqft);
-    
-    // Auto-calculate cost when sqft changes
-    const filmId = form.getValues("filmId");
-    const selectedFilm = films.find(f => f.id === filmId);
-    if (selectedFilm && totalSqft > 0) {
-      const calculatedCost = Number(selectedFilm.costPerSqft) * totalSqft;
-      form.setValue("filmCost", calculatedCost);
-    }
+
+    // Calculate total film cost from all dimensions
+    const totalFilmCost = dims.reduce((total, dim) => {
+      if (dim.filmId && dim.filmCost) {
+        return total + dim.filmCost;
+      }
+      return total;
+    }, 0);
+    form.setValue("filmCost", totalFilmCost);
   };
 
   const { data: installers = [], isLoading: installersLoading } = useQuery<User[]>({
@@ -135,7 +160,6 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       vehicleYear: editingEntry.vehicleYear,
       vehicleMake: editingEntry.vehicleMake,
       vehicleModel: editingEntry.vehicleModel,
-      filmId: editingEntry.filmId || undefined,
       dimensions: dimensions,
       totalSqft: editingEntry.totalSqft || undefined,
       filmCost: editingEntry.filmCost ? Number(editingEntry.filmCost) : undefined,
@@ -149,7 +173,6 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       vehicleYear: "",
       vehicleMake: "",
       vehicleModel: "",
-      filmId: undefined,
       dimensions: [{ lengthInches: 1, widthInches: 1, description: "" }],
       totalSqft: undefined,
       filmCost: undefined,
@@ -168,7 +191,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       // Base duration is total duration minus redo time
       const calculatedBaseDuration = editingEntry.durationMinutes - existingRedoTime;
       setBaseDurationMinutes(calculatedBaseDuration);
-      
+
       // Always set the form to show the full duration including redo time
       form.setValue("durationMinutes", editingEntry.durationMinutes, { shouldValidate: false });
     }
@@ -189,7 +212,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
   useEffect(() => {
     const redoTime = redoEntries.reduce((total, redo) => total + (redo.timeMinutes || 0), 0);
     const currentDuration = form.watch("durationMinutes") || 0;
-    
+
     // Only update if we have a base duration set and redo time has changed
     if (baseDurationMinutes > 0) {
       const newTotalDuration = baseDurationMinutes + redoTime;
@@ -215,7 +238,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
       if (!editingEntry && response?.jobNumber) {
         setCreatedJobNumber(response.jobNumber);
       }
-      
+
       toast({
         title: editingEntry ? "Entry Updated" : "Entry Created",
         description: editingEntry ? "Job entry has been successfully updated." : `Job entry created with number: ${response?.jobNumber || 'N/A'}`,
@@ -250,12 +273,14 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
   });
 
   const addRedoEntry = () => {
-    setRedoEntries([...redoEntries, { 
-      part: "windshield", 
+    setRedoEntries([...redoEntries, {
+      part: "windshield",
       installerId: "",
       lengthInches: undefined,
       widthInches: undefined,
-      timeMinutes: undefined
+      timeMinutes: undefined,
+      filmId: undefined,
+      filmCost: undefined
     }]);
   };
 
@@ -263,13 +288,11 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
     setRedoEntries(redoEntries.filter((_, i) => i !== index));
   };
 
-  const updateRedoEntry = (index: number, field: string, value: string | number) => {
+  const updateRedoEntry = (index: number, field: string, value: string | number | undefined) => {
     const updated = [...redoEntries];
     updated[index] = { ...updated[index], [field]: value };
     setRedoEntries(updated);
   };
-
-
 
   const onSubmit = (data: z.infer<typeof formSchema>) => {
     const jobEntryData = {
@@ -328,8 +351,8 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
               <FormItem>
                 <FormLabel className="text-muted-foreground">Date *</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="date" 
+                  <Input
+                    type="date"
                     {...field}
                     className="bg-background border-border"
                   />
@@ -348,7 +371,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                 <FormItem>
                   <FormLabel className="text-muted-foreground">Job Duration (minutes) *</FormLabel>
                   <FormControl>
-                    <Input 
+                    <Input
                       type="number"
                       min="1"
                       placeholder="Enter total job duration"
@@ -400,7 +423,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                           onCheckedChange={(checked) => {
                             const currentValue = field.value || [];
                             const currentVariances = form.getValues("installerTimeVariances") || {};
-                            
+
                             if (checked) {
                               field.onChange([...currentValue, installer.id]);
                               form.setValue("installerTimeVariances", {
@@ -422,7 +445,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                           {installer.firstName} {installer.lastName}
                         </label>
                       </div>
-                      
+
                       {field.value?.includes(installer.id) && (
                         <div className="flex items-center space-x-2">
                           <label className="text-xs text-muted-foreground">Time Variance (min):</label>
@@ -491,8 +514,8 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
               <FormItem>
                 <FormLabel className="text-muted-foreground">Vehicle Year *</FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="e.g. 2023" 
+                  <Input
+                    placeholder="e.g. 2023"
                     {...field}
                     className="bg-background border-border"
                   />
@@ -509,8 +532,8 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
               <FormItem>
                 <FormLabel className="text-muted-foreground">Make *</FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="e.g. Honda" 
+                  <Input
+                    placeholder="e.g. Honda"
                     {...field}
                     className="bg-background border-border"
                   />
@@ -527,8 +550,8 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
               <FormItem>
                 <FormLabel className="text-muted-foreground">Model *</FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="e.g. Civic" 
+                  <Input
+                    placeholder="e.g. Civic"
                     {...field}
                     className="bg-background border-border"
                   />
@@ -547,7 +570,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <FormField
+              {/* <FormField
                 control={form.control}
                 name="filmId"
                 render={({ field }) => (
@@ -583,21 +606,27 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                     <FormMessage />
                   </FormItem>
                 )}
-              />
+              /> */}
 
               {/* Dimensions Section */}
               <div className="col-span-full">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h3 className="text-lg font-medium">Dimensions</h3>
-                    <p className="text-sm text-muted-foreground">Enter length and width measurements</p>
+                    <p className="text-sm text-muted-foreground">Enter length, width, and select film type for each dimension</p>
                   </div>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      setDimensions([...dimensions, { lengthInches: 1, widthInches: 1, description: "" }]);
+                      setDimensions([...dimensions, {
+                        lengthInches: 1,
+                        widthInches: 1,
+                        filmId: undefined,
+                        filmCost: undefined,
+                        description: ""
+                      }]);
                     }}
                     className="shrink-0"
                   >
@@ -605,7 +634,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                     Add Dimension
                   </Button>
                 </div>
-                
+
                 <div className="space-y-4">
                   {dimensions.map((dimension, index) => (
                     <div key={index} className="border rounded-lg p-4 bg-card">
@@ -626,8 +655,8 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                           </Button>
                         )}
                       </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div>
                           <Label htmlFor={`length-${index}`} className="text-sm font-medium">
                             Length (inches)
@@ -642,6 +671,12 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                               const newDimensions = [...dimensions];
                               const value = parseFloat(e.target.value) || 1;
                               newDimensions[index].lengthInches = value;
+                              // Calculate film cost for this dimension
+                              const sqft = (value * newDimensions[index].widthInches) / 144;
+                              const selectedFilm = films.find(f => f.id === newDimensions[index].filmId);
+                              if (selectedFilm) {
+                                newDimensions[index].filmCost = Number(selectedFilm.costPerSqft) * sqft;
+                              }
                               setDimensions(newDimensions);
                               updateTotalSqftFromDimensions(newDimensions);
                             }}
@@ -649,7 +684,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                             className="mt-1"
                           />
                         </div>
-                        
+
                         <div>
                           <Label htmlFor={`width-${index}`} className="text-sm font-medium">
                             Width (inches)
@@ -664,6 +699,12 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                               const newDimensions = [...dimensions];
                               const value = parseFloat(e.target.value) || 1;
                               newDimensions[index].widthInches = value;
+                              // Calculate film cost for this dimension
+                              const sqft = (newDimensions[index].lengthInches * value) / 144;
+                              const selectedFilm = films.find(f => f.id === newDimensions[index].filmId);
+                              if (selectedFilm) {
+                                newDimensions[index].filmCost = Number(selectedFilm.costPerSqft) * sqft;
+                              }
                               setDimensions(newDimensions);
                               updateTotalSqftFromDimensions(newDimensions);
                             }}
@@ -671,10 +712,47 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                             className="mt-1"
                           />
                         </div>
-                        
+
+                        <div>
+                          <Label htmlFor={`film-${index}`} className="text-sm font-medium">
+                            Film Type
+                          </Label>
+                          <Select
+                            onValueChange={(value) => {
+                              const newDimensions = [...dimensions];
+                              const filmId = value ? parseInt(value) : undefined;
+                              newDimensions[index].filmId = filmId;
+
+                              // Calculate film cost for this dimension
+                              const sqft = (newDimensions[index].lengthInches * newDimensions[index].widthInches) / 144;
+                              const selectedFilm = films.find(f => f.id === filmId);
+                              if (selectedFilm && sqft > 0) {
+                                newDimensions[index].filmCost = Number(selectedFilm.costPerSqft) * sqft;
+                              } else {
+                                newDimensions[index].filmCost = undefined;
+                              }
+
+                              setDimensions(newDimensions);
+                              updateTotalSqftFromDimensions(newDimensions);
+                            }}
+                            value={dimension.filmId?.toString() || ""}
+                          >
+                            <SelectTrigger className="bg-background border-border">
+                              <SelectValue placeholder="Select film type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {films.map((film) => (
+                                <SelectItem key={film.id} value={film.id.toString()}>
+                                  {film.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
                         <div>
                           <Label htmlFor={`description-${index}`} className="text-sm font-medium">
-                            Description (optional)
+                            Description
                           </Label>
                           <Input
                             id={`description-${index}`}
@@ -689,20 +767,28 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                           />
                         </div>
                       </div>
-                      
+
                       <div className="mt-3 text-sm text-muted-foreground">
-                        Square footage: {dimension.lengthInches && dimension.widthInches 
-                          ? ((dimension.lengthInches * dimension.widthInches) / 144).toFixed(2) 
-                          : "0.00"} sq ft
+                        <div>Square footage: {dimension.lengthInches && dimension.widthInches
+                          ? ((dimension.lengthInches * dimension.widthInches) / 144).toFixed(2)
+                          : "0.00"} sq ft</div>
+                        {dimension.filmCost && (
+                          <div>Film cost: ${dimension.filmCost.toFixed(2)}</div>
+                        )}
                       </div>
                     </div>
                   ))}
-                  
+
                   <div className="bg-muted p-4 rounded-lg">
                     <div className="text-lg font-semibold">
-                      Total Square Footage: {dimensions.reduce((total, dim) => 
+                      Total Square Footage: {dimensions.reduce((total, dim) =>
                         total + ((dim.lengthInches * dim.widthInches) / 144), 0
                       ).toFixed(2)} sq ft
+                    </div>
+                    <div className="text-md font-medium">
+                      Total Film Cost: ${dimensions.reduce((total, dim) =>
+                        total + (dim.filmCost || 0), 0
+                      ).toFixed(2)}
                     </div>
                   </div>
                 </div>
@@ -712,7 +798,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
             </div>
 
             {/* Material Consumption Summary */}
-            {form.watch("filmId") && (dimensions.length > 0 || redoEntries.length > 0) && (
+            {(dimensions.length > 0 || redoEntries.length > 0) && (
               <div className="bg-background border border-border rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-medium text-card-foreground">Material Consumption</h4>
@@ -810,27 +896,27 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                             </div>
                             
                             <div class="print-row">
-                              <span class="print-label">Film Type:</span>
-                              <span class="print-value">${films.find(f => f.id === form.watch("filmId"))?.name || 'N/A'}</span>
+                              <span class="print-label">Film Types:</span>
+                              <span class="print-value">Per Dimension</span>
                             </div>
                             
                             <div class="print-row">
-                              <span class="print-label">Rate per sq ft:</span>
-                              <span class="print-value">$${Number(films.find(f => f.id === form.watch("filmId"))?.costPerSqft || 0).toFixed(2)}</span>
+                              <span class="print-label">Total Cost:</span>
+                              <span class="print-value">$${dimensions.reduce((total, dim) => total + (dim.filmCost || 0), 0).toFixed(2)}</span>
                             </div>
 
                             ${dimensions.length > 0 ? `
                               <div class="job-consumption">
                                 <div class="consumption-header">Job Consumption</div>
                                 ${dimensions.map((dim, index) => {
-                                  const sqft = (dim.lengthInches * dim.widthInches) / 144;
-                                  return `
+                        const sqft = (dim.lengthInches * dim.widthInches) / 144;
+                        return `
                                     <div class="print-row" style="font-size: 12px;">
                                       <span class="print-label">${dim.description || `Dimension ${index + 1}`}: ${dim.lengthInches}" × ${dim.widthInches}"</span>
                                       <span class="print-value">${sqft.toFixed(2)} sq ft</span>
                                     </div>
                                   `;
-                                }).join('')}
+                      }).join('')}
                               </div>
                             ` : ''}
 
@@ -838,49 +924,48 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                               <div class="redo-consumption">
                                 <div class="redo-header">REDO Consumption</div>
                                 ${redoEntries.filter(redo => redo.lengthInches && redo.widthInches).map((redo, index) => {
-                                  const sqft = (redo.lengthInches! * redo.widthInches!) / 144;
-                                  return `
+                        const sqft = (redo.lengthInches! * redo.widthInches!) / 144;
+                        return `
                                     <div class="print-row" style="font-size: 12px;">
                                       <span class="print-label">${redo.part}: ${redo.lengthInches}" × ${redo.widthInches}" (REDO)</span>
                                       <span class="print-value print-red">${sqft.toFixed(2)} sq ft</span>
                                     </div>
                                   `;
-                                }).join('')}
+                      }).join('')}
                               </div>
                             ` : ''}
                             
                             ${(() => {
-                              const jobSqft = dimensions.reduce((total, dim) => total + ((dim.lengthInches * dim.widthInches) / 144), 0);
-                              const redoSqft = redoEntries.reduce((total, redo) => {
-                                if (redo.lengthInches && redo.widthInches) {
-                                  return total + ((redo.lengthInches * redo.widthInches) / 144);
-                                }
-                                return total;
-                              }, 0);
-                              const totalSqft = jobSqft + redoSqft;
-                              const costPerSqft = Number(films.find(f => f.id === form.watch("filmId"))?.costPerSqft || 0);
-                              const jobCost = (totalSqft - redoSqft) * costPerSqft;
-                              const redoCost = redoSqft * costPerSqft;
-                              const totalCost = totalSqft * costPerSqft;
-                              const totalFormDuration = form.watch("durationMinutes") || 0;
-                              const redoTime = redoEntries.reduce((total, redo) => total + (redo.timeMinutes || 0), 0);
-                              const baseDuration = baseDurationMinutes > 0 ? baseDurationMinutes : Math.max(0, totalFormDuration - redoTime);
-                              const totalDuration = baseDuration + redoTime;
-                              const totalHours = (totalDuration / 60).toFixed(1);
-                              
-                              return `
+                          const jobSqft = dimensions.reduce((total, dim) => total + ((dim.lengthInches * dim.widthInches) / 144), 0);
+                          const jobCost = dimensions.reduce((total, dim) => total + (dim.filmCost || 0), 0);
+                          const redoSqft = redoEntries.reduce((total, redo) => {
+                            if (redo.lengthInches && redo.widthInches) {
+                              return total + ((redo.lengthInches * redo.widthInches) / 144);
+                            }
+                            return total;
+                          }, 0);
+                          const redoCost = redoEntries.reduce((total, redo) => total + (redo.filmCost || 0), 0);
+                          const totalSqft = jobSqft + redoSqft;
+                          const totalCost = jobCost + redoCost;
+                          const totalFormDuration = form.watch("durationMinutes") || 0;
+                          const redoTime = redoEntries.reduce((total, redo) => total + (redo.timeMinutes || 0), 0);
+                          const baseDuration = baseDurationMinutes > 0 ? baseDurationMinutes : Math.max(0, totalFormDuration - redoTime);
+                          const totalDuration = baseDuration + redoTime;
+                          const totalHours = (totalDuration / 60).toFixed(1);
+
+                          return `
                                 <div class="print-separator">
                                   <div class="print-row">
                                     <span class="print-label">Total Material SQFT:</span>
                                     <span class="print-value">${totalSqft.toFixed(2)} sq ft</span>
                                   </div>
                                   <div class="print-row">
-                                    <span class="print-label">Total Cost:</span>
+                                    <span class="print-label">Job Cost:</span>
                                     <span class="print-value print-blue">$${jobCost.toFixed(2)}</span>
                                   </div>
                                   ${redoSqft > 0 ? `
                                     <div class="print-row">
-                                      <span class="print-label">Total Cost Redo:</span>
+                                      <span class="print-label">Redo Cost:</span>
                                       <span class="print-value print-red">$${redoCost.toFixed(2)}</span>
                                     </div>
                                   ` : ''}
@@ -906,7 +991,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                                   ${redoTime > 0 ? `<div class="print-small">Includes ${(redoTime / 60).toFixed(1)} hours redo time</div>` : ''}
                                 </div>
                               `;
-                            })()}
+                        })()}
                           </div>
                         </div>
                       `;
@@ -934,19 +1019,19 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                     Print
                   </Button>
                 </div>
-                
+
                 <div className="space-y-3">
                   {/* Film Information */}
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Film Type:</span>
+                    <span className="text-muted-foreground">Film Types:</span>
                     <span className="text-card-foreground">
-                      {films.find(f => f.id === form.watch("filmId"))?.name}
+                      Per Dimension
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Rate per sq ft:</span>
+                    <span className="text-muted-foreground">Total Cost:</span>
                     <span className="text-card-foreground">
-                      ${Number(films.find(f => f.id === form.watch("filmId"))?.costPerSqft || 0).toFixed(2)}
+                      ${dimensions.reduce((total, dim) => total + (dim.filmCost || 0), 0).toFixed(2)}
                     </span>
                   </div>
 
@@ -989,15 +1074,16 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                   {/* Total Calculation */}
                   {(() => {
                     const jobSqft = dimensions.reduce((total, dim) => total + ((dim.lengthInches * dim.widthInches) / 144), 0);
+                    const jobCost = dimensions.reduce((total, dim) => total + (dim.filmCost || 0), 0);
                     const redoSqft = redoEntries.reduce((total, redo) => {
                       if (redo.lengthInches && redo.widthInches) {
                         return total + ((redo.lengthInches * redo.widthInches) / 144);
                       }
                       return total;
                     }, 0);
+                    const redoCost = redoEntries.reduce((total, redo) => total + (redo.filmCost || 0), 0);
                     const totalSqft = jobSqft + redoSqft;
-                    const costPerSqft = Number(films.find(f => f.id === form.watch("filmId"))?.costPerSqft || 0);
-                    const totalCost = totalSqft * costPerSqft;
+                    const totalCost = jobCost + redoCost;
 
                     // Calculate time breakdown properly
                     const totalFormDuration = form.watch("durationMinutes") || 0;
@@ -1014,8 +1100,6 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                       form.setValue("filmCost", totalCost);
                     }
 
-                    const jobCost = (totalSqft - redoSqft) * costPerSqft;
-                    const redoCost = redoSqft * costPerSqft;
                     const totalHours = (totalDuration / 60).toFixed(1);
 
                     return (
@@ -1025,12 +1109,12 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                           <span className="text-card-foreground">{totalSqft.toFixed(2)} sq ft</span>
                         </div>
                         <div className="flex justify-between text-sm font-medium">
-                          <span className="text-card-foreground">Total Cost:</span>
+                          <span className="text-card-foreground">Job Cost:</span>
                           <span className="text-blue-600 font-semibold">${jobCost.toFixed(2)}</span>
                         </div>
                         {redoSqft > 0 && (
                           <div className="flex justify-between text-sm font-medium">
-                            <span className="text-card-foreground">Total Cost Redo:</span>
+                            <span className="text-card-foreground">Redo Cost:</span>
                             <span className="text-red-600 font-semibold">${redoCost.toFixed(2)}</span>
                           </div>
                         )}
@@ -1078,7 +1162,7 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
             selectedInstallers={form.watch("installerIds").map(id => installers.find(i => i.id === id)).filter(Boolean) as User[]}
             onWindowAssignmentsChange={(assignments) => {
               setWindowAssignments(assignments);
-              
+
               // Only update total windows count, don't modify job-level installer selection
               form.setValue("totalWindows", assignments.filter(a => a.installerId).length, { shouldValidate: false, shouldDirty: false });
             }}
@@ -1111,10 +1195,10 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-card-foreground">Redo Entries</CardTitle>
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm" 
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
                 onClick={addRedoEntry}
                 className="border-primary/30 text-primary hover:bg-primary/10"
               >
@@ -1132,16 +1216,21 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
                 lengthInches={redo.lengthInches}
                 widthInches={redo.widthInches}
                 timeMinutes={redo.timeMinutes}
+                filmId={redo.filmId}
+                filmCost={redo.filmCost}
                 installers={installers}
+                films={films}
                 onPartChange={(value) => updateRedoEntry(index, "part", value)}
                 onInstallerChange={(value) => updateRedoEntry(index, "installerId", value)}
                 onLengthChange={(value) => updateRedoEntry(index, "lengthInches", value)}
                 onWidthChange={(value) => updateRedoEntry(index, "widthInches", value)}
                 onTimeChange={(value) => updateRedoEntry(index, "timeMinutes", value)}
+                onFilmIdChange={(value) => updateRedoEntry(index, "filmId", value)}
+                onFilmCostChange={(value) => updateRedoEntry(index, "filmCost", value)}
                 onRemove={() => removeRedoEntry(index)}
               />
             ))}
-            
+
             {redoEntries.length === 0 && (
               <p className="text-xs text-muted-foreground text-center py-4">
                 No redo entries. Add redo entries for different parts of the vehicle as needed.
@@ -1157,9 +1246,9 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
             <FormItem>
               <FormLabel className="text-muted-foreground">Notes (Optional)</FormLabel>
               <FormControl>
-                <Textarea 
+                <Textarea
                   rows={3}
-                  placeholder="Any additional notes about this job..." 
+                  placeholder="Any additional notes about this job..."
                   {...field}
                   value={field.value || ""}
                   className="bg-background border-border resize-none"
@@ -1179,8 +1268,8 @@ export function EntryForm({ onSuccess, editingEntry }: EntryFormProps) {
         )}
 
         <div className="flex items-center justify-end space-x-3 pt-6 border-t border-border">
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             disabled={createEntryMutation.isPending}
             className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
