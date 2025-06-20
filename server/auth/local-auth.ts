@@ -6,7 +6,6 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "../storage";
 import { User as SelectUser } from "@shared/schema";
-import connectPg from "connect-pg-simple";
 import { pool } from "../db";
 
 declare global {
@@ -31,16 +30,11 @@ async function comparePasswords(supplied: string, stored: string): Promise<boole
 }
 
 export function setupLocalAuth(app: Express) {
-  const PostgresSessionStore = connectPg(session);
-  
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "your-secret-key-change-in-production",
     resave: false,
     saveUninitialized: false,
-    store: new PostgresSessionStore({ 
-      pool, 
-      createTableIfMissing: false 
-    }),
+    // TODO: Configure MySQL session store after fixing TypeScript issues
     cookie: {
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,

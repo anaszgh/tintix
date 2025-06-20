@@ -1,28 +1,26 @@
 import {
-  pgTable,
+  mysqlTable,
   text,
   varchar,
   timestamp,
-  jsonb,
+  json,
   index,
-  serial,
-  integer,
+  int,
   boolean,
-  real,
-  numeric,
+  float,
   decimal,
-} from "drizzle-orm/pg-core";
+} from "drizzle-orm/mysql-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Session storage table.
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
-export const sessions = pgTable(
+export const sessions = mysqlTable(
   "session",
   {
-    sid: varchar("sid").primaryKey(),
-    sess: jsonb("sess").notNull(),
+    sid: varchar("sid", { length: 255 }).primaryKey(),
+    sess: json("sess").notNull(),
     expire: timestamp("expire").notNull(),
   },
   (table) => [index("IDX_session_expire").on(table.expire)],
@@ -30,116 +28,116 @@ export const sessions = pgTable(
 
 // User storage table.
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().notNull(),
-  email: varchar("email").unique(),
-  password: varchar("password"), // For local auth, null for OAuth users
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
-  profileImageUrl: varchar("profile_image_url"),
-  role: varchar("role").notNull().default("installer"), // "installer", "manager", or "data_entry"
-  hourlyRate: numeric("hourly_rate", { precision: 8, scale: 2 }).default("0.00"),
+export const users = mysqlTable("users", {
+  id: varchar("id", { length: 255 }).primaryKey().notNull(),
+  email: varchar("email", { length: 255 }).unique(),
+  password: varchar("password", { length: 255 }), // For local auth, null for OAuth users
+  firstName: varchar("first_name", { length: 255 }),
+  lastName: varchar("last_name", { length: 255 }),
+  profileImageUrl: varchar("profile_image_url", { length: 500 }),
+  role: varchar("role", { length: 50 }).notNull().default("installer"), // "installer", "manager", or "data_entry"
+  hourlyRate: decimal("hourly_rate", { precision: 8, scale: 2 }).default("0.00"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Film types management
-export const films = pgTable("films", {
-  id: serial("id").primaryKey(),
-  name: varchar("name").notNull().unique(), // Film name/type
-  type: varchar("type").notNull(), // Category: "ceramic", "carbon", "dyed", etc.
-  costPerSqft: numeric("cost_per_sqft", { precision: 10, scale: 2 }).notNull(), // Cost per square foot
+export const films = mysqlTable("films", {
+  id: int("id").primaryKey().autoincrement(),
+  name: varchar("name", { length: 255 }).notNull().unique(), // Film name/type
+  type: varchar("type", { length: 100 }).notNull(), // Category: "ceramic", "carbon", "dyed", etc.
+  costPerSqft: decimal("cost_per_sqft", { precision: 10, scale: 2 }).notNull(), // Cost per square foot
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Film inventory tracking
-export const filmInventory = pgTable("film_inventory", {
-  id: serial("id").primaryKey(),
-  filmId: integer("film_id").notNull().references(() => films.id, { onDelete: "cascade" }),
-  currentStock: numeric("current_stock", { precision: 10, scale: 2 }).notNull().default("0.00"), // Current stock in sqft
-  minimumStock: numeric("minimum_stock", { precision: 10, scale: 2 }).notNull().default("0.00"), // Alert threshold
+export const filmInventory = mysqlTable("film_inventory", {
+  id: int("id").primaryKey().autoincrement(),
+  filmId: int("film_id").notNull().references(() => films.id, { onDelete: "cascade" }),
+  currentStock: decimal("current_stock", { precision: 10, scale: 2 }).notNull().default("0.00"), // Current stock in sqft
+  minimumStock: decimal("minimum_stock", { precision: 10, scale: 2 }).notNull().default("0.00"), // Alert threshold
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Inventory transactions log
-export const inventoryTransactions = pgTable("inventory_transactions", {
-  id: serial("id").primaryKey(),
-  filmId: integer("film_id").notNull().references(() => films.id, { onDelete: "cascade" }),
-  type: varchar("type").notNull(), // "addition", "deduction", "adjustment"
-  quantity: numeric("quantity", { precision: 10, scale: 2 }).notNull(), // Positive for additions, negative for deductions
-  previousStock: numeric("previous_stock", { precision: 10, scale: 2 }).notNull(),
-  newStock: numeric("new_stock", { precision: 10, scale: 2 }).notNull(),
-  jobEntryId: integer("job_entry_id").references(() => jobEntries.id), // Reference if related to a job
+export const inventoryTransactions = mysqlTable("inventory_transactions", {
+  id: int("id").primaryKey().autoincrement(),
+  filmId: int("film_id").notNull().references(() => films.id, { onDelete: "cascade" }),
+  type: varchar("type", { length: 50 }).notNull(), // "addition", "deduction", "adjustment"
+  quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull(), // Positive for additions, negative for deductions
+  previousStock: decimal("previous_stock", { precision: 10, scale: 2 }).notNull(),
+  newStock: decimal("new_stock", { precision: 10, scale: 2 }).notNull(),
+  jobEntryId: int("job_entry_id").references(() => jobEntries.id), // Reference if related to a job
   notes: text("notes"),
-  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdBy: varchar("created_by", { length: 255 }).notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const jobEntries = pgTable("job_entries", {
-  id: serial("id").primaryKey(),
-  jobNumber: varchar("job_number").notNull().unique(),
+export const jobEntries = mysqlTable("job_entries", {
+  id: int("id").primaryKey().autoincrement(),
+  jobNumber: varchar("job_number", { length: 255 }).notNull().unique(),
   date: timestamp("date").notNull(),
-  vehicleYear: varchar("vehicle_year").notNull(),
-  vehicleMake: varchar("vehicle_make").notNull(),
-  vehicleModel: varchar("vehicle_model").notNull(),
-  totalSqft: real("total_sqft"), // Total square footage for cost calculation (sum of all dimensions)
-  filmCost: numeric("film_cost", { precision: 10, scale: 2 }), // Total film cost for the job
-  windowAssignments: jsonb("window_assignments"), // Store detailed window-installer assignments
-  totalWindows: integer("total_windows").notNull().default(7),
+  vehicleYear: varchar("vehicle_year", { length: 10 }).notNull(),
+  vehicleMake: varchar("vehicle_make", { length: 100 }).notNull(),
+  vehicleModel: varchar("vehicle_model", { length: 100 }).notNull(),
+  totalSqft: float("total_sqft"), // Total square footage for cost calculation (sum of all dimensions)
+  filmCost: decimal("film_cost", { precision: 10, scale: 2 }), // Total film cost for the job
+  windowAssignments: json("window_assignments"), // Store detailed window-installer assignments
+  totalWindows: int("total_windows").notNull().default(7),
   startTime: timestamp("start_time"), // Job start time
   endTime: timestamp("end_time"), // Job end time
-  durationMinutes: integer("duration_minutes"), // Total job duration in minutes
+  durationMinutes: int("duration_minutes"), // Total job duration in minutes
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Separate table for multiple dimension entries per job
-export const jobDimensions = pgTable("job_dimensions", {
-  id: serial("id").primaryKey(),
-  jobEntryId: integer("job_entry_id").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
-  filmId: integer("film_id").references(() => films.id), // Add film type per dimension
-  lengthInches: numeric("length_inches", { precision: 8, scale: 2 }).notNull(),
-  widthInches: numeric("width_inches", { precision: 8, scale: 2 }).notNull(),
-  sqft: numeric("sqft", { precision: 10, scale: 4 }).notNull(), // Calculated L*W/144
-  filmCost: numeric("film_cost", { precision: 10, scale: 2 }), // Cost for this specific dimension
-  description: varchar("description"), // Optional description (e.g., "Front windshield", "Side windows")
+export const jobDimensions = mysqlTable("job_dimensions", {
+  id: int("id").primaryKey().autoincrement(),
+  jobEntryId: int("job_entry_id").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
+  filmId: int("film_id").references(() => films.id), // Add film type per dimension
+  lengthInches: decimal("length_inches", { precision: 8, scale: 2 }).notNull(),
+  widthInches: decimal("width_inches", { precision: 8, scale: 2 }).notNull(),
+  sqft: decimal("sqft", { precision: 10, scale: 4 }).notNull(), // Calculated L*W/144
+  filmCost: decimal("film_cost", { precision: 10, scale: 2 }), // Cost for this specific dimension
+  description: varchar("description", { length: 255 }), // Optional description (e.g., "Front windshield", "Side windows")
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const jobInstallers = pgTable("job_installers", {
-  id: serial("id").primaryKey(),
-  jobEntryId: integer("job_entry_id").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
-  installerId: varchar("installer_id").notNull().references(() => users.id),
-  timeVariance: integer("time_variance").notNull(), // in minutes, positive or negative for each installer
+export const jobInstallers = mysqlTable("job_installers", {
+  id: int("id").primaryKey().autoincrement(),
+  jobEntryId: int("job_entry_id").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
+  installerId: varchar("installer_id", { length: 255 }).notNull().references(() => users.id),
+  timeVariance: int("time_variance").notNull(), // in minutes, positive or negative for each installer
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const redoEntries = pgTable("redo_entries", {
-  id: serial("id").primaryKey(),
-  jobEntryId: integer("job_entry_id").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
-  installerId: varchar("installer_id").notNull().references(() => users.id),
-  part: varchar("part").notNull(), // "windshield", "rollups", "back_windshield", "quarter"
-  lengthInches: real("length_inches"), // Material consumption length
-  widthInches: real("width_inches"), // Material consumption width
-  sqft: real("sqft"), // Calculated square footage (length * width / 144)
-  filmId: integer("film_id").references(() => films.id), // Add film type per dimension
-  materialCost: numeric("material_cost", { precision: 10, scale: 2 }), // Cost of material used for redo
-  timeMinutes: integer("time_minutes").default(0), // Time spent on redo in minutes
+export const redoEntries = mysqlTable("redo_entries", {
+  id: int("id").primaryKey().autoincrement(),
+  jobEntryId: int("job_entry_id").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
+  installerId: varchar("installer_id", { length: 255 }).notNull().references(() => users.id),
+  part: varchar("part", { length: 100 }).notNull(), // "windshield", "rollups", "back_windshield", "quarter"
+  lengthInches: float("length_inches"), // Material consumption length
+  widthInches: float("width_inches"), // Material consumption width
+  sqft: float("sqft"), // Calculated square footage (length * width / 144)
+  filmId: int("film_id").references(() => films.id), // Add film type per dimension
+  materialCost: decimal("material_cost", { precision: 10, scale: 2 }), // Cost of material used for redo
+  timeMinutes: int("time_minutes").default(0), // Time spent on redo in minutes
   timestamp: timestamp("timestamp").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Time tracking for installer performance
-export const installerTimeEntries = pgTable("installer_time_entries", {
-  id: serial("id").primaryKey(),
-  jobEntryId: integer("job_entry_id").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
-  installerId: varchar("installer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  windowsCompleted: integer("windows_completed").notNull().default(0), // Number of windows assigned to this installer
-  timeMinutes: integer("time_minutes").notNull(), // Time allocated to this installer for this job (in minutes)
+export const installerTimeEntries = mysqlTable("installer_time_entries", {
+  id: int("id").primaryKey().autoincrement(),
+  jobEntryId: int("job_entry_id").notNull().references(() => jobEntries.id, { onDelete: "cascade" }),
+  installerId: varchar("installer_id", { length: 255 }).notNull().references(() => users.id, { onDelete: "cascade" }),
+  windowsCompleted: int("windows_completed").notNull().default(0), // Number of windows assigned to this installer
+  timeMinutes: int("time_minutes").notNull(), // Time allocated to this installer for this job (in minutes)
   createdAt: timestamp("created_at").defaultNow(),
 });
 
