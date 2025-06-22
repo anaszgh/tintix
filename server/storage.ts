@@ -173,8 +173,7 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db
       .insert(users)
       .values(userData)
-      .onConflictDoUpdate({
-        target: users.id,
+      .onDuplicateKeyUpdate({
         set: {
           ...userData,
           updatedAt: new Date(),

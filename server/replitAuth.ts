@@ -5,8 +5,9 @@ import passport from "passport";
 import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
-import connectPg from "connect-pg-simple";
+import MySQLStore from "express-mysql-session";
 import { storage } from "./storage";
+import { pool } from "./db";
 
 if (!process.env.REPLIT_DOMAINS) {
   throw new Error("Environment variable REPLIT_DOMAINS not provided");
@@ -24,13 +25,20 @@ const getOidcConfig = memoize(
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
-  const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
-    ttl: sessionTtl,
-    tableName: "session",
-  });
+  const MySQLStoreConstructor = MySQLStore(session as any);
+  const sessionStore = new MySQLStoreConstructor({
+    expiration: sessionTtl,
+    createDatabaseTable: false, // We already have the session table in our schema
+    schema: {
+      tableName: 'session',
+      columnNames: {
+        session_id: 'sid',
+        expires: 'expire',
+        data: 'sess'
+      }
+    }
+  }, pool as any); // Type assertion for compatibility
+  
   return session({
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,
@@ -78,7 +86,7 @@ export async function setupAuth(app: Express) {
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
     verified: passport.AuthenticateCallback
   ) => {
-    const user = {};
+    const user = tokens.claims();
     updateUserSession(user, tokens);
     await upsertUser(tokens.claims());
     verified(null, user);
