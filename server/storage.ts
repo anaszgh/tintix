@@ -71,8 +71,10 @@ export interface IStorage {
   }): Promise<{
     totalVehicles: number;
     totalRedos: number;
+    totalWindows: number;
     avgTimeVariance: number;
     activeInstallers: number;
+    jobsWithoutRedos: number;
   }>;
   
   getTopPerformers(limit?: number, filters?: {
@@ -170,7 +172,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
-    const [user] = await db
+    await db
       .insert(users)
       .values(userData)
       .onDuplicateKeyUpdate({
@@ -178,26 +180,41 @@ export class DatabaseStorage implements IStorage {
           ...userData,
           updatedAt: new Date(),
         },
-      })
-      .returning();
+      });
+    
+    // Fetch the user after upsert since MySQL doesn't support returning
+    const [user] = await db.select().from(users).where(eq(users.id, userData.id));
+    if (!user) {
+      throw new Error('Failed to retrieve user after upsert');
+    }
     return user;
   }
 
   async updateUserRole(userId: string, role: string): Promise<User> {
-    const [user] = await db
+    await db
       .update(users)
       .set({ role, updatedAt: new Date() })
-      .where(eq(users.id, userId))
-      .returning();
+      .where(eq(users.id, userId));
+    
+    // Fetch the user after update since MySQL doesn't support returning
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user) {
+      throw new Error('Failed to retrieve user after update');
+    }
     return user;
   }
 
   async updateUserHourlyRate(userId: string, hourlyRate: string): Promise<User> {
-    const [user] = await db
+    await db
       .update(users)
       .set({ hourlyRate, updatedAt: new Date() })
-      .where(eq(users.id, userId))
-      .returning();
+      .where(eq(users.id, userId));
+    
+    // Fetch the user after update since MySQL doesn't support returning
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user) {
+      throw new Error('Failed to retrieve user after update');
+    }
     return user;
   }
 
@@ -224,14 +241,19 @@ export class DatabaseStorage implements IStorage {
     const nextJobNumber = existingEntries.length + 1;
     const jobNumber = `JOB-${nextJobNumber}`;
 
-    const [entry] = await db
+    const result = await db
       .insert(jobEntries)
       .values({
         ...jobEntry,
         jobNumber,
         windowAssignments: jobEntry.windowAssignments ? JSON.stringify(jobEntry.windowAssignments) : null,
-      })
-      .returning();
+      });
+    
+    // Get the inserted job entry since MySQL doesn't support returning
+    const [entry] = await db
+      .select()
+      .from(jobEntries)
+      .where(eq(jobEntries.jobNumber, jobNumber));
     
     // Add dimensions if provided and calculate total square footage and film cost
     let totalSqft = 0;
@@ -458,31 +480,58 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateJobEntry(id: number, jobEntry: Partial<InsertJobEntry>): Promise<JobEntry> {
-    const [entry] = await db
+    await db
       .update(jobEntries)
       .set({ ...jobEntry, updatedAt: new Date() })
-      .where(eq(jobEntries.id, id))
-      .returning();
+      .where(eq(jobEntries.id, id));
+    
+    // Fetch the updated job entry since MySQL doesn't support returning
+    const [entry] = await db.select().from(jobEntries).where(eq(jobEntries.id, id));
+    if (!entry) {
+      throw new Error('Failed to retrieve job entry after update');
+    }
     return entry;
   }
 
   async deleteJobEntry(id: number): Promise<void> {
-    // Delete related job installers first
+    // Delete all related records first (in order of foreign key dependencies)
+    
+    // 1. Delete inventory transactions that reference this job entry
+    await db.delete(inventoryTransactions).where(eq(inventoryTransactions.jobEntryId, id));
+    
+    // 2. Delete installer time entries
+    await db.delete(installerTimeEntries).where(eq(installerTimeEntries.jobEntryId, id));
+    
+    // 3. Delete job dimensions
+    await db.delete(jobDimensions).where(eq(jobDimensions.jobEntryId, id));
+    
+    // 4. Delete related job installers
     await db.delete(jobInstallers).where(eq(jobInstallers.jobEntryId, id));
     
-    // Delete related redo entries
+    // 5. Delete related redo entries
     await db.delete(redoEntries).where(eq(redoEntries.jobEntryId, id));
     
-    // Finally delete the job entry
+    // 6. Finally delete the job entry itself
     await db.delete(jobEntries).where(eq(jobEntries.id, id));
   }
 
   // Job installer operations
   async createJobInstaller(jobInstaller: InsertJobInstaller): Promise<JobInstaller> {
-    const [installer] = await db
+    await db
       .insert(jobInstallers)
-      .values(jobInstaller)
-      .returning();
+      .values(jobInstaller);
+    
+    // Fetch the created job installer since MySQL doesn't support returning
+    const [installer] = await db
+      .select()
+      .from(jobInstallers)
+      .where(and(
+        eq(jobInstallers.jobEntryId, jobInstaller.jobEntryId),
+        eq(jobInstallers.installerId, jobInstaller.installerId)
+      ));
+    if (!installer) {
+      throw new Error('Failed to retrieve job installer after creation');
+    }
     return installer;
   }
 
@@ -497,10 +546,21 @@ export class DatabaseStorage implements IStorage {
 
   // Redo entry operations
   async createRedoEntry(redoEntry: InsertRedoEntry): Promise<RedoEntry> {
-    const [entry] = await db
+    await db
       .insert(redoEntries)
-      .values(redoEntry)
-      .returning();
+      .values(redoEntry);
+    
+    // Get the most recently created redo entry for this job
+    const [entry] = await db
+      .select()
+      .from(redoEntries)
+      .where(eq(redoEntries.jobEntryId, redoEntry.jobEntryId))
+      .orderBy(desc(redoEntries.id))
+      .limit(1);
+    
+    if (!entry) {
+      throw new Error('Failed to retrieve redo entry after creation');
+    }
     return entry;
   }
 
@@ -557,7 +617,7 @@ export class DatabaseStorage implements IStorage {
     // Calculate average time variance from existing job entries only
     const [timeVarianceMetrics] = await db
       .select({
-        avgTimeVariance: sql<number>`COALESCE(AVG(${jobInstallers.timeVariance}::numeric), 0)`,
+        avgTimeVariance: sql<number>`COALESCE(AVG(CAST(${jobInstallers.timeVariance} AS DECIMAL)), 0)`,
       })
       .from(jobInstallers)
       .innerJoin(jobEntries, eq(jobInstallers.jobEntryId, jobEntries.id))
@@ -1015,19 +1075,38 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createFilm(filmData: InsertFilm): Promise<Film> {
-    const [film] = await db
+    await db
       .insert(films)
-      .values(filmData)
-      .returning();
+      .values(filmData);
+    
+    // Get the most recently created film with matching name and type
+    const [film] = await db
+      .select()
+      .from(films)
+      .where(and(
+        eq(films.name, filmData.name),
+        eq(films.type, filmData.type)
+      ))
+      .orderBy(desc(films.id))
+      .limit(1);
+    
+    if (!film) {
+      throw new Error('Failed to retrieve film after creation');
+    }
     return film;
   }
 
   async updateFilm(id: number, filmData: Partial<InsertFilm>): Promise<Film> {
-    const [film] = await db
+    await db
       .update(films)
       .set({ ...filmData, updatedAt: new Date() })
-      .where(eq(films.id, id))
-      .returning();
+      .where(eq(films.id, id));
+    
+    // Fetch the updated film since MySQL doesn't support returning
+    const [film] = await db.select().from(films).where(eq(films.id, id));
+    if (!film) {
+      throw new Error('Failed to retrieve film after update');
+    }
     return film;
   }
 
@@ -1193,24 +1272,28 @@ export class DatabaseStorage implements IStorage {
 
     if (inventory) {
       // Update existing inventory
-      [inventory] = await db
+      await db
         .update(filmInventory)
         .set({ 
           currentStock: newStock.toString(),
           updatedAt: new Date()
         })
-        .where(eq(filmInventory.filmId, filmId))
-        .returning();
+        .where(eq(filmInventory.filmId, filmId));
     } else {
       // Create new inventory record
-      [inventory] = await db
+      await db
         .insert(filmInventory)
         .values({
           filmId,
           currentStock: newStock.toString(),
           minimumStock: "0.00"
-        })
-        .returning();
+        });
+    }
+
+    // Get updated inventory since MySQL doesn't support returning
+    inventory = await this.getFilmInventory(filmId);
+    if (!inventory) {
+      throw new Error('Failed to retrieve inventory after update');
     }
 
     // Log transaction
@@ -1235,24 +1318,28 @@ export class DatabaseStorage implements IStorage {
 
     if (inventory) {
       // Update existing inventory
-      [inventory] = await db
+      await db
         .update(filmInventory)
         .set({ 
           currentStock: newStock.toString(),
           updatedAt: new Date()
         })
-        .where(eq(filmInventory.filmId, filmId))
-        .returning();
+        .where(eq(filmInventory.filmId, filmId));
     } else {
       // Create new inventory record with negative deduction
-      [inventory] = await db
+      await db
         .insert(filmInventory)
         .values({
           filmId,
           currentStock: newStock.toString(),
           minimumStock: "0.00"
-        })
-        .returning();
+        });
+    }
+
+    // Get updated inventory since MySQL doesn't support returning
+    inventory = await this.getFilmInventory(filmId);
+    if (!inventory) {
+      throw new Error('Failed to retrieve inventory after update');
     }
 
     // Log transaction
@@ -1277,24 +1364,28 @@ export class DatabaseStorage implements IStorage {
 
     if (inventory) {
       // Update existing inventory
-      [inventory] = await db
+      await db
         .update(filmInventory)
         .set({ 
           currentStock: newStock.toString(),
           updatedAt: new Date()
         })
-        .where(eq(filmInventory.filmId, filmId))
-        .returning();
+        .where(eq(filmInventory.filmId, filmId));
     } else {
       // Create new inventory record
-      [inventory] = await db
+      await db
         .insert(filmInventory)
         .values({
           filmId,
           currentStock: newStock.toString(),
           minimumStock: "0.00"
-        })
-        .returning();
+        });
+    }
+
+    // Get updated inventory since MySQL doesn't support returning
+    inventory = await this.getFilmInventory(filmId);
+    if (!inventory) {
+      throw new Error('Failed to retrieve inventory after update');
     }
 
     // Log transaction
@@ -1317,24 +1408,28 @@ export class DatabaseStorage implements IStorage {
 
     if (inventory) {
       // Update existing inventory
-      [inventory] = await db
+      await db
         .update(filmInventory)
         .set({ 
           minimumStock: minimumStock.toString(),
           updatedAt: new Date()
         })
-        .where(eq(filmInventory.filmId, filmId))
-        .returning();
+        .where(eq(filmInventory.filmId, filmId));
     } else {
       // Create new inventory record
-      [inventory] = await db
+      await db
         .insert(filmInventory)
         .values({
           filmId,
           currentStock: "0.00",
           minimumStock: minimumStock.toString()
-        })
-        .returning();
+        });
+    }
+
+    // Get updated inventory since MySQL doesn't support returning
+    inventory = await this.getFilmInventory(filmId);
+    if (!inventory) {
+      throw new Error('Failed to retrieve inventory after update');
     }
 
     return inventory;

@@ -2,9 +2,9 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupLocalAuth, isAuthenticated } from "./auth/local-auth";
-import { insertJobEntrySchema, insertRedoEntrySchema, insertJobInstallerSchema, films } from "@shared/schema";
+import { insertJobEntrySchema, insertRedoEntrySchema, insertJobInstallerSchema, films, jobEntries, users } from "@shared/schema";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { eq, count } from "drizzle-orm";
 import { db } from "./db";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -457,6 +457,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting job entry:", error);
       res.status(500).json({ message: "Failed to delete job entry" });
+    }
+  });
+
+  // Debug endpoint to check database state
+  app.get("/api/debug/database-check", isAuthenticated, async (req: any, res) => {
+    try {
+      const jobEntriesCount = await db.select({ count: count() }).from(jobEntries);
+      const usersCount = await db.select({ count: count() }).from(users);
+      const installersCount = await db.select({ count: count() }).from(users).where(eq(users.role, "installer"));
+      
+      res.json({
+        jobEntries: jobEntriesCount[0]?.count || 0,
+        totalUsers: usersCount[0]?.count || 0,
+        installers: installersCount[0]?.count || 0,
+      });
+    } catch (error) {
+      console.error("Error checking database:", error);
+      res.status(500).json({ message: "Failed to check database" });
     }
   });
 

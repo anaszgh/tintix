@@ -164,7 +164,14 @@ export function setupLocalAuth(app: Express) {
   app.post("/api/auth/logout", (req, res, next) => {
     req.logout((err) => {
       if (err) return next(err);
-      res.sendStatus(200);
+      // Destroy the session completely
+      req.session.destroy((sessionErr) => {
+        if (sessionErr) {
+          console.error('Session destruction error:', sessionErr);
+        }
+        res.clearCookie('connect.sid'); // Clear the session cookie
+        res.json({ message: "Logged out successfully" });
+      });
     });
   });
 

@@ -1,8 +1,10 @@
 export interface DashboardMetrics {
   totalVehicles: number;
   totalRedos: number;
+  totalWindows: number;
   avgTimeVariance: number;
   activeInstallers: number;
+  jobsWithoutRedos: number;
 }
 
 export interface TopPerformer {

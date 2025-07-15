@@ -2,10 +2,46 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Car, BarChart3, Plus, List, LogOut, User, Users, Clock, FileText, Package } from "lucide-react";
+import { queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export function Sidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+      
+      if (response.ok) {
+        // Clear the user data from the query cache
+        queryClient.setQueryData(["/api/auth/user"], null);
+        queryClient.clear();
+        
+        // Show success message
+        toast({
+          title: "Logged out successfully",
+          description: "You have been logged out.",
+        });
+        
+        // Redirect to auth page
+        window.location.href = "/auth";
+      } else {
+        throw new Error("Logout failed");
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast({
+        title: "Logout failed",
+        description: "There was an error logging out. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const getNavigationForRole = () => {
     const userRole = user?.role || '';
@@ -91,7 +127,7 @@ export function Sidebar() {
             <Button 
               variant="ghost" 
               size="sm"
-              onClick={() => window.location.href = "/api/logout"}
+              onClick={handleLogout}
               className="text-muted-foreground hover:text-card-foreground p-1"
             >
               <LogOut className="h-4 w-4" />
